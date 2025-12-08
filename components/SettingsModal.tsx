@@ -22,6 +22,7 @@ export const SettingsModal: React.FC<Props> = ({
   const [clientId, setClientId] = useState(currentCreds.clientId || '');
   const [accessToken, setAccessToken] = useState(currentCreds.accessToken || '');
   const [localKickUser, setLocalKickUser] = useState(kickUsername || '');
+  const [authMethod, setAuthMethod] = useState<'auto' | 'manual'>('manual'); // Default to manual for ease of use
 
   // Update local state when props change
   useEffect(() => {
@@ -32,17 +33,28 @@ export const SettingsModal: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
+  const currentUrl = window.location.origin + window.location.pathname;
+
   const handleTwitchLogin = () => {
     if (!clientId) {
         alert("Por favor, insira um Client ID primeiro.");
         return;
     }
-    // Implicit Grant Flow
-    const redirectUri = window.location.origin; // e.g., http://localhost:5173
+    // Implicit Grant Flow via POPUP
+    const redirectUri = window.location.origin; 
     const scope = 'chat:read user:read:email';
     const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}`;
     
-    window.location.href = authUrl;
+    const width = 500;
+    const height = 700;
+    const left = (window.innerWidth - width) / 2;
+    const top = (window.innerHeight - height) / 2;
+    
+    window.open(
+        authUrl, 
+        'TwitchLogin', 
+        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,status=yes,resizable=yes`
+    );
   };
 
   const handleSave = () => {
@@ -54,88 +66,158 @@ export const SettingsModal: React.FC<Props> = ({
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
-      <div className="bg-[#0f0f11] border border-glass-border w-full max-w-lg p-6 rounded-2xl shadow-2xl relative z-10 animate-slide-in">
-        <h2 className="text-2xl font-display font-bold mb-6 text-white">
+      <div className="bg-[#0f0f11] border border-glass-border w-full max-w-xl p-6 rounded-2xl shadow-2xl relative z-10 animate-slide-in max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <h2 className="text-2xl font-display font-bold mb-6 text-white sticky top-0 bg-[#0f0f11] py-2 z-20">
            Contas & Conexões
         </h2>
         
         <div className="space-y-8">
             {/* TWITCH SECTION */}
             <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-white/10 pb-2">
-                    <TwitchLogo className="w-5 h-5 text-twitch" />
-                    <h3 className="font-bold text-lg text-gray-200">Twitch</h3>
+                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <div className="flex items-center gap-2">
+                        <TwitchLogo className="w-6 h-6 text-twitch" />
+                        <h3 className="font-bold text-xl text-gray-200">Twitch</h3>
+                    </div>
                 </div>
 
-                <div className="bg-twitch/5 p-4 rounded-xl border border-twitch/10">
-                    <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider">Client ID</label>
-                    <input 
-                        type="text" 
-                        value={clientId}
-                        onChange={e => setClientId(e.target.value)}
-                        className="w-full bg-black/50 border border-glass-border rounded-lg p-3 text-sm focus:border-twitch outline-none transition-colors mb-3"
-                        placeholder="Insira seu Client ID da Twitch Dev"
-                    />
+                {/* TABS */}
+                <div className="flex p-1 bg-black/50 rounded-lg border border-white/5 mb-4">
+                    <button
+                        onClick={() => setAuthMethod('manual')}
+                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${authMethod === 'manual' ? 'bg-twitch text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                        Gerador (Fácil)
+                    </button>
+                    <button
+                        onClick={() => setAuthMethod('auto')}
+                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${authMethod === 'auto' ? 'bg-twitch text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                        App Próprio (Avançado)
+                    </button>
+                </div>
+
+                <div className="bg-twitch/5 p-5 rounded-xl border border-twitch/10">
                     
-                    {accessToken ? (
-                        <div className="flex items-center gap-2 text-green-400 text-sm font-medium bg-green-400/10 p-2 rounded">
-                            <span>✓ Conectado com sucesso</span>
-                            <button onClick={() => setAccessToken('')} className="text-xs text-gray-500 hover:text-white underline ml-auto">Desconectar</button>
+                    {/* MANUAL METHOD (GENERATOR) */}
+                    {authMethod === 'manual' && (
+                        <div className="animate-slide-in">
+                            <p className="text-xs text-gray-400 mb-4 leading-relaxed">
+                                Use o site <strong>TwitchTokenGenerator</strong> para criar suas credenciais rapidamente sem precisar configurar um app.
+                            </p>
+                            
+                            <a 
+                                href="https://twitchtokengenerator.com/quick/oIe0E40y5a" 
+                                target="_blank" 
+                                rel="noopener noreferrer nofollow"
+                                className="flex items-center justify-center gap-2 w-full py-3 bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/20 hover:bg-[#00f0ff]/20 rounded-lg text-xs font-bold mb-5 transition-all"
+                            >
+                                🔗 Abrir Gerador de Token
+                            </a>
+
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider font-bold">Client ID Gerado</label>
+                                    <input 
+                                        type="text" 
+                                        value={clientId}
+                                        onChange={e => setClientId(e.target.value)}
+                                        className="w-full bg-black/50 border border-glass-border rounded-lg p-2.5 text-sm focus:border-twitch outline-none transition-colors"
+                                        placeholder="Cole o Client ID aqui"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider font-bold">Access Token Gerado</label>
+                                    <input 
+                                        type="password" 
+                                        value={accessToken}
+                                        onChange={e => setAccessToken(e.target.value)}
+                                        className="w-full bg-black/50 border border-glass-border rounded-lg p-2.5 text-sm focus:border-twitch outline-none transition-colors"
+                                        placeholder="Cole o Access Token aqui"
+                                    />
+                                </div>
+                            </div>
                         </div>
-                    ) : (
-                        <button 
-                            type="button"
-                            onClick={handleTwitchLogin}
-                            className="w-full py-2.5 rounded-lg bg-twitch text-white font-medium hover:bg-twitch/90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-twitch/20"
-                        >
-                            <TwitchLogo className="w-4 h-4" />
-                            Entrar com a Twitch
-                        </button>
                     )}
-                    <p className="text-[10px] text-gray-500 mt-2">
-                        Necessário para ler Badges e Viewers reais. O token é salvo no seu navegador.
-                        <a href="https://dev.twitch.tv/console" target="_blank" className="text-twitch hover:underline ml-1">Obter Client ID</a>
-                    </p>
+
+                    {/* AUTO METHOD (OWN APP) */}
+                    {authMethod === 'auto' && (
+                        <div className="animate-slide-in">
+                            <div className="mb-4 p-3 bg-black/30 rounded border border-white/5">
+                                <label className="block text-[10px] font-mono text-gray-400 mb-1 uppercase tracking-wider font-bold">Redirect URL Obrigatória</label>
+                                <div className="flex items-center gap-2">
+                                    <code className="text-[10px] text-green-400 font-mono break-all select-all">{currentUrl}</code>
+                                </div>
+                                <a href="https://dev.twitch.tv/console/apps" target="_blank" className="text-[10px] text-twitch hover:underline mt-1 block">Ir para Console Dev</a>
+                            </div>
+
+                            <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider font-bold">Seu Client ID</label>
+                            <input 
+                                type="text" 
+                                value={clientId}
+                                onChange={e => setClientId(e.target.value)}
+                                className="w-full bg-black/50 border border-glass-border rounded-lg p-3 text-sm focus:border-twitch outline-none transition-colors mb-4"
+                                placeholder="Client ID do seu App"
+                            />
+                            
+                            {!accessToken && (
+                                <button 
+                                    type="button"
+                                    onClick={handleTwitchLogin}
+                                    className="w-full py-3 rounded-lg bg-twitch text-white font-bold text-xs hover:bg-twitch/90 transition-all shadow-lg shadow-twitch/20"
+                                >
+                                    Autenticar via Popup
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {/* SUCCESS STATE (SHARED) */}
+                    {accessToken && (
+                         <div className="mt-4 flex items-center justify-between bg-green-500/10 border border-green-500/20 p-3 rounded-lg animate-slide-in">
+                            <div className="flex items-center gap-2 text-green-400 text-sm font-bold">
+                                <span>✓ Token Salvo</span>
+                            </div>
+                            <button onClick={() => setAccessToken('')} className="text-xs text-gray-400 hover:text-white underline">Remover</button>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* KICK SECTION */}
             <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-white/10 pb-2">
-                    <KickLogo className="w-5 h-5 text-kick" />
-                    <h3 className="font-bold text-lg text-gray-200">Kick</h3>
+                    <KickLogo className="w-6 h-6 text-kick" />
+                    <h3 className="font-bold text-xl text-gray-200">Kick</h3>
                 </div>
                 
-                <div className="bg-kick/5 p-4 rounded-xl border border-kick/10">
-                    <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider">Seu Username na Kick</label>
+                <div className="bg-kick/5 p-5 rounded-xl border border-kick/10">
+                    <label className="block text-xs font-mono text-gray-500 mb-2 uppercase tracking-wider font-bold">Seu Username na Kick</label>
                     <input 
                         type="text" 
                         value={localKickUser}
                         onChange={e => setLocalKickUser(e.target.value)}
-                        className="w-full bg-black/50 border border-glass-border rounded-lg p-3 text-sm focus:border-kick outline-none transition-colors"
+                        className="w-full bg-black/50 border border-glass-border rounded-lg p-3 text-base focus:border-kick outline-none transition-colors placeholder-gray-700"
                         placeholder="Ex: ViictorN"
                     />
-                    <p className="text-[10px] text-gray-500 mt-2">
-                        Usado para identificar sua sessão. A Kick não possui login público.
-                    </p>
                 </div>
             </div>
         </div>
 
-        <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-white/10">
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-8 pt-4 border-t border-white/10">
             <button 
                 type="button"
                 onClick={onClose}
-                className="px-6 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
             >
                 Cancelar
             </button>
             <button 
                 type="button"
                 onClick={handleSave}
-                className="px-6 py-2.5 rounded-xl text-sm font-bold bg-white text-black hover:bg-gray-200 transition-colors shadow-lg"
+                className="w-full sm:w-auto px-8 py-3 rounded-xl text-sm font-bold bg-white text-black hover:bg-gray-200 transition-colors shadow-lg active:scale-[0.98]"
             >
-                Salvar Alterações
+                Salvar Tudo
             </button>
         </div>
       </div>

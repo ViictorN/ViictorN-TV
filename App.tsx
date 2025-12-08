@@ -61,19 +61,32 @@ export default function App() {
 
   // Init logic
   useEffect(() => {
-    // 0. Check for Twitch OAuth Redirect
-    const hash = window.location.hash;
-    if (hash && hash.includes('access_token')) {
-        const params = new URLSearchParams(hash.substring(1));
-        const token = params.get('access_token');
-        if (token) {
-            setTwitchCreds(prev => ({ ...prev, accessToken: token }));
-            // Limpa a URL
-            window.history.replaceState(null, '', window.location.pathname);
-            // Abre settings para confirmar ou fecha se já tiver clientID
-            if (!twitchCreds.clientId) setIsSettingsOpen(true);
+    // --- POPUP HANDLER (CHILD) ---
+    // If this window is a popup opened by the main app and has a hash (OAuth return)
+    if (window.opener && window.location.hash.includes('access_token')) {
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token');
+        
+        if (accessToken) {
+            // Send token back to main window
+            window.opener.postMessage({ type: 'TWITCH_AUTH_SUCCESS', accessToken }, window.location.origin);
+            window.close(); // Close this popup
         }
+        return; // Stop rendering the full app in the popup
     }
+
+    // --- MAIN APP HANDLER (PARENT) ---
+    const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data && event.data.type === 'TWITCH_AUTH_SUCCESS') {
+            const { accessToken } = event.data;
+            setTwitchCreds(prev => ({ ...prev, accessToken }));
+            setIsSettingsOpen(true); // Re-open settings to show success state
+        }
+    };
+    window.addEventListener('message', handleMessage);
 
     // 1. Player Twitch - Robustez no 'parent'
     const hostname = window.location.hostname;
@@ -101,6 +114,7 @@ export default function App() {
     return () => {
         clearInterval(poll);
         clearInterval(buffer);
+        window.removeEventListener('message', handleMessage);
     };
   }, []);
 
