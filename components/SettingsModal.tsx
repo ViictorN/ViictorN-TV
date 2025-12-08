@@ -107,7 +107,7 @@ export const SettingsModal: React.FC<Props> = ({
                             </p>
                             
                             <a 
-                                href="https://twitchtokengenerator.com/quick/oIe0E40y5a" 
+                                href="https://twitchtokengenerator.com/" 
                                 target="_blank" 
                                 rel="noopener noreferrer nofollow"
                                 className="flex items-center justify-center gap-2 w-full py-3 bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/20 hover:bg-[#00f0ff]/20 rounded-lg text-xs font-bold mb-5 transition-all"
