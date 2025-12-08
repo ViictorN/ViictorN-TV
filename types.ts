@@ -35,6 +35,8 @@ export interface StreamStats {
 export interface AuthState {
   twitch: boolean;
   kick: boolean;
+  twitchUsername?: string;
+  kickUsername?: string;
 }
 
 // Map: BadgeSetID -> VersionID -> ImageURL

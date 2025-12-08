@@ -14,7 +14,15 @@ const TWITCH_USER_LOGIN = 'gabepeixe';
 
 export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [authState, setAuthState] = useState<AuthState>({ twitch: false, kick: false });
+  
+  // Auth state now tracks connection status
+  const [authState, setAuthState] = useState<AuthState>({ 
+    twitch: false, 
+    kick: false,
+    twitchUsername: '',
+    kickUsername: ''
+  });
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [playerUrl, setPlayerUrl] = useState<string>('');
@@ -29,7 +37,7 @@ export default function App() {
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [twitchCreds, setTwitchCreds] = useState<TwitchCreds>(() => {
-    // Carrega do localStorage na inicialização (Persistência)
+    // Persistência
     if (typeof window !== 'undefined') {
         const saved = localStorage.getItem('twitch_creds');
         return saved ? JSON.parse(saved) : { clientId: '', accessToken: '' };
@@ -37,6 +45,10 @@ export default function App() {
     return { clientId: '', accessToken: '' };
   });
   
+  const [kickUsername, setKickUsername] = useState(() => {
+     return localStorage.getItem('kick_username') || '';
+  });
+
   // Asset storage
   const [globalBadges, setGlobalBadges] = useState<BadgeMap>({});
   const [channelBadges, setChannelBadges] = useState<BadgeMap>({});
@@ -49,30 +61,41 @@ export default function App() {
 
   // Init logic
   useEffect(() => {
+    // 0. Check for Twitch OAuth Redirect
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+        const params = new URLSearchParams(hash.substring(1));
+        const token = params.get('access_token');
+        if (token) {
+            setTwitchCreds(prev => ({ ...prev, accessToken: token }));
+            // Limpa a URL
+            window.history.replaceState(null, '', window.location.pathname);
+            // Abre settings para confirmar ou fecha se já tiver clientID
+            if (!twitchCreds.clientId) setIsSettingsOpen(true);
+        }
+    }
+
     // 1. Player Twitch - Robustez no 'parent'
-    // A Twitch exige que o parent seja exato e inclua o domínio onde o site está rodando.
     const hostname = window.location.hostname;
     const parents = new Set(['localhost', '127.0.0.1']);
     
-    // Adiciona o hostname atual se não for localhost
     if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
         parents.add(hostname);
     }
 
     const parentQuery = Array.from(parents).map(p => `parent=${p}`).join('&');
-    // Adiciona parent dinâmico para garantir funcionamento em qualquer host
     const url = `https://player.twitch.tv/?channel=${STREAMER_SLUG}&${parentQuery}&muted=false&autoplay=true`;
     setPlayerUrl(url);
 
     // 2. Load Initial Data
-    fetchStats(); // Fetch inicial
+    fetchStats();
     
     // 3. Load 7TV Emotes
     fetch7TVEmotes().then(map => {
         setSevenTVEmotes(map);
     });
 
-    const poll = setInterval(fetchStats, 30000); // Polling a cada 30s
+    const poll = setInterval(fetchStats, 30000);
     const buffer = setInterval(flushBuffer, 300);
 
     return () => {
@@ -81,14 +104,29 @@ export default function App() {
     };
   }, []);
 
-  // Recarregar dados da Twitch sempre que as credenciais mudarem
+  // Update Auth State based on Creds
   useEffect(() => {
     localStorage.setItem('twitch_creds', JSON.stringify(twitchCreds));
-    if (twitchCreds.accessToken && twitchCreds.clientId) {
+    
+    const isTwitchReady = !!(twitchCreds.accessToken && twitchCreds.clientId);
+    setAuthState(prev => ({ ...prev, twitch: isTwitchReady }));
+
+    if (isTwitchReady) {
         fetchTwitchData();
-        fetchStats(); // Tenta buscar stats imediatamente após salvar
+        fetchStats();
     }
   }, [twitchCreds]);
+
+  // Update Kick Auth State
+  useEffect(() => {
+      localStorage.setItem('kick_username', kickUsername);
+      setAuthState(prev => ({ 
+          ...prev, 
+          kick: !!kickUsername, 
+          kickUsername: kickUsername 
+      }));
+  }, [kickUsername]);
+
 
   const flushBuffer = () => {
     if (messageQueue.current.length > 0) {
@@ -119,11 +157,10 @@ export default function App() {
             }
         }
     } catch (e) {
-        console.warn("[Kick Stats] Falha ao obter dados (bloqueio de CORS/Cloudflare comum na Kick)");
-        // Não reseta para 0 para evitar flicker se já tiver dados antigos
+        console.warn("[Kick Stats] Falha ao obter dados");
     }
 
-    // Twitch Stats (Somente se autenticado)
+    // Twitch Stats
     if (twitchCreds.accessToken && twitchCreds.clientId) {
         try {
             const res = await fetch(`https://api.twitch.tv/helix/streams?user_login=${TWITCH_USER_LOGIN}`, {
@@ -163,25 +200,30 @@ export default function App() {
             'Authorization': `Bearer ${twitchCreds.accessToken}`
         };
 
-        // 1. Get User ID
+        // 1. Get User ID (Gabepeixe)
         const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${TWITCH_USER_LOGIN}`, { headers });
         const userData = await userRes.json();
         const userId = userData.data?.[0]?.id;
 
+        // 2. Get My User Info (for AuthState)
+        const myUserRes = await fetch(`https://api.twitch.tv/helix/users`, { headers });
+        const myData = await myUserRes.json();
+        if (myData.data && myData.data.length > 0) {
+            setAuthState(prev => ({ ...prev, twitchUsername: myData.data[0].display_name }));
+        }
+
         if (userId) {
-             // 2. Fetch Channel Badges
              const channelBadgesRes = await fetch(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${userId}`, { headers });
              const cbData = await channelBadgesRes.json();
              setChannelBadges(parseBadgeSet(cbData.data));
         }
 
-        // 3. Fetch Global Badges
         const globalBadgesRes = await fetch(`https://api.twitch.tv/helix/chat/badges/global`, { headers });
         const gbData = await globalBadgesRes.json();
         setGlobalBadges(parseBadgeSet(gbData.data));
 
     } catch (e) {
-        console.error("[Twitch Badges] Erro ao carregar badges reais", e);
+        console.error("[Twitch Badges] Erro ao carregar dados", e);
     }
   };
 
@@ -191,7 +233,7 @@ export default function App() {
      data.forEach((set: any) => {
          const versions: Record<string, string> = {};
          set.versions.forEach((v: any) => {
-             versions[v.id] = v.image_url_2x || v.image_url_1x; // Prefer high res
+             versions[v.id] = v.image_url_2x || v.image_url_1x;
          });
          map[set.set_id] = versions;
      });
@@ -215,6 +257,7 @@ export default function App() {
 
   // Connection management
   useEffect(() => {
+    // Twitch Connection
     if (authState.twitch && !twitchRef.current) {
       twitchRef.current = new TwitchConnection(STREAMER_SLUG, handleNewMessage);
       twitchRef.current.connect();
@@ -225,6 +268,7 @@ export default function App() {
       addSystemMsg('Twitch', false);
     }
 
+    // Kick Connection
     if (authState.kick && !kickRef.current) {
       kickRef.current = new KickConnection(STREAMER_SLUG, handleNewMessage);
       kickRef.current.connect();
@@ -234,7 +278,7 @@ export default function App() {
       kickRef.current = null;
       addSystemMsg('Kick', false);
     }
-  }, [authState]);
+  }, [authState.twitch, authState.kick]); // Depend on flags specifically
 
   const addSystemMsg = (platform: string, connected: boolean) => {
     handleNewMessage({
@@ -247,7 +291,8 @@ export default function App() {
   };
 
   const handleToggleAuth = (platform: 'twitch' | 'kick') => {
-    setAuthState(prev => ({ ...prev, [platform]: !prev[platform] }));
+    // Opens settings to login/logout instead of simple toggle
+    setIsSettingsOpen(true);
   };
 
   const handleAnalyze = async () => {
@@ -266,7 +311,9 @@ export default function App() {
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)} 
         currentCreds={twitchCreds}
-        onSave={setTwitchCreds}
+        onSaveTwitch={setTwitchCreds}
+        kickUsername={kickUsername}
+        onSaveKick={setKickUsername}
       />
 
       <ControlPanel 
@@ -278,11 +325,10 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
-      {/* Main Layout: Column on Mobile/Tablet, Row on Desktop */}
+      {/* Main Layout */}
       <div className="flex flex-1 flex-col lg:flex-row overflow-hidden relative z-20">
         
-        {/* Player Section */}
-        {/* Mobile: 35vh height | Desktop: Flex-1 */}
+        {/* Player */}
         <div className="w-full lg:flex-1 h-[35vh] lg:h-auto bg-black relative shrink-0">
             {playerUrl && (
               <iframe
@@ -309,8 +355,7 @@ export default function App() {
           )}
         </div>
 
-        {/* Chat Section */}
-        {/* Mobile: Fills remaining height | Desktop: Fixed Width */}
+        {/* Chat */}
         <div className="w-full lg:w-[380px] xl:w-[420px] flex-1 lg:flex-none lg:h-auto bg-[#09090b] border-t lg:border-t-0 lg:border-l border-glass-border flex flex-col z-10 shadow-2xl">
           <div className="flex-1 overflow-y-auto custom-scrollbar relative px-1 pt-2" ref={chatContainerRef}>
             <div className="min-h-full flex flex-col justify-end pb-2">
@@ -335,7 +380,7 @@ export default function App() {
 
           <div className="p-3 bg-[#09090b] border-t border-glass-border">
              <div className="relative flex items-center bg-[#121214] rounded border border-glass-border opacity-70">
-                  <input type="text" placeholder="Chat em modo leitura" disabled className="w-full bg-transparent text-gray-500 px-3 py-2 text-xs focus:outline-none cursor-not-allowed" />
+                  <input type="text" placeholder="Chat em modo leitura (Login via backend em breve)" disabled className="w-full bg-transparent text-gray-500 px-3 py-2 text-xs focus:outline-none cursor-not-allowed" />
                   <button disabled className="p-2 text-gray-600"><SendIcon className="w-4 h-4" /></button>
              </div>
           </div>
