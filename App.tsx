@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ControlPanel } from './components/ControlPanel';
 import { ChatMessageItem } from './components/ChatMessageItem';
 import { SettingsModal } from './components/SettingsModal';
-import { SendIcon } from './components/Icons';
+import { SendIcon, TwitchLogo, KickLogo, ViictorNLogo } from './components/Icons';
 import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, EmoteMap } from './types';
 import { TwitchConnection, KickConnection } from './services/chatConnection';
 import { analyzeChatVibe } from './services/geminiService';
@@ -15,7 +15,7 @@ const TWITCH_USER_LOGIN = 'gabepeixe';
 export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   
-  // Auth state now tracks connection status
+  // Auth state
   const [authState, setAuthState] = useState<AuthState>({ 
     twitch: false, 
     kick: false,
@@ -23,11 +23,15 @@ export default function App() {
     kickUsername: ''
   });
 
+  // UI State
+  const [activePlayer, setActivePlayer] = useState<'twitch' | 'kick' | 'none'>('twitch');
+  const [commentPlatform, setCommentPlatform] = useState<'twitch' | 'kick'>('twitch');
+  const [chatInput, setChatInput] = useState('');
+  
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
-  const [playerUrl, setPlayerUrl] = useState<string>('');
   
-  // Real Stats & API State
+  // Stats
   const [streamStats, setStreamStats] = useState<StreamStats>({ 
     kickViewers: null, 
     twitchViewers: null,
@@ -37,7 +41,6 @@ export default function App() {
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [twitchCreds, setTwitchCreds] = useState<TwitchCreds>(() => {
-    // Persistência
     if (typeof window !== 'undefined') {
         const saved = localStorage.getItem('twitch_creds');
         return saved ? JSON.parse(saved) : { clientId: '', accessToken: '' };
@@ -49,7 +52,7 @@ export default function App() {
      return localStorage.getItem('kick_username') || '';
   });
 
-  // Asset storage
+  // Assets
   const [globalBadges, setGlobalBadges] = useState<BadgeMap>({});
   const [channelBadges, setChannelBadges] = useState<BadgeMap>({});
   const [sevenTVEmotes, setSevenTVEmotes] = useState<EmoteMap>({});
@@ -62,18 +65,16 @@ export default function App() {
   // Init logic
   useEffect(() => {
     // --- POPUP HANDLER (CHILD) ---
-    // If this window is a popup opened by the main app and has a hash (OAuth return)
     if (window.opener && window.location.hash.includes('access_token')) {
         const hash = window.location.hash.substring(1);
         const params = new URLSearchParams(hash);
         const accessToken = params.get('access_token');
         
         if (accessToken) {
-            // Send token back to main window
             window.opener.postMessage({ type: 'TWITCH_AUTH_SUCCESS', accessToken }, window.location.origin);
-            window.close(); // Close this popup
+            window.close();
         }
-        return; // Stop rendering the full app in the popup
+        return;
     }
 
     // --- MAIN APP HANDLER (PARENT) ---
@@ -83,30 +84,14 @@ export default function App() {
         if (event.data && event.data.type === 'TWITCH_AUTH_SUCCESS') {
             const { accessToken } = event.data;
             setTwitchCreds(prev => ({ ...prev, accessToken }));
-            setIsSettingsOpen(true); // Re-open settings to show success state
+            setIsSettingsOpen(true);
         }
     };
     window.addEventListener('message', handleMessage);
 
-    // 1. Player Twitch - Robustez no 'parent'
-    const hostname = window.location.hostname;
-    const parents = new Set(['localhost', '127.0.0.1']);
-    
-    if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-        parents.add(hostname);
-    }
-
-    const parentQuery = Array.from(parents).map(p => `parent=${p}`).join('&');
-    const url = `https://player.twitch.tv/?channel=${STREAMER_SLUG}&${parentQuery}&muted=false&autoplay=true`;
-    setPlayerUrl(url);
-
-    // 2. Load Initial Data
+    // Initial Data
     fetchStats();
-    
-    // 3. Load 7TV Emotes
-    fetch7TVEmotes().then(map => {
-        setSevenTVEmotes(map);
-    });
+    fetch7TVEmotes().then(map => setSevenTVEmotes(map));
 
     const poll = setInterval(fetchStats, 30000);
     const buffer = setInterval(flushBuffer, 300);
@@ -118,7 +103,7 @@ export default function App() {
     };
   }, []);
 
-  // Update Auth State based on Creds
+  // Sync Auth State
   useEffect(() => {
     localStorage.setItem('twitch_creds', JSON.stringify(twitchCreds));
     
@@ -131,7 +116,6 @@ export default function App() {
     }
   }, [twitchCreds]);
 
-  // Update Kick Auth State
   useEffect(() => {
       localStorage.setItem('kick_username', kickUsername);
       setAuthState(prev => ({ 
@@ -152,74 +136,45 @@ export default function App() {
     }
   };
 
-  // --- API FETCHING ---
+  // --- API ---
 
   const fetchStats = async () => {
-    // Kick Stats
     try {
         const response = await fetch(`https://corsproxy.io/?https://kick.com/api/v1/channels/${STREAMER_SLUG}`);
         if (response.ok) {
             const data = await response.json();
             if (data && data.livestream) {
-                setStreamStats(prev => ({
-                    ...prev,
-                    kickViewers: data.livestream.viewer_count,
-                    isLiveKick: true
-                }));
+                setStreamStats(prev => ({ ...prev, kickViewers: data.livestream.viewer_count, isLiveKick: true }));
             } else {
                 setStreamStats(prev => ({ ...prev, kickViewers: 0, isLiveKick: false }));
             }
         }
-    } catch (e) {
-        console.warn("[Kick Stats] Falha ao obter dados");
-    }
+    } catch (e) { console.warn("Kick stats fail"); }
 
-    // Twitch Stats
     if (twitchCreds.accessToken && twitchCreds.clientId) {
         try {
             const res = await fetch(`https://api.twitch.tv/helix/streams?user_login=${TWITCH_USER_LOGIN}`, {
-                headers: {
-                    'Client-ID': twitchCreds.clientId,
-                    'Authorization': `Bearer ${twitchCreds.accessToken}`
-                }
+                headers: { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` }
             });
-            
-            if (res.status === 401) {
-                console.error("Twitch Token Inválido");
-                return;
-            }
-
             const data = await res.json();
             if (data.data && data.data.length > 0) {
-                setStreamStats(prev => ({
-                    ...prev,
-                    twitchViewers: data.data[0].viewer_count,
-                    isLiveTwitch: true
-                }));
+                setStreamStats(prev => ({ ...prev, twitchViewers: data.data[0].viewer_count, isLiveTwitch: true }));
             } else {
                  setStreamStats(prev => ({ ...prev, twitchViewers: 0, isLiveTwitch: false }));
             }
-        } catch (e) {
-            console.error("[Twitch Stats] Error", e);
-        }
+        } catch (e) { console.error("Twitch stats fail", e); }
     }
   };
 
   const fetchTwitchData = async () => {
     if (!twitchCreds.accessToken) return;
-
     try {
-        const headers = {
-            'Client-ID': twitchCreds.clientId,
-            'Authorization': `Bearer ${twitchCreds.accessToken}`
-        };
-
-        // 1. Get User ID (Gabepeixe)
+        const headers = { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` };
+        
         const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${TWITCH_USER_LOGIN}`, { headers });
         const userData = await userRes.json();
         const userId = userData.data?.[0]?.id;
 
-        // 2. Get My User Info (for AuthState)
         const myUserRes = await fetch(`https://api.twitch.tv/helix/users`, { headers });
         const myData = await myUserRes.json();
         if (myData.data && myData.data.length > 0) {
@@ -227,18 +182,13 @@ export default function App() {
         }
 
         if (userId) {
-             const channelBadgesRes = await fetch(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${userId}`, { headers });
-             const cbData = await channelBadgesRes.json();
+             const cbData = await (await fetch(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${userId}`, { headers })).json();
              setChannelBadges(parseBadgeSet(cbData.data));
         }
-
-        const globalBadgesRes = await fetch(`https://api.twitch.tv/helix/chat/badges/global`, { headers });
-        const gbData = await globalBadgesRes.json();
+        const gbData = await (await fetch(`https://api.twitch.tv/helix/chat/badges/global`, { headers })).json();
         setGlobalBadges(parseBadgeSet(gbData.data));
 
-    } catch (e) {
-        console.error("[Twitch Badges] Erro ao carregar dados", e);
-    }
+    } catch (e) { console.error("Twitch Data Error", e); }
   };
 
   const parseBadgeSet = (data: any[]): BadgeMap => {
@@ -246,9 +196,7 @@ export default function App() {
      if (!data) return map;
      data.forEach((set: any) => {
          const versions: Record<string, string> = {};
-         set.versions.forEach((v: any) => {
-             versions[v.id] = v.image_url_2x || v.image_url_1x;
-         });
+         set.versions.forEach((v: any) => { versions[v.id] = v.image_url_2x || v.image_url_1x; });
          map[set.set_id] = versions;
      });
      return map;
@@ -269,11 +217,10 @@ export default function App() {
     messageQueue.current.push(msg);
   };
 
-  // Connection management
   useEffect(() => {
     // Twitch Connection
     if (authState.twitch && !twitchRef.current) {
-      twitchRef.current = new TwitchConnection(STREAMER_SLUG, handleNewMessage);
+      twitchRef.current = new TwitchConnection(STREAMER_SLUG, handleNewMessage, twitchCreds.accessToken, authState.twitchUsername);
       twitchRef.current.connect();
       addSystemMsg('Twitch', true);
     } else if (!authState.twitch && twitchRef.current) {
@@ -292,7 +239,7 @@ export default function App() {
       kickRef.current = null;
       addSystemMsg('Kick', false);
     }
-  }, [authState.twitch, authState.kick]); // Depend on flags specifically
+  }, [authState.twitch, authState.kick]);
 
   const addSystemMsg = (platform: string, connected: boolean) => {
     handleNewMessage({
@@ -304,9 +251,36 @@ export default function App() {
     });
   };
 
-  const handleToggleAuth = (platform: 'twitch' | 'kick') => {
-    // Opens settings to login/logout instead of simple toggle
-    setIsSettingsOpen(true);
+  const handleSendMessage = () => {
+    if (!chatInput.trim()) return;
+
+    if (commentPlatform === 'twitch') {
+        if (!twitchRef.current || !authState.twitch) {
+            alert('Você precisa conectar sua conta da Twitch para enviar mensagens.');
+            return;
+        }
+        // Send via WebSocket
+        twitchRef.current.sendMessage(chatInput);
+        
+        // Optimistic UI Update (IRC doesn't always echo fast enough)
+        handleNewMessage({
+            id: crypto.randomUUID(),
+            platform: Platform.TWITCH,
+            user: { username: authState.twitchUsername || 'Eu', badges: [], color: '#a970ff' },
+            content: chatInput,
+            timestamp: Date.now()
+        });
+        setChatInput('');
+    } 
+    else if (commentPlatform === 'kick') {
+        // Kick does not support sending messages via frontend-only WebSocket without auth cookies
+        // which are HttpOnly and protected by Cloudflare. 
+        alert('O envio de mensagens para a Kick diretamente pelo navegador está bloqueado por segurança (CORS/Cloudflare). Apenas leitura é suportada nesta versão web.');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') handleSendMessage();
   };
 
   const handleAnalyze = async () => {
@@ -317,6 +291,13 @@ export default function App() {
       setTimeout(() => setAiAnalysis(null), 20000);
     } catch (e) { console.error(e); } 
     finally { setIsAnalyzing(false); }
+  };
+
+  // Helper for Iframe Parents
+  const getParentDomain = () => {
+      const hostname = window.location.hostname;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') return '';
+      return `&parent=${hostname}`;
   };
 
   return (
@@ -332,27 +313,43 @@ export default function App() {
 
       <ControlPanel 
         authState={authState} 
-        onToggleAuth={handleToggleAuth}
+        onToggleAuth={() => setIsSettingsOpen(true)}
         onAnalyze={handleAnalyze}
         isAnalyzing={isAnalyzing}
         streamStats={streamStats}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        activePlayer={activePlayer}
+        onSetPlayer={setActivePlayer}
       />
 
       {/* Main Layout */}
       <div className="flex flex-1 flex-col lg:flex-row overflow-hidden relative z-20">
         
-        {/* Player */}
-        <div className="w-full lg:flex-1 h-[35vh] lg:h-auto bg-black relative shrink-0">
-            {playerUrl && (
+        {/* Player Area */}
+        <div className={`w-full lg:flex-1 bg-black relative shrink-0 transition-all duration-300 ${activePlayer === 'none' ? 'hidden lg:block lg:flex-[0.01] lg:opacity-0' : 'h-[35vh] lg:h-auto'}`}>
+            
+            {activePlayer === 'twitch' && (
               <iframe
-                  src={playerUrl}
+                  src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=false&autoplay=true`}
                   className="w-full h-full border-none"
                   allowFullScreen
-                  allow="autoplay; encrypted-media; picture-in-picture; popups; fullscreen"
-                  sandbox="allow-modals allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation"
                   title="Twitch Player"
               ></iframe>
+            )}
+
+            {activePlayer === 'kick' && (
+                <iframe
+                    src={`https://player.kick.com/${STREAMER_SLUG}?autoplay=true&muted=false`}
+                    className="w-full h-full border-none"
+                    allowFullScreen
+                    title="Kick Player"
+                ></iframe>
+            )}
+
+            {activePlayer === 'none' && (
+                <div className="w-full h-full flex items-center justify-center bg-[#050505]">
+                    <ViictorNLogo className="w-20 h-20 opacity-10 grayscale" />
+                </div>
             )}
           
           {aiAnalysis && (
@@ -369,14 +366,16 @@ export default function App() {
           )}
         </div>
 
-        {/* Chat */}
-        <div className="w-full lg:w-[380px] xl:w-[420px] flex-1 lg:flex-none lg:h-auto bg-[#09090b] border-t lg:border-t-0 lg:border-l border-glass-border flex flex-col z-10 shadow-2xl">
+        {/* Chat Area */}
+        <div className={`w-full ${activePlayer === 'none' ? 'lg:w-full' : 'lg:w-[380px] xl:w-[420px]'} flex-1 lg:flex-none lg:h-auto bg-[#09090b] border-t lg:border-t-0 lg:border-l border-glass-border flex flex-col z-10 shadow-2xl transition-all duration-300`}>
+          
+          {/* Messages */}
           <div className="flex-1 overflow-y-auto custom-scrollbar relative px-1 pt-2" ref={chatContainerRef}>
             <div className="min-h-full flex flex-col justify-end pb-2">
                 {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-600 opacity-50 space-y-2">
                     <div className="text-2xl animate-pulse">⚡</div>
-                    <p className="text-xs font-mono">AGUARDANDO CONEXÃO</p>
+                    <p className="text-xs font-mono">CONECTANDO...</p>
                 </div>
                 ) : (
                 messages.map((msg) => (
@@ -392,11 +391,45 @@ export default function App() {
             </div>
           </div>
 
+          {/* Input Area */}
           <div className="p-3 bg-[#09090b] border-t border-glass-border">
-             <div className="relative flex items-center bg-[#121214] rounded border border-glass-border opacity-70">
-                  <input type="text" placeholder="Chat em modo leitura (Login via backend em breve)" disabled className="w-full bg-transparent text-gray-500 px-3 py-2 text-xs focus:outline-none cursor-not-allowed" />
-                  <button disabled className="p-2 text-gray-600"><SendIcon className="w-4 h-4" /></button>
+             <div className={`relative flex items-center bg-[#121214] rounded-lg border transition-all duration-300 ${commentPlatform === 'twitch' ? 'border-twitch/40 focus-within:border-twitch shadow-[0_0_10px_rgba(145,70,255,0.05)]' : 'border-kick/40 focus-within:border-kick shadow-[0_0_10px_rgba(83,252,24,0.05)]'}`}>
+                  
+                  {/* Platform Selector */}
+                  <div className="pl-1.5 pr-1 py-1">
+                      <button 
+                        onClick={() => setCommentPlatform(prev => prev === 'twitch' ? 'kick' : 'twitch')}
+                        className={`p-1.5 rounded-md transition-colors ${commentPlatform === 'twitch' ? 'bg-twitch/10 text-twitch hover:bg-twitch/20' : 'bg-kick/10 text-kick hover:bg-kick/20'}`}
+                        title={`Enviar como: ${commentPlatform === 'twitch' ? 'Twitch' : 'Kick'}`}
+                      >
+                          {commentPlatform === 'twitch' ? <TwitchLogo className="w-4 h-4" /> : <KickLogo className="w-4 h-4" />}
+                      </button>
+                  </div>
+
+                  <input 
+                    type="text" 
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={`Enviar mensagem na ${commentPlatform === 'twitch' ? 'Twitch' : 'Kick'}...`}
+                    className="w-full bg-transparent text-gray-200 px-2 py-3 text-sm focus:outline-none placeholder-gray-600" 
+                  />
+                  
+                  <button 
+                    onClick={handleSendMessage}
+                    disabled={!chatInput.trim()}
+                    className={`p-2 mr-1 rounded-md transition-all ${chatInput.trim() ? (commentPlatform === 'twitch' ? 'text-twitch hover:bg-twitch/10' : 'text-kick hover:bg-kick/10') : 'text-gray-600 cursor-not-allowed'}`}
+                  >
+                      <SendIcon className="w-5 h-5" />
+                  </button>
              </div>
+             
+             {/* Info/Warning footer */}
+             {commentPlatform === 'kick' && (
+                 <div className="text-[10px] text-yellow-500/80 mt-1.5 px-1 text-center font-mono">
+                     ⚠️ Envio para Kick limitado via web
+                 </div>
+             )}
           </div>
         </div>
       </div>

@@ -8,10 +8,14 @@ export class TwitchConnection {
   private channel: string;
   private onMessage: MessageCallback;
   private pingInterval: number | null = null;
+  private oauth: string | null = null;
+  private username: string | null = null;
 
-  constructor(channel: string, onMessage: MessageCallback) {
+  constructor(channel: string, onMessage: MessageCallback, oauth?: string, username?: string) {
     this.channel = channel.toLowerCase();
     this.onMessage = onMessage;
+    this.oauth = oauth || null;
+    this.username = username || 'justinfan' + Math.floor(Math.random() * 100000);
   }
 
   connect() {
@@ -20,8 +24,15 @@ export class TwitchConnection {
     this.ws.onopen = () => {
       console.log('[Twitch] Connected');
       this.ws?.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
-      this.ws?.send('PASS SCHMOOPIIE');
-      this.ws?.send(`NICK justinfan${Math.floor(Math.random() * 100000)}`);
+      
+      if (this.oauth) {
+          this.ws?.send(`PASS oauth:${this.oauth}`);
+          this.ws?.send(`NICK ${this.username}`);
+      } else {
+          this.ws?.send('PASS SCHMOOPIIE');
+          this.ws?.send(`NICK ${this.username}`);
+      }
+      
       this.ws?.send(`JOIN #${this.channel}`);
       
       this.pingInterval = window.setInterval(() => {
@@ -52,6 +63,14 @@ export class TwitchConnection {
     this.ws.onclose = () => {
       if (this.pingInterval) clearInterval(this.pingInterval);
     };
+  }
+
+  sendMessage(content: string) {
+      if (this.ws?.readyState === WebSocket.OPEN && this.oauth) {
+          this.ws.send(`PRIVMSG #${this.channel} :${content}`);
+      } else {
+          console.warn('[Twitch] Cannot send message: Not connected or no OAuth');
+      }
   }
 
   disconnect() {

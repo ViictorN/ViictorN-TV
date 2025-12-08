@@ -41,8 +41,9 @@ export const SettingsModal: React.FC<Props> = ({
         return;
     }
     // Implicit Grant Flow via POPUP
+    // Added chat:edit to scope
     const redirectUri = window.location.origin; 
-    const scope = 'chat:read user:read:email';
+    const scope = 'chat:read chat:edit user:read:email';
     const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}`;
     
     const width = 500;
