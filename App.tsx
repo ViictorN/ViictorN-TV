@@ -278,14 +278,19 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
-      <div className="flex flex-1 overflow-hidden relative">
-        <div className="flex-1 bg-black relative flex flex-col items-center justify-center">
+      {/* Main Layout: Column on Mobile/Tablet, Row on Desktop */}
+      <div className="flex flex-1 flex-col lg:flex-row overflow-hidden relative z-20">
+        
+        {/* Player Section */}
+        {/* Mobile: 35vh height | Desktop: Flex-1 */}
+        <div className="w-full lg:flex-1 h-[35vh] lg:h-auto bg-black relative shrink-0">
             {playerUrl && (
               <iframe
                   src={playerUrl}
                   className="w-full h-full border-none"
                   allowFullScreen
-                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allow="autoplay; encrypted-media; picture-in-picture; popups; fullscreen"
+                  sandbox="allow-modals allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-presentation"
                   title="Twitch Player"
               ></iframe>
             )}
@@ -304,7 +309,9 @@ export default function App() {
           )}
         </div>
 
-        <div className="w-full md:w-[380px] lg:w-[420px] bg-[#09090b] border-l border-glass-border flex flex-col z-10 shadow-2xl">
+        {/* Chat Section */}
+        {/* Mobile: Fills remaining height | Desktop: Fixed Width */}
+        <div className="w-full lg:w-[380px] xl:w-[420px] flex-1 lg:flex-none lg:h-auto bg-[#09090b] border-t lg:border-t-0 lg:border-l border-glass-border flex flex-col z-10 shadow-2xl">
           <div className="flex-1 overflow-y-auto custom-scrollbar relative px-1 pt-2" ref={chatContainerRef}>
             <div className="min-h-full flex flex-col justify-end pb-2">
                 {messages.length === 0 ? (
