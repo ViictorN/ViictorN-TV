@@ -60,7 +60,7 @@ export const SettingsModal: React.FC<Props> = ({ isOpen, onClose, onSave, curren
                     autoComplete="current-password"
                 />
                 <a href="https://twitchtokengenerator.com/" target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:underline mt-1 block">
-                    Gerar Token (Use 'Custom Scope' -> Selecione nada ou 'user:read:email')
+                    Gerar Token (Use 'Custom Scope' -&gt; Selecione nada ou 'user:read:email')
                 </a>
             </div>
 
