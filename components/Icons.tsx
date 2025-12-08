@@ -1,0 +1,52 @@
+import React from 'react';
+
+export const ViictorNLogo = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+     <path d="M12 14L24 38L36 14" stroke="url(#paint0_linear)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+     <path d="M18 14L24 26L30 14" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"/>
+     <circle cx="24" cy="24" r="22" stroke="url(#paint1_linear)" strokeWidth="1.5" strokeDasharray="4 4"/>
+     <defs>
+       <linearGradient id="paint0_linear" x1="12" y1="14" x2="36" y2="38" gradientUnits="userSpaceOnUse">
+         <stop stopColor="#9146FF"/>
+         <stop offset="1" stopColor="#53FC18"/>
+       </linearGradient>
+       <linearGradient id="paint1_linear" x1="2" y1="24" x2="46" y2="24" gradientUnits="userSpaceOnUse">
+         <stop stopColor="white" stopOpacity="0.1"/>
+         <stop offset="0.5" stopColor="white" stopOpacity="0.5"/>
+         <stop offset="1" stopColor="white" stopOpacity="0.1"/>
+       </linearGradient>
+     </defs>
+  </svg>
+);
+
+export const TwitchLogo = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path fillRule="evenodd" clipRule="evenodd" d="M2.14286 0H0V16.2857H5.35714V20.5714L9.64286 16.2857H13.2L20.5714 8.91429V0H2.14286ZM18.4286 8.05714L15.4286 11.0571H11.7857L9 13.8429V11.0571H5.35714V2.14286H18.4286V8.05714ZM10.2857 8.57143H12V4.71429H10.2857V8.57143ZM15.4286 8.57143H17.1429V4.71429H15.4286V8.57143Z"/>
+  </svg>
+);
+
+export const KickLogo = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M3 0.75H8.25V9.75L15.75 0.75H21.75L12.75 10.5L22.5 23.25H16.5L9.75 13.5H8.25V23.25H3V0.75Z" />
+  </svg>
+);
+
+export const SendIcon = ({ className }: { className?: string }) => (
+  <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="22" y1="2" x2="11" y2="13"></line>
+    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+  </svg>
+);
+
+export const SettingsIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3"></circle>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+  </svg>
+);
+
+export const UsersIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+    </svg>
+);
