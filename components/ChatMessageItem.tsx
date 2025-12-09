@@ -26,15 +26,57 @@ const FALLBACK_TWITCH_BADGES: Record<string, string> = {
   'premium': 'https://static-cdn.jtvnw.net/badges/v1/bbbe0db0-a598-423e-86d0-f9fb98ca1933/2',
 };
 
-// Common Kick Badge Assets
-const KICK_GLOBAL_BADGES: Record<string, string> = {
-    'broadcaster': 'https://raw.githubusercontent.com/BotRix/kick-badges/main/broadcaster.png',
-    'moderator': 'https://raw.githubusercontent.com/BotRix/kick-badges/main/moderator.png',
-    'vip': 'https://raw.githubusercontent.com/BotRix/kick-badges/main/vip.png',
-    'og': 'https://raw.githubusercontent.com/BotRix/kick-badges/main/og.png',
-    'verified': 'https://raw.githubusercontent.com/BotRix/kick-badges/main/verified.png',
-    'founder': 'https://raw.githubusercontent.com/BotRix/kick-badges/main/founder.png',
-    'subscriber': 'https://raw.githubusercontent.com/BotRix/kick-badges/main/sub.png'
+// Inline SVGs for Kick Badges to prevent broken image links
+const KickBadgeSVG: React.FC<{ type: string }> = ({ type }) => {
+  const className = "h-4 w-4 mr-1.5 inline-block align-middle select-none";
+  
+  switch (type) {
+    case 'broadcaster':
+      // Host Icon (Crown/Mic style)
+      return (
+         <svg className={className} viewBox="0 0 24 24" fill="#53FC18" xmlns="http://www.w3.org/2000/svg" title="Broadcaster">
+             <path d="M12 2L15 8H9L12 2ZM18 8H22V14H18V8ZM2 8H6V14H2V8ZM9 10H15V16H9V10ZM12 22C14.2091 22 16 20.2091 16 18H8C8 20.2091 9.79086 22 12 22Z" />
+         </svg>
+      );
+    case 'moderator':
+      // Green Shield with Swords
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="#00D26A" xmlns="http://www.w3.org/2000/svg" title="Moderator">
+           <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1ZM12 11.99H7V10.01H12V7.48L15.41 11L12 14.52V11.99Z" />
+        </svg>
+      ); 
+    case 'vip':
+      // Diamond
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" title="VIP">
+             <path d="M12 2L2 9L12 22L22 9L12 2Z" fill="#F06292" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
+        </svg>
+      );
+    case 'verified':
+      // Verified Check
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="#53FC18" xmlns="http://www.w3.org/2000/svg" title="Verified">
+            <path d="M23 12L20.56 9.21L20.9 5.52L17.29 4.7L15.4 1.5L12 2.96L8.6 1.5L6.71 4.69L3.1 5.5L3.44 9.2L1 12L3.44 14.79L3.1 18.49L6.71 19.31L8.6 22.5L12 21.03L15.4 22.49L17.29 19.3L20.9 18.48L20.56 14.79L23 12ZM10.09 16.72L6.29 12.91L7.7 11.5L10.09 13.88L16.29 7.69L17.7 9.1L10.09 16.72Z" />
+        </svg>
+      );
+    case 'founder':
+      // Founder (Red Badge)
+      return (
+        <svg className={className} viewBox="0 0 24 24" fill="#FF5252" xmlns="http://www.w3.org/2000/svg" title="Founder">
+            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="white" strokeWidth="1" />
+        </svg>
+      );
+    case 'og':
+        // OG Badge
+        return (
+             <svg className={className} viewBox="0 0 24 24" fill="#FF9800" xmlns="http://www.w3.org/2000/svg" title="OG">
+                 <rect x="2" y="4" width="20" height="16" rx="4" fill="#FF9800" stroke="white" strokeWidth="1"/>
+                 <path d="M12 12C12 13.66 10.66 15 9 15C7.34 15 6 13.66 6 12C6 10.34 7.34 9 9 9C10.66 9 12 10.34 12 12ZM18 15V13H14V15H18ZM18 11V9H14V11H18Z" fill="white"/>
+             </svg>
+        );
+    default:
+      return null;
+  }
 };
 
 const BadgeIcon: React.FC<{ badge: Badge; platform: Platform; globalBadges?: BadgeMap; channelBadges?: BadgeMap; kickBadges?: BadgeMap }> = ({ badge, platform, globalBadges, channelBadges, kickBadges }) => {
@@ -57,7 +99,7 @@ const BadgeIcon: React.FC<{ badge: Badge; platform: Platform; globalBadges?: Bad
     }
 
     if (url) {
-      return <img src={url} alt={badge.type} className="h-4 w-auto mr-1 inline-block object-contain align-middle select-none" draggable={false} />;
+      return <img src={url} alt={badge.type} className="h-4 w-auto mr-1.5 inline-block object-contain align-middle select-none" draggable={false} />;
     }
     
     return null;
@@ -65,15 +107,15 @@ const BadgeIcon: React.FC<{ badge: Badge; platform: Platform; globalBadges?: Bad
 
   // --- KICK RENDERING ---
   if (platform === Platform.KICK) {
-    let url = KICK_GLOBAL_BADGES[badge.type];
-
-    // Try Channel Subscriber Badge (with version/months logic)
+    
+    // 1. Try Subscriber (Image URL from API)
     if (badge.type === 'subscriber' && kickBadges && kickBadges['subscriber']) {
-        // 1. Try exact match (e.g. "6" months)
+        let url = '';
+        // Exact match
         if (kickBadges['subscriber'][badge.version]) {
             url = kickBadges['subscriber'][badge.version];
         } else {
-             // 2. Fallback: Find closest lower month badge
+             // Fallback logic
              const months = parseInt(badge.version);
              if (!isNaN(months)) {
                  const availableMonths = Object.keys(kickBadges['subscriber']).map(Number).sort((a,b) => a - b);
@@ -83,19 +125,21 @@ const BadgeIcon: React.FC<{ badge: Badge; platform: Platform; globalBadges?: Bad
                  }
              }
         }
+        if (url) {
+            return <img src={url} alt="Sub" className="h-4 w-auto mr-1.5 inline-block object-contain align-middle select-none" draggable={false} title={`Subscriber ${badge.version} Months`} />;
+        }
     }
 
-    if (url) {
-        return <img src={url} alt={badge.type} className="h-4 w-auto mr-1 inline-block object-contain align-middle select-none" draggable={false} title={badge.type.toUpperCase()} />;
+    // 2. Use Reliable Inline SVGs for Global Badges
+    const svgBadge = <KickBadgeSVG type={badge.type} />;
+    if (svgBadge && (badge.type !== 'subscriber')) {
+        return svgBadge;
     }
 
-    // Fallback Text Badge if image fails
-    const commonClasses = "mr-1 inline-flex items-center justify-center h-4 px-1 text-[9px] font-bold rounded uppercase tracking-tighter border border-transparent shadow-sm align-middle";
-    if (badge.type === 'broadcaster') return <span className={`${commonClasses} bg-kick text-black border-kick/50`}>HOST</span>;
-    if (badge.type === 'moderator') return <span className={`${commonClasses} bg-[#00D26A] text-white border-[#004e27]`}>MOD</span>;
-    if (badge.type === 'vip') return <span className={`${commonClasses} bg-white text-black`}>VIP</span>;
-    if (badge.type === 'subscriber') return <span className={`${commonClasses} bg-[#FFD700] text-black border-yellow-600`}>SUB</span>;
-    if (badge.type === 'og') return <span className={`${commonClasses} bg-[#FF4500] text-white`}>OG</span>;
+    // 3. Last resort fallback text
+    if (badge.type === 'subscriber') { 
+        return <span className="mr-1 inline-flex items-center justify-center h-4 px-1 text-[9px] font-bold rounded uppercase tracking-tighter bg-[#FFD700] text-black border border-yellow-600 align-middle">SUB</span>;
+    }
     
     return null;
   }
