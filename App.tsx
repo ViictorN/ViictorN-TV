@@ -299,7 +299,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] w-full overflow-hidden font-sans">
+    <div className="flex flex-col h-[100dvh] w-full overflow-hidden font-sans bg-black">
       <SettingsModal 
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)} 
@@ -323,8 +323,13 @@ export default function App() {
       {/* Main Layout */}
       <div className="flex flex-1 flex-col lg:flex-row overflow-hidden relative z-0">
         
-        {/* Player Area */}
-        <div className={`w-full lg:flex-1 bg-black relative shrink-0 transition-all duration-300 ${activePlayer === 'none' ? 'hidden lg:block lg:flex-[0.01] lg:opacity-0' : 'aspect-video lg:aspect-auto lg:h-auto'}`}>
+        {/* Player Area - Collapses width to 0 when 'none' is active */}
+        <div className={`bg-black relative shrink-0 transition-all duration-500 ease-out-expo overflow-hidden
+            ${activePlayer === 'none' 
+              ? 'lg:w-0 w-full h-0 lg:h-auto opacity-0' 
+              : 'w-full lg:flex-1 aspect-video lg:aspect-auto lg:h-auto opacity-100'
+            }`}
+        >
             
             {activePlayer === 'twitch' && (
               <iframe
@@ -344,28 +349,32 @@ export default function App() {
                 ></iframe>
             )}
 
+            {/* Placeholder only shows during transition if needed, usually hidden by w-0 */}
             {activePlayer === 'none' && (
-                <div className="w-full h-full flex items-center justify-center bg-[#050505]">
-                    <ViictorNLogo className="w-24 h-24 opacity-10 grayscale" />
-                </div>
+                <div className="w-full h-full bg-black"></div>
             )}
           
           {aiAnalysis && (
-            <div className="absolute top-8 left-1/2 transform -translate-x-1/2 max-w-2xl w-[90%] liquid-glass-strong p-6 rounded-3xl z-50 animate-slide-in">
+            <div className="absolute top-8 left-1/2 transform -translate-x-1/2 max-w-2xl w-[90%] liquid-glass-strong p-6 rounded-3xl z-50 animate-slide-in shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-white/5">
                 <div className="flex justify-between items-start mb-3 border-b border-white/5 pb-2">
                     <div className="flex items-center gap-2">
                         <span className="text-xl">🤖</span>
                         <h3 className="font-display font-bold text-lg text-white">Analysis</h3>
                     </div>
-                    <button onClick={() => setAiAnalysis(null)} className="text-white/50 hover:text-white">✕</button>
+                    <button onClick={() => setAiAnalysis(null)} className="text-white/50 hover:text-white transition-colors">✕</button>
                 </div>
                 <p className="text-white/80 text-sm leading-relaxed">{aiAnalysis}</p>
             </div>
           )}
         </div>
 
-        {/* Chat Area */}
-        <div className={`w-full ${activePlayer === 'none' ? 'lg:w-full' : 'lg:w-[380px] xl:w-[420px]'} flex-1 lg:flex-none lg:h-auto liquid-glass border-l-0 lg:border-l border-glass-border flex flex-col z-10 transition-all duration-300 min-h-0`}>
+        {/* Chat Area - Expands to fill space */}
+        <div className={`
+            ${activePlayer === 'none' ? 'w-full flex-1' : 'lg:w-[380px] xl:w-[420px] w-full'}
+            bg-[#000000] border-t lg:border-t-0 
+            ${activePlayer !== 'none' ? 'lg:border-l border-white/5' : ''}
+            flex flex-col z-10 transition-all duration-500 ease-out-expo min-h-0 relative
+        `}>
           
           {/* Messages */}
           <div className="flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-2" ref={chatContainerRef}>
@@ -390,14 +399,14 @@ export default function App() {
           </div>
 
           {/* Input Area */}
-          <div className="p-3 bg-black/20 border-t border-white/5 safe-area-bottom">
-             <div className={`relative flex items-center bg-white/5 rounded-2xl border transition-all duration-300 ${commentPlatform === 'twitch' ? 'border-twitch/40 focus-within:border-twitch/80 shadow-[0_0_15px_rgba(145,70,255,0.1)]' : 'border-kick/40 focus-within:border-kick/80 shadow-[0_0_15px_rgba(83,252,24,0.1)]'}`}>
+          <div className="p-3 bg-black border-t border-white/5 safe-area-bottom">
+             <div className={`relative flex items-center bg-white/5 rounded-2xl border transition-all duration-300 ease-out-expo ${commentPlatform === 'twitch' ? 'border-twitch/30 focus-within:border-twitch/80 shadow-[0_0_20px_rgba(145,70,255,0.05)]' : 'border-kick/30 focus-within:border-kick/80 shadow-[0_0_20px_rgba(83,252,24,0.05)]'}`}>
                   
                   {/* Platform Selector */}
                   <div className="pl-1.5 pr-1 py-1">
                       <button 
                         onClick={() => setCommentPlatform(prev => prev === 'twitch' ? 'kick' : 'twitch')}
-                        className={`p-2 rounded-xl transition-all ${commentPlatform === 'twitch' ? 'bg-twitch/10 text-twitch hover:bg-twitch/20' : 'bg-kick/10 text-kick hover:bg-kick/20'}`}
+                        className={`p-2 rounded-xl transition-all duration-300 ${commentPlatform === 'twitch' ? 'bg-twitch/10 text-twitch hover:bg-twitch/20' : 'bg-kick/10 text-kick hover:bg-kick/20'}`}
                       >
                           {commentPlatform === 'twitch' ? <TwitchLogo className="w-4 h-4" /> : <KickLogo className="w-4 h-4" />}
                       </button>
@@ -409,13 +418,13 @@ export default function App() {
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={`Enviar na ${commentPlatform === 'twitch' ? 'Twitch' : 'Kick'}...`}
-                    className="w-full bg-transparent text-white px-2 py-3 text-sm focus:outline-none placeholder-white/30" 
+                    className="w-full bg-transparent text-white px-2 py-3 text-sm focus:outline-none placeholder-white/20" 
                   />
                   
                   <button 
                     onClick={handleSendMessage}
                     disabled={!chatInput.trim()}
-                    className={`p-2 mr-1 rounded-xl transition-all ${chatInput.trim() ? (commentPlatform === 'twitch' ? 'text-twitch hover:bg-twitch/10' : 'text-kick hover:bg-kick/10') : 'text-white/20 cursor-not-allowed'}`}
+                    className={`p-2 mr-1 rounded-xl transition-all duration-300 ${chatInput.trim() ? (commentPlatform === 'twitch' ? 'text-twitch hover:bg-twitch/10' : 'text-kick hover:bg-kick/10') : 'text-white/20 cursor-not-allowed'}`}
                   >
                       <SendIcon className="w-5 h-5" />
                   </button>
@@ -423,7 +432,7 @@ export default function App() {
              
              {/* Info/Warning footer */}
              {commentPlatform === 'kick' && (
-                 <div className="text-[10px] text-yellow-200/60 mt-2 px-1 text-center font-medium tracking-wide">
+                 <div className="text-[10px] text-yellow-500/60 mt-2 px-1 text-center font-medium tracking-wide">
                      Leitura apenas (Modo Espectador)
                  </div>
              )}
