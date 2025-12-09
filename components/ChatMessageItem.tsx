@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { ChatMessage, Platform, Badge, BadgeMap, EmoteMap, ChatSettings, User } from '../types';
 import { PlatformIcon } from './Icons';
 
@@ -20,10 +20,21 @@ interface Props {
   onRequestAvatar: (platform: Platform, user: User) => void;
 }
 
-// Improved Badge Styling: Larger size (20px), consistent spacing, and alignment correction
-const BADGE_CLASS = "h-5 w-auto min-w-[20px] mr-1.5 inline-block align-middle select-none object-contain hover:brightness-125 hover:scale-110 transition-transform duration-200 ease-out-expo";
+// Improved Badge Styling: Larger size (18px), consistent spacing.
+// Removed Drop Shadow/Neon for Kick Badges as requested.
+const BADGE_CLASS = "h-[18px] w-auto min-w-[18px] mr-1 inline-block align-middle select-none object-contain hover:scale-110 transition-transform duration-200 ease-out-expo";
 
-// Fallback Twitch badges (if API not connected)
+// Official Kick Badge URLs (from Kick Database / Common Overlays)
+const KICK_BADGE_URLS: Record<string, string> = {
+    'broadcaster': 'https://raw.githubusercontent.com/BotRixW/kick-badges/main/broadcaster.png',
+    'moderator': 'https://raw.githubusercontent.com/BotRixW/kick-badges/main/moderator.png',
+    'vip': 'https://raw.githubusercontent.com/BotRixW/kick-badges/main/vip.png',
+    'verified': 'https://raw.githubusercontent.com/BotRixW/kick-badges/main/verified.png',
+    'founder': 'https://raw.githubusercontent.com/BotRixW/kick-badges/main/og.png',
+    'sub_gifter': 'https://raw.githubusercontent.com/BotRixW/kick-badges/main/sub-gifter.png'
+};
+
+// Fallback Twitch badges
 const FALLBACK_TWITCH_BADGES: Record<string, string> = {
   'broadcaster': 'https://static-cdn.jtvnw.net/badges/v1/5527c58c-fb7d-422d-b71b-f309dcb85cc1/2',
   'moderator': 'https://static-cdn.jtvnw.net/badges/v1/3267646d-33f0-4b17-b3df-f923a41db1d0/2',
@@ -31,50 +42,6 @@ const FALLBACK_TWITCH_BADGES: Record<string, string> = {
   'subscriber': 'https://static-cdn.jtvnw.net/badges/v1/5d9f2208-5dd8-11e7-8513-2ff4adfae661/2',
   'premium': 'https://static-cdn.jtvnw.net/badges/v1/bbbe0db0-a598-423e-86d0-f9fb98ca1933/2',
   'turbo': 'https://static-cdn.jtvnw.net/badges/v1/bd444ec6-8f34-4bf9-91f4-af1e3428d80f/2',
-};
-
-// Inline SVGs for Kick Badges - High Definition & Vibrant Colors
-const KickBadgeSVG: React.FC<{ type: string }> = ({ type }) => {
-  const props = { className: BADGE_CLASS, viewBox: "0 0 24 24", fill: "currentColor" };
-  
-  switch (type) {
-    case 'broadcaster':
-      return (
-         <svg {...props} className={`${BADGE_CLASS} text-[#53FC18] drop-shadow-[0_0_8px_rgba(83,252,24,0.4)]`}>
-             <title>Broadcaster</title>
-             <path d="M12 2L15 8H9L12 2ZM18 8H22V14H18V8ZM2 8H6V14H2V8ZM9 10H15V16H9V10ZM12 22C14.2091 22 16 20.2091 16 18H8C8 20.2091 9.79086 22 12 22Z" />
-         </svg>
-      );
-    case 'moderator':
-      return (
-        <svg {...props} className={`${BADGE_CLASS} text-[#00E572] drop-shadow-[0_0_5px_rgba(0,229,114,0.3)]`}>
-           <title>Moderator</title>
-           <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1ZM12 11.99H7V10.01H12V7.48L15.41 11L12 14.52V11.99Z" />
-        </svg>
-      ); 
-    case 'vip':
-      return (
-        <svg {...props} fill="none" className={`${BADGE_CLASS} text-[#FF4081]`}>
-             <title>VIP</title>
-             <path d="M12 2L2 9L12 22L22 9L12 2Z" fill="currentColor" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
-        </svg>
-      );
-    case 'verified':
-      return (
-        <svg {...props} className={`${BADGE_CLASS} text-[#53FC18]`}>
-            <title>Verified</title>
-            <path d="M23 12L20.56 9.21L20.9 5.52L17.29 4.7L15.4 1.5L12 2.96L8.6 1.5L6.71 4.69L3.1 5.5L3.44 9.2L1 12L3.44 14.79L3.1 18.49L6.71 19.31L8.6 22.5L12 21.03L15.4 22.49L17.29 19.3L20.9 18.48L20.56 14.79L23 12ZM10.09 16.72L6.29 12.91L7.7 11.5L10.09 13.88L16.29 7.69L17.7 9.1L10.09 16.72Z" />
-        </svg>
-      );
-    case 'founder':
-      return (
-        <svg {...props} className={`${BADGE_CLASS} text-[#FF5252]`}>
-            <title>Founder</title>
-            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="white" strokeWidth="1" />
-        </svg>
-      );
-    default: return null;
-  }
 };
 
 export const ChatMessageItem: React.FC<Props> = React.memo(({ 
@@ -91,11 +58,19 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
     avatarCache,
     onRequestAvatar
 }) => {
+  const [imageError, setImageError] = useState(false);
   const isSystem = message.platform === Platform.SYSTEM;
 
   // Determine Avatar URL
   const avatarKey = `${message.platform}-${message.user.username}`;
-  const displayAvatar = message.user.avatarUrl || avatarCache[avatarKey];
+  let displayAvatar = message.user.avatarUrl || avatarCache[avatarKey];
+
+  // FIX FOR KICK AVATARS:
+  // Kick direct URLs (files.kick.com) often block CORS.
+  // We use wsrv.nl (a reliable image proxy) to serve the image, resizing it to 64px for performance.
+  if (message.platform === Platform.KICK && displayAvatar && !displayAvatar.includes('wsrv.nl')) {
+      displayAvatar = `https://wsrv.nl/?url=${encodeURIComponent(displayAvatar)}&w=64&h=64&fit=cover&output=webp`;
+  }
 
   // Effect: Fetch Avatar if missing and not hidden
   useEffect(() => {
@@ -129,30 +104,39 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
       });
 
       return filteredBadges.map((badge, idx) => {
+          // --- KICK BADGES ---
           if (message.platform === Platform.KICK) {
-             if (['broadcaster', 'moderator', 'vip', 'verified', 'founder'].includes(badge.type)) {
-                 return <KickBadgeSVG key={`${message.id}-badge-${idx}`} type={badge.type} />;
+             const key = `${message.id}-kbadge-${idx}`;
+             
+             // Use Official Image URLs
+             if (KICK_BADGE_URLS[badge.type]) {
+                 return <img key={key} src={KICK_BADGE_URLS[badge.type]} className={BADGE_CLASS} alt={badge.type} title={badge.type} />;
              }
+             
+             // Subscriber Badge (Dynamic from API)
              if (badge.type === 'subscriber' && kickBadges?.['subscriber']) {
                  const url = kickBadges['subscriber'][badge.version || '1'];
-                 if (url) return <img key={idx} src={url} className={BADGE_CLASS} alt="sub" />;
+                 if (url) return <img key={key} src={url} className={BADGE_CLASS} alt="sub" />;
              }
+             
+             // Fallback for sub
              if (badge.type === 'subscriber') {
-                  // Fallback Text Badge for Kick Sub if image not loaded
-                  return <span key={idx} className="bg-kick/20 text-kick border border-kick/30 text-[9px] px-1.5 rounded mr-1.5 font-bold inline-block align-middle h-5 leading-5 select-none">SUB</span>;
+                  return <span key={key} className="bg-kick/20 text-kick border border-kick/30 text-[9px] px-1.5 rounded mr-1 font-bold inline-block align-middle h-4 leading-4 select-none">SUB</span>;
              }
              return null;
           }
           
+          // --- TWITCH BADGES ---
           if (message.platform === Platform.TWITCH) {
+              const key = `${message.id}-tbadge-${idx}`;
               if (channelBadges && channelBadges[badge.type] && channelBadges[badge.type][badge.version || '1']) {
-                  return <img key={idx} src={channelBadges[badge.type][badge.version || '1']} className={BADGE_CLASS} alt={badge.type} />;
+                  return <img key={key} src={channelBadges[badge.type][badge.version || '1']} className={BADGE_CLASS} alt={badge.type} />;
               }
               if (globalBadges && globalBadges[badge.type] && globalBadges[badge.type][badge.version || '1']) {
-                   return <img key={idx} src={globalBadges[badge.type][badge.version || '1']} className={BADGE_CLASS} alt={badge.type} />;
+                   return <img key={key} src={globalBadges[badge.type][badge.version || '1']} className={BADGE_CLASS} alt={badge.type} />;
               }
               if (FALLBACK_TWITCH_BADGES[badge.type]) {
-                  return <img key={idx} src={FALLBACK_TWITCH_BADGES[badge.type]} className={BADGE_CLASS} alt={badge.type} />;
+                  return <img key={key} src={FALLBACK_TWITCH_BADGES[badge.type]} className={BADGE_CLASS} alt={badge.type} />;
               }
           }
           return null;
@@ -160,18 +144,15 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   };
 
   // --- COMPLEX MESSAGE CONTENT PARSING ---
-  // Handles: Twitch Native Ranges, Kick Regex [emote:id:name], and 7TV Words
   const renderContent = useMemo(() => {
       if (message.isDeleted) {
           if (settings.deletedMessageBehavior === 'hide') return null;
           return <span className="text-gray-500 italic line-through text-xs">&lt;mensagem deletada&gt;</span>;
       }
 
-      // 1. Build an array of segments (text or react nodes)
-      // If we have native twitch emotes, we must split by index
       let parts: (string | React.ReactNode)[] = [message.content];
 
-      // --- PASS 1: NATIVE TWITCH EMOTES (by index) ---
+      // --- PASS 1: NATIVE TWITCH EMOTES ---
       if (message.platform === Platform.TWITCH && message.emotes) {
           const sortedEmotes: { id: string, start: number, end: number }[] = [];
           Object.entries(message.emotes).forEach(([id, positions]) => {
@@ -181,31 +162,16 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
               });
           });
           
-          // Sort descending to replace from end to start without messing up indices
-          sortedEmotes.sort((a, b) => b.start - a.start);
-
-          let currentText = message.content;
-          const newParts: (string | React.ReactNode)[] = [];
-          
-          // We iterate through the string and carve out emotes
-          // But actually, it's easier to map character array or use a library, 
-          // For simplicity/perf in React, we'll assume non-overlapping ranges (guaranteed by Twitch)
-          
-          // Re-approach: split string by ranges
-          // To do this efficiently in React, we need to build the array from start to end
-          // So let's sort Ascending
           sortedEmotes.sort((a, b) => a.start - b.start);
           
           const result: (string | React.ReactNode)[] = [];
           let cursor = 0;
 
           sortedEmotes.forEach((emote, i) => {
-               // Push text before emote
                if (emote.start > cursor) {
                    result.push(message.content.substring(cursor, emote.start));
                }
                
-               // Push Emote
                const sizeClass = settings.largeEmotes ? "h-8" : "h-5";
                result.push(
                    <img 
@@ -215,20 +181,16 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
                        className={`inline-block mx-0.5 align-middle hover:scale-110 transition-transform ${sizeClass}`}
                    />
                );
-               
                cursor = emote.end + 1;
           });
 
-          // Push remaining text
           if (cursor < message.content.length) {
               result.push(message.content.substring(cursor));
           }
-          
           parts = result.length > 0 ? result : [message.content];
       }
 
-      // --- PASS 2: KICK NATIVE EMOTES (Regex) ---
-      // Pattern: [emote:1234:name]
+      // --- PASS 2: KICK NATIVE EMOTES ---
       const processKickEmotes = (segment: string | React.ReactNode): (string | React.ReactNode)[] => {
           if (typeof segment !== 'string') return [segment];
           
@@ -241,12 +203,11 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
           
           for (let i = 0; i < split.length; i++) {
               const part = split[i];
-              
               if (i % 3 === 0) {
                   if (part) res.push(part);
               } else if (i % 3 === 1) {
                   const id = part;
-                  const name = split[i+1]; // Next is name
+                  const name = split[i+1];
                   const sizeClass = settings.largeEmotes ? "h-8" : "h-5";
                   res.push(
                        <img 
@@ -266,11 +227,9 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
           parts = parts.flatMap(processKickEmotes);
       }
 
-      // --- PASS 3: 7TV EMOTES (Word replacement) ---
+      // --- PASS 3: 7TV EMOTES ---
       const process7TV = (segment: string | React.ReactNode): (string | React.ReactNode)[] => {
           if (typeof segment !== 'string') return [segment];
-          
-          // If 7TV emotes aren't loaded yet, return string
           if (!sevenTVEmotes || Object.keys(sevenTVEmotes).length === 0) return [segment];
 
           const words = segment.split(' ');
@@ -289,16 +248,11 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
                            className={`inline-block mx-0.5 align-middle hover:scale-110 transition-transform ${sizeClass}`} 
                        />
                    );
-                   // Add a space after if it wasn't the last word
                    if (i < words.length - 1) result.push(' ');
               } else {
-                   // It's a regular word.
-                   // If the previous element was also a string, we could append to it, but pushing is safer for React arrays
-                   // We add the space after this word if it's not the last one
                    result.push(word + (i < words.length - 1 ? ' ' : ''));
               }
           });
-          
           return result;
       };
 
@@ -319,12 +273,10 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   const usernameColor = message.user.color || (message.platform === Platform.TWITCH ? '#9146FF' : '#53FC18');
   const platformIcon = message.platform === Platform.TWITCH ? 'twitch' : 'kick';
   
-  // Font Size
   let textSizeClass = "text-sm";
   if (settings.fontSize === 'small') textSizeClass = "text-xs";
   if (settings.fontSize === 'large') textSizeClass = "text-base";
   
-  // Font Family
   const fontClass = settings.fontFamily === 'mono' ? 'font-mono' : 'font-sans';
 
   // Avatar Logic
@@ -337,8 +289,14 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
 
   const AvatarComponent = (
        <div className="flex-shrink-0 mt-0.5 cursor-pointer hover:opacity-80 active:scale-95 transition-all" onClick={handleAvatarClick}>
-            {displayAvatar ? (
-                <img src={displayAvatar} alt={message.user.username} className="w-[28px] h-[28px] rounded-full object-cover bg-gray-800" loading="lazy" />
+            {displayAvatar && !imageError ? (
+                <img 
+                    src={displayAvatar} 
+                    alt={message.user.username} 
+                    className="w-[28px] h-[28px] rounded-full object-cover bg-gray-800" 
+                    loading="lazy" 
+                    onError={() => setImageError(true)}
+                />
             ) : (
                 <div 
                 className="w-[28px] h-[28px] rounded-full flex items-center justify-center text-[10px] font-bold text-white text-shadow-sm shadow-inner" 
@@ -350,20 +308,16 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
         </div>
   );
 
-  // --- SPECIAL RENDER FOR SUBSCRIPTIONS ---
+  // --- SUBSCRIPTIONS ---
   if (message.isSubscription) {
       const isTwitch = message.platform === Platform.TWITCH;
-      // Gradient background for Subs
       const subStyle = isTwitch 
         ? "bg-gradient-to-r from-[#9146FF]/20 via-[#9146FF]/5 to-transparent border-[#9146FF]" 
         : "bg-gradient-to-r from-[#53FC18]/20 via-[#53FC18]/5 to-transparent border-[#53FC18]";
 
       return (
         <div className={`group flex items-start gap-3 py-3 px-3 mx-1 my-2 rounded-lg border-l-4 relative transition-all animate-fade-in shadow-sm ${subStyle}`}>
-             {/* Left: Avatar */}
              {!settings.hideAvatars && AvatarComponent}
-
-             {/* Right: Content */}
              <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                       <span className="text-xl leading-none">🎉</span>
@@ -374,13 +328,9 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
                           </span>
                       </span>
                   </div>
-                  
-                  {/* Badge Row */}
                   <div className="mb-1 opacity-90 scale-100 origin-left">
                       {renderBadges()}
                   </div>
-
-                  {/* Message Body */}
                   <div className={`text-white/90 break-words leading-snug font-medium text-sm`}>
                        {renderContent}
                   </div>
@@ -393,18 +343,12 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   return (
     <div className={`group flex items-start gap-2 py-1 px-2 transition-colors relative ${zebraClass} ${hoverClass} ${mentionClass} ${deletedClass}`}>
       
-      {/* 1. LEFT: AVATAR */}
       {!settings.hideAvatars && AvatarComponent}
 
-      {/* 2. RIGHT: CONTENT */}
       <div className="flex-1 min-w-0 overflow-hidden">
-
-          {/* Reply Context Block - IMPROVED VISUALS */}
           {message.replyTo && (
               <div className="flex items-center gap-2 mb-1 ml-0.5 group-hover:opacity-100 transition-opacity">
-                  {/* Curved Line Connector */}
                   <div className="w-3 h-3 border-l-2 border-t-2 border-gray-600 rounded-tl-lg mt-2 opacity-50"></div>
-                  
                   <div className="flex items-center gap-2 bg-[#1f1f23] rounded-md pl-1.5 pr-2 py-0.5 border border-white/5 opacity-70 group-hover:opacity-100 transition-all max-w-full">
                       <div className="flex items-center gap-1 shrink-0">
                           <span className="text-[10px] text-gray-400">@</span>
@@ -417,28 +361,22 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
               </div>
           )}
           
-          {/* Main Message Line - INLINE FLOW */}
           <div className={`break-words leading-snug ${textSizeClass} ${fontClass}`}>
               
-              {/* Metadata Wrapper */}
               <span className="inline-block mr-1.5 select-none align-middle">
-                  {/* Timestamp */}
                   {settings.showTimestamps && (
                       <span className="text-[10px] text-gray-500 font-mono mr-1.5">
                           {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                   )}
 
-                  {/* Platform Icon - NEON GLOW ENABLED (High Opacity) */}
                   <span className="opacity-80 group-hover:opacity-100 transition-opacity inline-block mr-1.5 align-middle">
                       <PlatformIcon platform={platformIcon} variant="glow" className="w-3.5 h-3.5" />
                   </span>
 
-                  {/* Badges - Rendered Inline */}
                   {renderBadges()}
               </span>
               
-              {/* Username */}
               <button 
                   onClick={() => onReply(message.user.username)}
                   className={`font-bold hover:underline cursor-pointer align-middle mr-0.5 ${settings.rainbowUsernames ? 'rainbow-text' : ''}`}
@@ -447,24 +385,20 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
                   {message.user.username}
               </button>
 
-              {/* First Message Badge - DISABLED FOR KICK */}
               {message.isFirstMessage && message.platform !== Platform.KICK && (
                    <span className="bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 text-[9px] px-1.5 rounded-sm uppercase font-bold tracking-wider ml-2 inline-block align-middle select-none whitespace-nowrap">
                      Primeira interação
                    </span>
               )}
 
-              {/* Separator */}
               <span className="mr-1.5 text-white/40 font-normal align-middle">:</span>
 
-              {/* Message Content */}
               <span className="text-white/90 align-middle">
                    {renderContent}
               </span>
           </div>
       </div>
 
-      {/* Separator Line (Optional) */}
       {settings.showSeparator && (
           <div className="absolute bottom-0 left-2 right-2 h-px bg-white/5"></div>
       )}

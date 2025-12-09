@@ -25,9 +25,12 @@ export const TwitchLogo = ({ className }: { className?: string }) => (
 );
 
 export const KickLogo = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    {/* Official Kick Asset: Filled Box with K cutout */}
-    <path fillRule="evenodd" clipRule="evenodd" d="M4 0C1.79086 0 0 1.79086 0 4V20C0 22.2091 1.79086 24 4 24H20C22.2091 24 24 22.2091 24 20V4C24 1.79086 22.2091 0 20 0H4ZM8.5 6H11.5L14.5 10.5L18 6H21.5L16.5 12.5L21.5 19H18L13.5 13.5L11.5 16V19H8.5V6Z" />
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* Background: Black/Dark Rounded Square */}
+    <rect width="24" height="24" rx="4" fill="#000000"/>
+    
+    {/* K Shape: Kick Green */}
+    <path fillRule="evenodd" clipRule="evenodd" d="M8 6H10.5L13.5 10.5L17 6H20L15.5 12L20 18H17L13 13L10.5 15.5V18H8V6Z" fill="#53FC18"/>
   </svg>
 );
 
@@ -70,7 +73,8 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({ platform, className 
     
     // Shadows - Intensified for Neon Effect
     const twitchGlow = 'drop-shadow-[0_0_8px_rgba(145,70,255,1)] filter brightness-125';
-    const kickGlow = 'drop-shadow-[0_0_8px_rgba(83,252,24,1)] filter brightness-110';
+    // Remove glow for Kick if it causes issues, or keep it subtle
+    const kickGlow = 'drop-shadow-[0_0_8px_rgba(83,252,24,0.6)] filter brightness-110';
 
     let finalClass = className;
 
