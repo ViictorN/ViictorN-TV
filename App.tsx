@@ -170,7 +170,7 @@ export default function App() {
         
         if (event.data && event.data.type === 'TWITCH_AUTH_SUCCESS') {
             const { accessToken } = event.data;
-            setTwitchCreds(prev => ({ ...prev, accessToken }));
+            handleSaveTwitchCreds({ ...twitchCreds, accessToken }); // Use secure save
             setIsSettingsOpen(true);
         }
     };
@@ -208,6 +208,7 @@ export default function App() {
 
   // Sync Auth State & Fetch Authenticated Data
   useEffect(() => {
+    // Although we save explicitly, this effect ensures sync if state changes from elsewhere
     localStorage.setItem('twitch_creds', JSON.stringify(twitchCreds));
     
     const isTwitchReady = !!(twitchCreds.accessToken && twitchCreds.clientId);
@@ -220,6 +221,7 @@ export default function App() {
   }, [twitchCreds]);
 
   useEffect(() => {
+      // Although we save explicitly, this effect ensures sync
       localStorage.setItem('kick_username', kickUsername);
       localStorage.setItem('kick_access_token', kickAccessToken);
 
@@ -230,6 +232,20 @@ export default function App() {
           kickAccessToken: kickAccessToken
       }));
   }, [kickUsername, kickAccessToken]);
+
+
+  // --- EXPLICIT SAVE HANDLERS (Passed to SettingsModal) ---
+  const handleSaveTwitchCreds = (creds: TwitchCreds) => {
+      setTwitchCreds(creds);
+      localStorage.setItem('twitch_creds', JSON.stringify(creds));
+  };
+
+  const handleSaveKickCreds = (username: string, token: string) => {
+      setKickUsername(username);
+      setKickAccessToken(token);
+      localStorage.setItem('kick_username', username);
+      localStorage.setItem('kick_access_token', token);
+  };
 
 
   const flushBuffer = () => {
@@ -458,21 +474,24 @@ export default function App() {
   // --- PUBLIC TWITCH DATA FETCH (IVR Fallback) ---
   const fetchTwitchBadgesNoAuth = async () => {
       try {
+          // Using CORS Proxy to avoid direct fetch issues with IVR
+          const proxy = 'https://corsproxy.io/?';
+
           // 1. Global Badges
-          const globalRes = await fetch('https://api.ivr.fi/v2/twitch/badges/global');
+          const globalRes = await fetch(`${proxy}${encodeURIComponent('https://api.ivr.fi/v2/twitch/badges/global')}`);
           if (globalRes.ok) {
               const data = await globalRes.json();
               setGlobalBadges(prev => Object.keys(prev).length === 0 ? parseIvrBadges(data) : prev);
           }
 
           // 2. Channel Badges (Gabepeixe)
-          const channelRes = await fetch(`https://api.ivr.fi/v2/twitch/badges/channel/${TWITCH_USER_LOGIN}`);
+          const channelRes = await fetch(`${proxy}${encodeURIComponent(`https://api.ivr.fi/v2/twitch/badges/channel/${TWITCH_USER_LOGIN}`)}`);
            if (channelRes.ok) {
               const data = await channelRes.json();
               setChannelBadges(prev => Object.keys(prev).length === 0 ? parseIvrBadges(data) : prev);
           }
       } catch (e) {
-          console.error("IVR Badge Fetch Error", e);
+          // Suppress error to avoid console noise for users, as this is a fallback
       }
   };
 
@@ -722,8 +741,7 @@ export default function App() {
   };
 
   const saveKickSettings = (username: string, token: string) => {
-      setKickUsername(username);
-      setKickAccessToken(token);
+      handleSaveKickCreds(username, token); // Use secure save
   };
 
   // Detect Offline Status
@@ -744,7 +762,7 @@ export default function App() {
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)} 
         currentCreds={twitchCreds}
-        onSaveTwitch={setTwitchCreds}
+        onSaveTwitch={handleSaveTwitchCreds}
         kickUsername={kickUsername}
         kickAccessToken={kickAccessToken}
         onSaveKick={saveKickSettings}
