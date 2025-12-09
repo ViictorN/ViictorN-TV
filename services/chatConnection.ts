@@ -181,7 +181,7 @@ export class TwitchConnection {
   }
 }
 
-// --- KICK IMPLEMENTATION (Pusher WebSocket + API Write) ---
+// --- KICK IMPLEMENTATION (Public API Metadata + Pusher WebSocket) ---
 export class KickConnection {
   private ws: WebSocket | null = null;
   private channelSlug: string;
@@ -204,12 +204,18 @@ export class KickConnection {
 
   async connect() {
     try {
-      // 1. Get Chatroom ID
-      const response = await fetch(`https://corsproxy.io/?https://kick.com/api/v1/channels/${this.channelSlug}`);
+      // 1. Get Chatroom ID via Public API (Docs: https://docs.kick.com/apis/chat)
+      // Endpoint: https://api.kick.com/public/v1/channels/{slug}
+      const response = await fetch(`https://corsproxy.io/?https://api.kick.com/public/v1/channels/${this.channelSlug}`);
       const data = await response.json();
       
       if (data && data.chatroom && data.chatroom.id) {
         this.chatroomId = data.chatroom.id;
+        
+        // 2. Fetch Chat History (Official API) to fill the chat immediately
+        await this.fetchHistory();
+
+        // 3. Connect to Pusher for Real-time events
         this.connectWs();
       } else {
           console.warn('[Kick] Could not find chatroom ID for', this.channelSlug);
@@ -217,6 +223,22 @@ export class KickConnection {
     } catch (e) {
       console.error('[Kick] Connect Error (Metadata):', e);
     }
+  }
+
+  private async fetchHistory() {
+      if (!this.chatroomId) return;
+      try {
+          const res = await fetch(`https://corsproxy.io/?https://api.kick.com/public/v1/chatrooms/${this.chatroomId}/messages`);
+          const json = await res.json();
+          if (json.data && Array.isArray(json.data)) {
+              // API returns newest first, so we reverse to show chronologically
+              // We process them through the same logic as live messages for consistency
+              const history = json.data.reverse();
+              history.forEach((msgData: any) => this.processMessage(msgData));
+          }
+      } catch (e) {
+          console.warn('[Kick] History fetch failed', e);
+      }
   }
 
   private connectWs() {
@@ -301,14 +323,13 @@ export class KickConnection {
     this.onMessage(msg);
   }
 
-  // SEND MESSAGE IMPLEMENTATION
+  // SEND MESSAGE IMPLEMENTATION (Official Public API)
   async sendMessage(content: string) {
       if (!this.chatroomId || !this.accessToken) {
           throw new Error("Missing Chatroom ID or Access Token");
       }
 
-      // We use corsproxy to attempt to bypass browser CORS checks, 
-      // but Cloudflare may still block these requests.
+      // We use corsproxy to attempt to bypass browser CORS checks.
       const endpoint = `https://corsproxy.io/?https://api.kick.com/public/v1/chatrooms/${this.chatroomId}/messages`;
 
       const res = await fetch(endpoint, {
