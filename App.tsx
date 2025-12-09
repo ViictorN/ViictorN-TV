@@ -566,19 +566,16 @@ export default function App() {
   };
 
   const getParentDomain = () => {
+      // Robust parent detection
       const currentHost = window.location.hostname;
       const parents = new Set<string>();
       
-      // Add current environment
       if (currentHost) parents.add(currentHost);
+      // Fallbacks for specific environments if hostname detection fails or differs
+      if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
+          parents.add('localhost'); // Always allow local dev to work if code is copied
+      }
       
-      // Add explicit production domain (User request)
-      parents.add('viictor-n-tv.vercel.app');
-      
-      // Add dev environments
-      parents.add('localhost');
-      parents.add('127.0.0.1');
-
       return Array.from(parents).map(domain => `&parent=${domain}`).join('');
   };
 
@@ -629,20 +626,38 @@ export default function App() {
               <div className="relative w-full h-full group">
                   <iframe
                       key={`twitch-${playerKey}`}
-                      src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=false&autoplay=true`}
+                      // FIX: muted=true helps bypass browser autoplay policies
+                      src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=true&autoplay=true`}
                       className="w-full h-full border-none"
                       allowFullScreen
                       scrolling="no"
-                      allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *; clipboard-write *"
-                      referrerPolicy="origin-when-cross-origin"
+                      // FIX: Detailed allow attributes
+                      allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                      // FIX: Standard referrer policy
+                      referrerPolicy="strict-origin-when-cross-origin"
                       title="Twitch Player"
                   ></iframe>
                   
+                  {/* Fallback / External Link Button */}
+                  <a 
+                    href={`https://www.twitch.tv/${STREAMER_SLUG}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/60 hover:bg-twitch text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 backdrop-blur-md flex items-center gap-2"
+                  >
+                    <span>Assistir na Twitch ↗</span>
+                  </a>
+
                   {/* Brave Warning Tooltip */}
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                      <div className="bg-black/80 backdrop-blur-md text-white text-[10px] p-2 rounded-lg border border-white/10 max-w-[200px]">
-                          <p>
-                             <span className="text-orange-400 font-bold">⚠️ Brave/AdBlock:</span> Se não reproduzir, tente liberar cookies de terceiros para o site.
+                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                      <div className="bg-black/90 backdrop-blur-md text-white text-[10px] p-3 rounded-xl border border-white/10 max-w-[220px] shadow-xl">
+                          <p className="mb-1 font-bold text-orange-400 flex items-center gap-1">
+                              <span>⚠️</span> Problemas com Play?
+                          </p>
+                          <p className="text-gray-300 leading-relaxed">
+                              Se o player não iniciar:<br/>
+                              1. Desative o <strong className="text-white">Brave Shields</strong> (Leão)<br/>
+                              2. Ou clique em "Assistir na Twitch"
                           </p>
                       </div>
                   </div>
