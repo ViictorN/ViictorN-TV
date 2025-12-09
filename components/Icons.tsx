@@ -1,11 +1,11 @@
 import React from 'react';
 
 export const ViictorNLogo = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg className={`${className} animate-logo-float`} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="glassGradient" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stopColor="white" stopOpacity="0.4" />
-        <stop offset="100%" stopColor="white" stopOpacity="0.1" />
+        <stop offset="0%" stopColor="white" stopOpacity="0.2" />
+        <stop offset="100%" stopColor="white" stopOpacity="0.05" />
       </linearGradient>
        <linearGradient id="accentGradient" x1="10" y1="30" x2="30" y2="10" gradientUnits="userSpaceOnUse">
         <stop offset="0%" stopColor="#9146FF" />
@@ -13,8 +13,8 @@ export const ViictorNLogo = ({ className }: { className?: string }) => (
       </linearGradient>
     </defs>
     
-    <rect x="4" y="4" width="32" height="32" rx="10" fill="url(#glassGradient)" stroke="white" strokeOpacity="0.1" strokeWidth="1" />
-    <path d="M14 14L20 28L26 14" stroke="url(#accentGradient)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+    <rect x="4" y="4" width="32" height="32" rx="8" fill="url(#glassGradient)" stroke="white" strokeOpacity="0.2" strokeWidth="1.5" />
+    <path d="M14 14L20 28L26 14" stroke="url(#accentGradient)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" filter="drop-shadow(0 0 4px rgba(255,255,255,0.5))" />
   </svg>
 );
 
@@ -26,7 +26,7 @@ export const TwitchLogo = ({ className }: { className?: string }) => (
 
 export const KickLogo = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <path d="M3 0.75H8.25V9.75L15.75 0.75H21.75L12.75 10.5L22.5 23.25H16.5L9.75 13.5H8.25V23.25H3V0.75Z" />
+    <path fillRule="evenodd" clipRule="evenodd" d="M4 0C1.79086 0 0 1.79086 0 4V20C0 22.2091 1.79086 24 4 24H20C22.2091 24 24 22.2091 24 20V4C24 1.79086 22.2091 0 20 0H4ZM7 5H10.5V10.5L14.5 5H19L13.5 11.5L19.5 19H15.5L11 13V19H7V5Z" />
   </svg>
 );
 

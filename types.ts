@@ -44,6 +44,12 @@ export interface ChatSettings {
   highlightMentions: boolean; // Highlight your name
   fontFamily: 'sans' | 'mono';
   showSeparator: boolean; // Line between messages
+  rainbowUsernames: boolean; // Animated gradient usernames
+  
+  // New Moderation & Visual features
+  largeEmotes: boolean;
+  ignoredUsers: string[];
+  ignoredKeywords: string[];
 }
 
 export interface StreamStats {

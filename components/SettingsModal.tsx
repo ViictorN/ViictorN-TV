@@ -29,12 +29,18 @@ export const SettingsModal: React.FC<Props> = ({
   
   // Local Settings State
   const [settings, setSettings] = useState<ChatSettings>(chatSettings);
+  
+  // Local Blocklist State (as string for textarea)
+  const [blockedUsersStr, setBlockedUsersStr] = useState(chatSettings.ignoredUsers.join(', '));
+  const [blockedKeywordsStr, setBlockedKeywordsStr] = useState(chatSettings.ignoredKeywords.join(', '));
 
   useEffect(() => {
     setClientId(currentCreds.clientId);
     setAccessToken(currentCreds.accessToken);
     setLocalKickUser(kickUsername);
     setSettings(chatSettings);
+    setBlockedUsersStr(chatSettings.ignoredUsers.join(', '));
+    setBlockedKeywordsStr(chatSettings.ignoredKeywords.join(', '));
   }, [currentCreds, kickUsername, isOpen, chatSettings]);
 
   if (!isOpen) return null;
@@ -42,7 +48,16 @@ export const SettingsModal: React.FC<Props> = ({
   const handleSave = () => {
       onSaveTwitch({ clientId, accessToken });
       onSaveKick(localKickUser);
-      onUpdateSettings(settings);
+      
+      // Parse blocklists
+      const usersList = blockedUsersStr.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0);
+      const keywordsList = blockedKeywordsStr.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0);
+      
+      onUpdateSettings({
+          ...settings,
+          ignoredUsers: usersList,
+          ignoredKeywords: keywordsList
+      });
       onClose();
   };
   
@@ -106,6 +121,16 @@ export const SettingsModal: React.FC<Props> = ({
                      </label>
 
                      <label className="flex items-center justify-between p-3 bg-black/40 rounded-xl cursor-pointer hover:bg-black/60 transition-colors border border-white/5">
+                        <span className="text-sm text-gray-300">Nicks Coloridos (Rainbow)</span>
+                        <input type="checkbox" checked={settings.rainbowUsernames} onChange={() => toggleSetting('rainbowUsernames')} className="accent-twitch w-4 h-4" />
+                     </label>
+
+                     <label className="flex items-center justify-between p-3 bg-black/40 rounded-xl cursor-pointer hover:bg-black/60 transition-colors border border-white/5">
+                        <span className="text-sm text-gray-300">Emotes Grandes</span>
+                        <input type="checkbox" checked={settings.largeEmotes} onChange={() => toggleSetting('largeEmotes')} className="accent-twitch w-4 h-4" />
+                     </label>
+
+                     <label className="flex items-center justify-between p-3 bg-black/40 rounded-xl cursor-pointer hover:bg-black/60 transition-colors border border-white/5">
                         <span className="text-sm text-gray-300">Ocultar Msgs Sistema</span>
                         <input type="checkbox" checked={settings.hideSystemMessages} onChange={() => toggleSetting('hideSystemMessages')} className="accent-twitch w-4 h-4" />
                      </label>
@@ -150,6 +175,36 @@ export const SettingsModal: React.FC<Props> = ({
                  </div>
             </div>
 
+            {/* --- SECTION 2: MODERAÇÃO / BLOCKLIST --- */}
+            <div className="border border-white/5 bg-white/5 rounded-2xl p-6">
+                 <h3 className="font-bold text-lg text-white mb-4 flex items-center gap-2">
+                    <span>🛡️</span> Bloqueio e Moderação
+                 </h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div>
+                         <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-2 block">Usuários Bloqueados</label>
+                         <textarea 
+                             value={blockedUsersStr}
+                             onChange={(e) => setBlockedUsersStr(e.target.value)}
+                             placeholder="bot1, spammer2, usuario3 (separar por vírgula)"
+                             className="w-full bg-black border border-white/10 rounded-xl p-3 text-xs focus:border-red-500/50 outline-none text-white h-24 resize-none placeholder-white/20"
+                         />
+                         <p className="text-[10px] text-gray-500 mt-1">Mensagens destes usuários serão ocultadas totalmente.</p>
+                     </div>
+                     <div>
+                         <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-2 block">Palavras Bloqueadas (Blacklist)</label>
+                         <textarea 
+                             value={blockedKeywordsStr}
+                             onChange={(e) => setBlockedKeywordsStr(e.target.value)}
+                             placeholder="spoiler, palavra1, palavra2 (separar por vírgula)"
+                             className="w-full bg-black border border-white/10 rounded-xl p-3 text-xs focus:border-red-500/50 outline-none text-white h-24 resize-none placeholder-white/20"
+                         />
+                         <p className="text-[10px] text-gray-500 mt-1">Mensagens contendo estas palavras serão ocultadas.</p>
+                     </div>
+                 </div>
+            </div>
+
+            {/* --- CONNECTIONS SECTION (SPLIT) --- */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 relative">
                 
                 {/* --- LEFT: KICK SECTION --- */}

@@ -269,7 +269,8 @@ export class KickConnection {
     const badges: Badge[] = [];
     if (data.sender && data.sender.identity && data.sender.identity.badges) {
         data.sender.identity.badges.forEach((b: any) => {
-            badges.push({ type: b.type, version: '1' });
+            // Kick sends 'count' for subscriber months, map this to version
+            badges.push({ type: b.type, version: b.count ? String(b.count) : '1' });
         });
     }
 

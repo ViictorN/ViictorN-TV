@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ControlPanel } from './components/ControlPanel';
 import { ChatMessageItem } from './components/ChatMessageItem';
 import { SettingsModal } from './components/SettingsModal';
-import { SendIcon, TwitchLogo, KickLogo, ViictorNLogo } from './components/Icons';
+import { SendIcon, TwitchLogo, KickLogo } from './components/Icons';
 import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, EmoteMap, ChatSettings } from './types';
 import { TwitchConnection, KickConnection } from './services/chatConnection';
 import { analyzeChatVibe } from './services/geminiService';
@@ -11,6 +11,23 @@ import { fetch7TVEmotes } from './services/sevenTVService';
 const MAX_MESSAGES = 500;
 const STREAMER_SLUG = 'gabepeixe';
 const TWITCH_USER_LOGIN = 'gabepeixe';
+
+// Default Settings
+const DEFAULT_SETTINGS: ChatSettings = {
+    showTimestamps: false,
+    hideAvatars: false,
+    fontSize: 'medium',
+    hideSystemMessages: false,
+    deletedMessageBehavior: 'strikethrough',
+    alternatingBackground: false,
+    highlightMentions: true,
+    fontFamily: 'sans',
+    showSeparator: false,
+    rainbowUsernames: false,
+    largeEmotes: false,
+    ignoredUsers: [],
+    ignoredKeywords: []
+};
 
 export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -23,22 +40,24 @@ export default function App() {
     kickUsername: ''
   });
 
-  // Settings State - Default Settings Updated
-  const [chatSettings, setChatSettings] = useState<ChatSettings>({
-      showTimestamps: false,
-      hideAvatars: false,
-      fontSize: 'medium',
-      hideSystemMessages: false,
-      deletedMessageBehavior: 'strikethrough',
-      alternatingBackground: false,
-      highlightMentions: true,
-      fontFamily: 'sans',
-      showSeparator: false
+  // Settings State (Persisted)
+  const [chatSettings, setChatSettings] = useState<ChatSettings>(() => {
+      if (typeof window !== 'undefined') {
+          const saved = localStorage.getItem('chat_settings');
+          return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+      }
+      return DEFAULT_SETTINGS;
   });
 
-  // UI State
-  const [activePlayer, setActivePlayer] = useState<'twitch' | 'kick' | 'none'>('twitch');
-  const [chatFilter, setChatFilter] = useState<'all' | 'twitch' | 'kick'>('all'); // New Filter State
+  // UI State (Persisted)
+  const [activePlayer, setActivePlayer] = useState<'twitch' | 'kick' | 'none'>(() => {
+      return (localStorage.getItem('active_player') as any) || 'twitch';
+  });
+
+  const [chatFilter, setChatFilter] = useState<'all' | 'twitch' | 'kick'>(() => {
+      return (localStorage.getItem('chat_filter') as any) || 'all';
+  });
+  
   const [commentPlatform, setCommentPlatform] = useState<'twitch' | 'kick'>('twitch');
   const [chatInput, setChatInput] = useState('');
   
@@ -54,6 +73,7 @@ export default function App() {
   });
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
   const [twitchCreds, setTwitchCreds] = useState<TwitchCreds>(() => {
     if (typeof window !== 'undefined') {
         const saved = localStorage.getItem('twitch_creds');
@@ -69,6 +89,7 @@ export default function App() {
   // Assets
   const [globalBadges, setGlobalBadges] = useState<BadgeMap>({});
   const [channelBadges, setChannelBadges] = useState<BadgeMap>({});
+  const [kickBadges, setKickBadges] = useState<BadgeMap>({});
   const [sevenTVEmotes, setSevenTVEmotes] = useState<EmoteMap>({});
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -117,6 +138,19 @@ export default function App() {
     };
   }, []);
 
+  // --- PERSISTENCE EFFECT ---
+  useEffect(() => {
+    localStorage.setItem('chat_settings', JSON.stringify(chatSettings));
+  }, [chatSettings]);
+
+  useEffect(() => {
+    localStorage.setItem('active_player', activePlayer);
+  }, [activePlayer]);
+
+  useEffect(() => {
+    localStorage.setItem('chat_filter', chatFilter);
+  }, [chatFilter]);
+
   // Sync Auth State & Fetch Data ONLY if creds exist
   useEffect(() => {
     localStorage.setItem('twitch_creds', JSON.stringify(twitchCreds));
@@ -162,6 +196,15 @@ export default function App() {
                 setStreamStats(prev => ({ ...prev, kickViewers: data.livestream.viewer_count, isLiveKick: true }));
             } else {
                 setStreamStats(prev => ({ ...prev, kickViewers: 0, isLiveKick: false }));
+            }
+
+            // Fetch Kick Badges (Subscriber images)
+            if (data.subscriber_badges) {
+                const subBadges: Record<string, string> = {};
+                data.subscriber_badges.forEach((b: any) => {
+                    subBadges[String(b.months)] = b.badge_image.src;
+                });
+                setKickBadges(prev => ({ ...prev, 'subscriber': subBadges }));
             }
         }
     } catch (e) { console.warn("Kick stats fail"); }
@@ -222,6 +265,7 @@ export default function App() {
   useEffect(() => {
     if (chatContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+      // If user is near bottom (< 400px), auto-scroll
       if (scrollHeight - scrollTop - clientHeight < 400) {
         chatContainerRef.current.scrollTop = scrollHeight;
       }
@@ -233,22 +277,24 @@ export default function App() {
   };
   
   const handleDeleteMessage = (msgId: string) => {
-      // Direct state update for deletion as it's critical to UI and shouldn't be queued
+      // Direct state update for deletion
       setMessages(prev => prev.map(m => 
           m.id === msgId ? { ...m, isDeleted: true } : m
       ));
   };
+  
+  const handleReply = (username: string) => {
+      setChatInput(prev => `${prev}@${username} `);
+  };
 
-  // Twitch Connection Logic (Handles Anonymous + Auth)
+  // Twitch Connection Logic
   useEffect(() => {
-    // If a connection exists, disconnect it first to apply new credentials (or switch to anon)
     if (twitchRef.current) {
         twitchRef.current.disconnect();
         twitchRef.current = null;
         addSystemMsg('Twitch', false);
     }
 
-    // Always connect. If tokens are missing, it connects anonymously.
     twitchRef.current = new TwitchConnection(
         STREAMER_SLUG, 
         handleNewMessage, 
@@ -258,7 +304,6 @@ export default function App() {
     );
     twitchRef.current.connect();
     
-    // Determine connection type for the system message
     const mode = authState.twitch ? 'Autenticado' : 'Anônimo (Leitura)';
     handleNewMessage({
       id: crypto.randomUUID(),
@@ -274,7 +319,7 @@ export default function App() {
             twitchRef.current = null;
         }
     };
-  }, [twitchCreds.accessToken, authState.twitchUsername]); // Re-run if auth changes
+  }, [twitchCreds.accessToken, authState.twitchUsername]);
 
   // Kick Connection Logic
   useEffect(() => {
@@ -290,7 +335,7 @@ export default function App() {
             kickRef.current = null;
         }
     };
-  }, []); // Run once on mount
+  }, []);
 
   const addSystemMsg = (platform: string, connected: boolean) => {
     handleNewMessage({
@@ -310,10 +355,8 @@ export default function App() {
             alert('Você está em modo anônimo. Conecte sua conta da Twitch nas configurações (engrenagem) para enviar mensagens.');
             return;
         }
-        // Send via WebSocket
         twitchRef.current.sendMessage(chatInput);
         
-        // Optimistic UI Update (IRC doesn't always echo fast enough)
         handleNewMessage({
             id: crypto.randomUUID(),
             platform: Platform.TWITCH,
@@ -342,7 +385,6 @@ export default function App() {
     finally { setIsAnalyzing(false); }
   };
 
-  // Helper for Iframe Parents
   const getParentDomain = () => {
       const hostname = window.location.hostname;
       if (hostname === 'localhost' || hostname === '127.0.0.1') return '';
@@ -453,9 +495,19 @@ export default function App() {
                 ) : (
                 messages
                     .filter(msg => {
-                        if (chatFilter === 'all') return true;
-                        if (chatFilter === 'twitch') return msg.platform === Platform.TWITCH;
-                        if (chatFilter === 'kick') return msg.platform === Platform.KICK;
+                        // 1. Platform Filter
+                        if (chatFilter === 'twitch' && msg.platform !== Platform.TWITCH) return false;
+                        if (chatFilter === 'kick' && msg.platform !== Platform.KICK) return false;
+                        
+                        // 2. Blocked Users
+                        if (chatSettings.ignoredUsers.length > 0 && chatSettings.ignoredUsers.includes(msg.user.username.toLowerCase())) return false;
+                        
+                        // 3. Blocked Keywords
+                        if (chatSettings.ignoredKeywords.length > 0) {
+                            const contentLower = msg.content.toLowerCase();
+                            if (chatSettings.ignoredKeywords.some(kw => contentLower.includes(kw))) return false;
+                        }
+
                         return true;
                     })
                     .map((msg, idx) => (
@@ -465,12 +517,14 @@ export default function App() {
                         index={idx}
                         globalBadges={globalBadges}
                         channelBadges={channelBadges}
+                        kickBadges={kickBadges}
                         sevenTVEmotes={sevenTVEmotes}
                         settings={chatSettings}
                         currentUser={{
                             twitch: authState.twitchUsername,
                             kick: authState.kickUsername
                         }}
+                        onReply={handleReply}
                     />
                 ))
                 )}
