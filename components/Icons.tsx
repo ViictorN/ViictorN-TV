@@ -25,8 +25,11 @@ export const TwitchLogo = ({ className }: { className?: string }) => (
 );
 
 export const KickLogo = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <path fillRule="evenodd" clipRule="evenodd" d="M4 0C1.79086 0 0 1.79086 0 4V20C0 22.2091 1.79086 24 4 24H20C22.2091 24 24 22.2091 24 20V4C24 1.79086 22.2091 0 20 0H4ZM8.5 6H11.5L14.5 10.5L18 6H21.5L16.5 12.5L21.5 19H18L13.5 13.5L11.5 16V19H8.5V6Z" />
+  <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* Background Box (Filled with currentColor - Green) */}
+    <rect x="2" y="2" width="20" height="20" rx="4" fill="currentColor" />
+    {/* The 'K' (Black/Dark cut-out) */}
+    <path fillRule="evenodd" clipRule="evenodd" d="M8 7H10V10.5L12.5 7H15.5L12 11.5L15.5 17H12.5L10 12.5V17H8V7Z" fill="black"/>
   </svg>
 );
 

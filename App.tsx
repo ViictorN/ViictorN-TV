@@ -130,7 +130,7 @@ export default function App() {
   const [avatarCache, setAvatarCache] = useState<Record<string, string>>({});
   const pendingAvatars = useRef<Set<string>>(new Set());
 
-  // Session Tracking for First Interactions (Persisted in SessionStorage to survive refreshes)
+  // Session Tracking for First Interactions (Persisted in LOCALSTORAGE to survive refreshes/close)
   const seenUsers = useRef<Set<string>>(new Set());
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -140,9 +140,9 @@ export default function App() {
   
   // Init logic
   useEffect(() => {
-    // Initialize Seen Users from Session Storage on mount (fix for React strict mode ref init)
+    // Initialize Seen Users from LOCAL STORAGE
     try {
-        const saved = sessionStorage.getItem('seen_users');
+        const saved = localStorage.getItem('seen_users');
         if (saved) {
             const parsed = JSON.parse(saved);
             if (Array.isArray(parsed)) {
@@ -262,38 +262,26 @@ export default function App() {
       try {
           let url: string | null = null;
           
-          // Helper to check if an image url is valid (loads)
-          // Relaxed for Kick to avoid false negatives due to CORS
-          const checkImage = (src: string): Promise<boolean> => {
-              return new Promise((resolve) => {
-                  const img = new Image();
-                  img.onload = () => resolve(true);
-                  img.onerror = () => resolve(false);
-                  img.src = src;
-              });
-          };
-
           // --- KICK AVATAR STRATEGY ---
           if (platform === Platform.KICK && user.id) {
-               // Strategy 1: Direct Kick CDN (Try blindly first, most efficient)
-               const cdnCandidate = `https://files.kick.com/images/user_profile_pics/${user.id}/image.webp`;
-               // We set it directly. If it fails to load in the UI, the browser handles it.
-               // Checking CORS here often causes failure even if the image exists.
-               url = cdnCandidate;
-
-               if (!url) {
-                    // Strategy 2: 7TV API (Indexed Kick users)
-                   try {
-                       const res = await fetch(`https://7tv.io/v3/users/kick/${user.id}`);
-                       if (res.ok) {
-                           const data = await res.json();
-                           if (data.user?.avatar_url) {
-                               url = data.user.avatar_url.startsWith('//') 
-                                 ? `https:${data.user.avatar_url}` 
-                                 : data.user.avatar_url;
-                           }
+               // Strategy 1: 7TV API (Preferred - Bypass CORS)
+               // The direct Kick CDN often fails due to CORS or requires headers we can't send
+               try {
+                   const res = await fetch(`https://7tv.io/v3/users/kick/${user.id}`);
+                   if (res.ok) {
+                       const data = await res.json();
+                       if (data.user?.avatar_url) {
+                           url = data.user.avatar_url.startsWith('//') 
+                             ? `https:${data.user.avatar_url}` 
+                             : data.user.avatar_url;
                        }
-                   } catch (e) {}
+                   }
+               } catch (e) {}
+
+               // Strategy 2: Direct Kick CDN (Fallback)
+               // Only use this if 7TV failed.
+               if (!url) {
+                   url = `https://files.kick.com/images/user_profile_pics/${user.id}/image.webp`;
                }
           }
 
@@ -505,11 +493,11 @@ export default function App() {
   // --- HANDLERS ---
 
   const handleNewMessage = (msg: ChatMessage) => {
-    // Logic for "First Message" Tracking (Session based for Kick/Fallbacks)
+    // Logic for "First Message" Tracking (PERSISTED via localStorage)
     // Create a unique key for the user per platform (LOWERCASE to ensure consistency)
     const userKey = `${msg.platform}-${msg.user.username.toLowerCase()}`;
     
-    // If not seen in this session
+    // If not seen in HISTORY (across sessions)
     if (!seenUsers.current.has(userKey)) {
         // If Twitch sends the flag, respect it. 
         // If Kick (or flag missing), assume session-first is "First Interaction"
@@ -518,9 +506,9 @@ export default function App() {
         }
         seenUsers.current.add(userKey);
         
-        // Update SessionStorage (debounce this in a real large app, but fine here)
+        // Update LOCALSTORAGE
         try {
-            sessionStorage.setItem('seen_users', JSON.stringify(Array.from(seenUsers.current)));
+            localStorage.setItem('seen_users', JSON.stringify(Array.from(seenUsers.current)));
         } catch(e) {}
 
     } else {
