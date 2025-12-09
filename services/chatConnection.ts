@@ -438,8 +438,14 @@ export class KickConnection {
     }
 
     // Ensure we handle missing profile pics gracefully
-    const profilePic = data.sender.profile_pic;
-    // Kick sometimes sends a string "null" or actual null
+    let profilePic = data.sender.profile_pic;
+    // Kick sometimes sends a string "null" or actual null. 
+    // If null, construct standard URL from ID.
+    if (!profilePic || profilePic === 'null') {
+        if (data.sender.id) {
+            profilePic = `https://files.kick.com/images/user_profile_pics/${data.sender.id}/image.webp`;
+        }
+    }
     const isValidAvatar = profilePic && !profilePic.includes('null');
 
     const msg: ChatMessage = {
