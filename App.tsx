@@ -347,11 +347,15 @@ export default function App() {
       const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
       
-      // If user scrolls up more than 50px, pause chat
-      if (distanceFromBottom > 50) {
+      // FIX: Increase tolerance.
+      // 1. Only pause if user scrolls up significantly (> 80px). 
+      //    This prevents accidental pauses from small mouse bumps or touch jitter.
+      if (distanceFromBottom > 80) {
           if (!isPaused) setIsPaused(true);
-      } else {
-          // If user is at bottom, resume
+      } 
+      // 2. Auto-resume if user returns close to bottom (< 20px)
+      //    This removes the need to click the button if you just scroll back down manually.
+      else if (distanceFromBottom < 20) {
           if (isPaused) {
               setIsPaused(false);
               setUnreadCount(0);
@@ -361,6 +365,7 @@ export default function App() {
 
   // Auto-scroll Effect
   useEffect(() => {
+    // Only auto-scroll if NOT paused
     if (chatContainerRef.current && !isPaused) {
         const { scrollHeight, clientHeight } = chatContainerRef.current;
         chatContainerRef.current.scrollTo({
@@ -371,11 +376,17 @@ export default function App() {
   }, [messages, isPaused, chatSettings.smoothScroll]);
 
   const scrollToBottom = () => {
+      // 1. Immediately update state to prevent race conditions
+      setIsPaused(false);
+      setUnreadCount(0);
+
+      // 2. Force scroll
       if (chatContainerRef.current) {
           const { scrollHeight, clientHeight } = chatContainerRef.current;
-          chatContainerRef.current.scrollTop = scrollHeight - clientHeight;
-          setIsPaused(false);
-          setUnreadCount(0);
+          chatContainerRef.current.scrollTo({
+              top: scrollHeight - clientHeight,
+              behavior: 'auto' // Instant scroll when clicking button is usually better feel
+          });
       }
   };
 
@@ -969,27 +980,29 @@ export default function App() {
                 ))
                 )}
             </div>
+
+            {/* PAUSE / UNREAD INDICATOR */}
+            {isPaused && (
+                <div className="sticky bottom-4 flex justify-center w-full z-20 pointer-events-none">
+                    <button 
+                        onClick={scrollToBottom}
+                        className="pointer-events-auto bg-black/80 hover:bg-black text-white backdrop-blur-md border border-white/20 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 text-xs font-bold transition-all active:scale-95 animate-slide-up group"
+                    >
+                        {unreadCount > 0 ? (
+                            <>
+                                <span className="text-twitch group-hover:animate-pulse">↓</span>
+                                <span>Ver {unreadCount} novas mensagens</span>
+                            </>
+                        ) : (
+                            <>
+                                <span className="text-gray-400">⏸</span>
+                                <span>Chat Pausado</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
           </div>
-          
-          {/* PAUSE / UNREAD INDICATOR */}
-          {isPaused && (
-              <div className="absolute bottom-20 left-0 right-0 flex justify-center z-20 pointer-events-none">
-                  <button 
-                    onClick={scrollToBottom}
-                    className="pointer-events-auto liquid-glass px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 animate-slide-up hover:bg-white/10 active:scale-95 transition-all text-white border border-white/20 shadow-[0_4px_20px_rgba(0,0,0,0.5)]"
-                  >
-                      {unreadCount > 0 ? (
-                        <>
-                            <span className="text-twitch">●</span>
-                            <span>Ver {unreadCount} novas mensagens</span>
-                            <span className="text-white/60 ml-1">⬇</span>
-                        </>
-                      ) : (
-                        <span>Chat Pausado</span>
-                      )}
-                  </button>
-              </div>
-          )}
 
           {/* Input Area */}
           {(authState.twitch || authState.kickAccessToken) && (

@@ -212,7 +212,7 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
       if (message.platform === Platform.TWITCH && message.emotes) {
           const sortedEmotes: { id: string, start: number, end: number }[] = [];
           Object.entries(message.emotes).forEach(([id, positions]) => {
-              positions.forEach(pos => {
+              (positions as string[]).forEach(pos => {
                   const [start, end] = pos.split('-').map(Number);
                   sortedEmotes.push({ id, start, end });
               });
@@ -403,14 +403,17 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
 
       <div className="flex-1 min-w-0 overflow-hidden">
           {message.replyTo && (
-              <div className="flex items-center gap-2 mb-1 ml-0.5 group-hover:opacity-100 transition-opacity">
-                  <div className="w-3 h-3 border-l-2 border-t-2 border-gray-600 rounded-tl-lg mt-2 opacity-50"></div>
-                  <div className="flex items-center gap-2 bg-[#1f1f23] rounded-md pl-1.5 pr-2 py-0.5 border border-white/5 opacity-70 group-hover:opacity-100 transition-all max-w-full">
+              <div className="flex items-center gap-2 mb-1 ml-0.5">
+                  {/* Connector Line */}
+                  <div className="w-3 h-3 border-l-2 border-t-2 border-gray-500 rounded-tl-lg mt-2"></div>
+                  
+                  {/* Reply Bubble - Improved Visibility */}
+                  <div className="flex items-center gap-2 bg-[#2a2a2d] rounded-md pl-1.5 pr-2 py-1 border border-white/10 max-w-full">
                       <div className="flex items-center gap-1 shrink-0">
-                          <span className="text-[10px] text-gray-400">@</span>
-                          <span className="text-[10px] font-bold text-gray-300">{message.replyTo.username}</span>
+                          <span className="text-[10px] text-gray-400 select-none">@</span>
+                          <span className="text-[10px] font-bold text-white">{message.replyTo.username}</span>
                       </div>
-                      <span className="text-[10px] text-gray-500 italic truncate max-w-[150px] md:max-w-[250px] border-l border-white/10 pl-2">
+                      <span className="text-[10px] text-gray-300 truncate max-w-[150px] md:max-w-[250px] border-l border-white/20 pl-2">
                            {message.replyTo.content}
                       </span>
                   </div>
