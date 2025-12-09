@@ -566,22 +566,20 @@ export default function App() {
   };
 
   const getParentDomain = () => {
-      const hostname = window.location.hostname;
-      // FIX: Brave and Strict Browsers often mismatch localhost vs 127.0.0.1
-      // We send ALL possibilities to ensure one matches.
+      const currentHost = window.location.hostname;
+      const parents = new Set<string>();
       
-      // Start with the current hostname
-      let domains = `&parent=${hostname}`;
+      // Add current environment
+      if (currentHost) parents.add(currentHost);
       
-      // Ensure localhost variants are present if we are likely in dev
-      if (!domains.includes('localhost')) {
-          domains += '&parent=localhost';
-      }
-      if (!domains.includes('127.0.0.1')) {
-          domains += '&parent=127.0.0.1';
-      }
+      // Add explicit production domain (User request)
+      parents.add('viictor-n-tv.vercel.app');
       
-      return domains;
+      // Add dev environments
+      parents.add('localhost');
+      parents.add('127.0.0.1');
+
+      return Array.from(parents).map(domain => `&parent=${domain}`).join('');
   };
 
   const saveKickSettings = (username: string, token: string) => {
@@ -636,7 +634,7 @@ export default function App() {
                       allowFullScreen
                       scrolling="no"
                       allow="autoplay *; fullscreen *; picture-in-picture *; encrypted-media *; clipboard-write *"
-                      referrerPolicy="no-referrer-when-downgrade"
+                      referrerPolicy="origin-when-cross-origin"
                       title="Twitch Player"
                   ></iframe>
                   
