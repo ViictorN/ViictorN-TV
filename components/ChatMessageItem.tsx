@@ -20,8 +20,8 @@ interface Props {
   onRequestAvatar: (platform: Platform, user: User) => void;
 }
 
-// Unified Badge Styling
-const BADGE_CLASS = "h-4 w-auto mr-1 inline-block align-middle select-none object-contain";
+// Improved Badge Styling: Larger size (20px), consistent spacing, and alignment correction
+const BADGE_CLASS = "h-5 w-auto min-w-[20px] mr-1.5 inline-block align-middle select-none object-contain hover:brightness-125 hover:scale-110 transition-transform duration-200 ease-out-expo";
 
 // Fallback Twitch badges (if API not connected)
 const FALLBACK_TWITCH_BADGES: Record<string, string> = {
@@ -33,35 +33,35 @@ const FALLBACK_TWITCH_BADGES: Record<string, string> = {
   'turbo': 'https://static-cdn.jtvnw.net/badges/v1/bd444ec6-8f34-4bf9-91f4-af1e3428d80f/2',
 };
 
-// Inline SVGs for Kick Badges
+// Inline SVGs for Kick Badges - High Definition & Vibrant Colors
 const KickBadgeSVG: React.FC<{ type: string }> = ({ type }) => {
   const props = { className: BADGE_CLASS, viewBox: "0 0 24 24", fill: "currentColor" };
   
   switch (type) {
     case 'broadcaster':
       return (
-         <svg {...props} className={`${BADGE_CLASS} text-kick`}>
+         <svg {...props} className={`${BADGE_CLASS} text-[#53FC18] drop-shadow-[0_0_8px_rgba(83,252,24,0.4)]`}>
              <title>Broadcaster</title>
              <path d="M12 2L15 8H9L12 2ZM18 8H22V14H18V8ZM2 8H6V14H2V8ZM9 10H15V16H9V10ZM12 22C14.2091 22 16 20.2091 16 18H8C8 20.2091 9.79086 22 12 22Z" />
          </svg>
       );
     case 'moderator':
       return (
-        <svg {...props} className={`${BADGE_CLASS} text-[#00D26A]`}>
+        <svg {...props} className={`${BADGE_CLASS} text-[#00E572] drop-shadow-[0_0_5px_rgba(0,229,114,0.3)]`}>
            <title>Moderator</title>
            <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1ZM12 11.99H7V10.01H12V7.48L15.41 11L12 14.52V11.99Z" />
         </svg>
       ); 
     case 'vip':
       return (
-        <svg {...props} fill="none" className={`${BADGE_CLASS} text-[#F06292]`}>
+        <svg {...props} fill="none" className={`${BADGE_CLASS} text-[#FF4081]`}>
              <title>VIP</title>
              <path d="M12 2L2 9L12 22L22 9L12 2Z" fill="currentColor" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
         </svg>
       );
     case 'verified':
       return (
-        <svg {...props} className={`${BADGE_CLASS} text-kick`}>
+        <svg {...props} className={`${BADGE_CLASS} text-[#53FC18]`}>
             <title>Verified</title>
             <path d="M23 12L20.56 9.21L20.9 5.52L17.29 4.7L15.4 1.5L12 2.96L8.6 1.5L6.71 4.69L3.1 5.5L3.44 9.2L1 12L3.44 14.79L3.1 18.49L6.71 19.31L8.6 22.5L12 21.03L15.4 22.49L17.29 19.3L20.9 18.48L20.56 14.79L23 12ZM10.09 16.72L6.29 12.91L7.7 11.5L10.09 13.88L16.29 7.69L17.7 9.1L10.09 16.72Z" />
         </svg>
@@ -138,7 +138,8 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
                  if (url) return <img key={idx} src={url} className={BADGE_CLASS} alt="sub" />;
              }
              if (badge.type === 'subscriber') {
-                  return <span key={idx} className="bg-kick text-black text-[9px] px-1 rounded mr-1 font-bold">SUB</span>;
+                  // Fallback Text Badge for Kick Sub if image not loaded
+                  return <span key={idx} className="bg-kick/20 text-kick border border-kick/30 text-[9px] px-1.5 rounded mr-1.5 font-bold inline-block align-middle h-5 leading-5 select-none">SUB</span>;
              }
              return null;
           }
@@ -238,16 +239,10 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
 
           const res: (string | React.ReactNode)[] = [];
           let match;
-          // We need to loop regex to get IDs, because split eats them or puts them in weird spots depending on capture groups
-          // Actually, split with capture groups includes the captures in the array.
-          // [text, id, name, text, id, name, ...]
           
           for (let i = 0; i < split.length; i++) {
               const part = split[i];
               
-              // If we are at a position that was a capture group
-              // Logic: text (0) -> id (1) -> name (2) -> text (3) ...
-              // So if i % 3 === 1, it's ID. If i % 3 === 2, it's Name. If i % 3 === 0, it's Text.
               if (i % 3 === 0) {
                   if (part) res.push(part);
               } else if (i % 3 === 1) {
@@ -264,7 +259,6 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
                        />
                   );
               }
-              // Skip i % 3 === 2 (name) as it's handled above
           }
           return res;
       };
@@ -372,8 +366,8 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
                       </span>
                   </div>
                   
-                  {/* Badge Row (Optional for Subs, but nice to see roles) */}
-                  <div className="mb-1 opacity-70 scale-90 origin-left">
+                  {/* Badge Row */}
+                  <div className="mb-1 opacity-90 scale-100 origin-left">
                       {renderBadges()}
                   </div>
 
@@ -396,13 +390,15 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
       {/* 2. RIGHT: CONTENT */}
       <div className="flex-1 min-w-0 overflow-hidden">
 
-          {/* Reply Context Block - MOVED TO TOP */}
+          {/* Reply Context Block - CLEANER STYLE */}
           {message.replyTo && (
-              <div className="flex items-center gap-1.5 text-[10px] text-gray-400 mb-0.5 pl-1 opacity-90 border-l-2 border-white/20">
-                  <span className="transform rotate-180 -scale-y-100 inline-block text-white/40 text-xs ml-1">➥</span>
-                  <span className="flex-1 truncate">
-                       Em resposta a <span className="font-bold text-gray-300 hover:underline cursor-pointer">@{message.replyTo.username}</span>: 
-                       <span className="italic text-gray-500 ml-1">"{message.replyTo.content}"</span>
+              <div className="flex items-center gap-1.5 mb-0.5 ml-0.5 opacity-60 select-none group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 bg-white/5 rounded-md pl-1 pr-2 py-0.5 border-l-2 border-gray-500">
+                      <span className="text-[10px] text-gray-400">↪</span>
+                      <span className="text-[10px] font-bold text-gray-300">@{message.replyTo.username}</span>
+                  </div>
+                  <span className="text-[10px] text-gray-500 italic truncate max-w-[200px]">
+                       {message.replyTo.content}
                   </span>
               </div>
           )}
@@ -411,45 +407,44 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
           <div className={`break-words leading-snug ${textSizeClass} ${fontClass}`}>
               
               {/* Metadata Wrapper */}
-              <span className="inline-block mr-1 select-none align-middle">
+              <span className="inline-block mr-1.5 select-none align-middle">
                   {/* Timestamp */}
                   {settings.showTimestamps && (
-                      <span className="text-[10px] text-gray-500 font-mono mr-1">
+                      <span className="text-[10px] text-gray-500 font-mono mr-1.5">
                           {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                   )}
 
                   {/* Platform Icon */}
-                  <span className="opacity-50 group-hover:opacity-100 transition-opacity inline-block mr-1">
-                      <PlatformIcon platform={platformIcon} className="w-3 h-3" />
+                  <span className="opacity-40 group-hover:opacity-100 transition-opacity inline-block mr-1.5 align-middle">
+                      <PlatformIcon platform={platformIcon} className="w-3.5 h-3.5" />
                   </span>
 
-                  {/* Badges */}
+                  {/* Badges - Rendered Inline */}
                   {renderBadges()}
               </span>
               
               {/* Username */}
               <button 
                   onClick={() => onReply(message.user.username)}
-                  className={`font-bold hover:underline cursor-pointer align-middle ${settings.rainbowUsernames ? 'rainbow-text' : ''}`}
+                  className={`font-bold hover:underline cursor-pointer align-middle mr-0.5 ${settings.rainbowUsernames ? 'rainbow-text' : ''}`}
                   style={{ color: settings.rainbowUsernames ? undefined : usernameColor }}
               >
                   {message.user.username}
               </button>
 
-              {/* First Message Badge */}
+              {/* First Message Badge - TEXT TAG */}
               {message.isFirstMessage && (
-                   <span className="bg-yellow-500/20 text-yellow-200 text-[9px] px-1.5 py-0.5 rounded border border-yellow-500/30 uppercase font-bold tracking-wider ml-1 inline-flex items-center gap-1 select-none align-middle">
-                     <span>✨</span>
-                     <span className="hidden sm:inline">Primeira vez</span>
+                   <span className="bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 text-[9px] px-1.5 rounded-sm uppercase font-bold tracking-wider ml-2 inline-block align-middle select-none whitespace-nowrap">
+                     Primeira interação
                    </span>
               )}
 
               {/* Separator */}
-              <span className="mr-1 text-white/50 font-normal align-middle">:</span>
+              <span className="mr-1.5 text-white/40 font-normal align-middle">:</span>
 
               {/* Message Content */}
-              <span className="text-white/90">
+              <span className="text-white/90 align-middle">
                    {renderContent}
               </span>
           </div>
