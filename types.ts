@@ -56,6 +56,8 @@ export interface ChatSettings {
   // New Features
   smoothScroll: boolean; // Toggle smooth vs instant scroll
   pauseOnHover: boolean; // (Optional logic)
+  cinemaMode: boolean; // Hides header for immersion
+  performanceMode: boolean; // Reduces rendered DOM elements (Virtualization-lite)
   
   // Badge Filters
   showBadgeBroadcaster: boolean;

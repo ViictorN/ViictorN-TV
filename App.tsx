@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ControlPanel } from './components/ControlPanel';
 import { ChatMessageItem } from './components/ChatMessageItem';
 import { SettingsModal } from './components/SettingsModal';
+import { OfflineScreen } from './components/OfflineScreen';
 import { SendIcon, PlatformIcon } from './components/Icons';
 import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, EmoteMap, ChatSettings } from './types';
 import { TwitchConnection, KickConnection } from './services/chatConnection';
@@ -31,6 +32,8 @@ const DEFAULT_SETTINGS: ChatSettings = {
     // New Defaults
     smoothScroll: true,
     pauseOnHover: false,
+    cinemaMode: false,
+    performanceMode: false, // Default: keep 500 msgs visible
     showBadgeBroadcaster: true,
     showBadgeMod: true,
     showBadgeVip: true,
@@ -82,10 +85,7 @@ export default function App() {
   const [isPaused, setIsPaused] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
-  
-  // Stats
+  // Stats / Offline Logic
   const [streamStats, setStreamStats] = useState<StreamStats>({ 
     kickViewers: null, 
     twitchViewers: null,
@@ -93,6 +93,11 @@ export default function App() {
     isLiveTwitch: false 
   });
   
+  // Force play bypass for offline screen
+  const [forcePlay, setForcePlay] = useState(false);
+  
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   const [twitchCreds, setTwitchCreds] = useState<TwitchCreds>(() => {
@@ -408,6 +413,10 @@ export default function App() {
     setPlayerKey(prev => prev + 1);
   };
 
+  const toggleCinemaMode = () => {
+      setChatSettings(prev => ({ ...prev, cinemaMode: !prev.cinemaMode }));
+  };
+
   // Twitch Connection Logic
   useEffect(() => {
     if (twitchRef.current) {
@@ -584,6 +593,19 @@ export default function App() {
       setKickAccessToken(token);
   };
 
+  // Detect Offline Status
+  // Note: We use !isLiveTwitch AND !isLiveKick. 
+  // We assume if one is null, it's not live yet or loading, but strictly check false.
+  const isGlobalOffline = streamStats.isLiveTwitch === false && streamStats.isLiveKick === false;
+  const showOfflineScreen = isGlobalOffline && activePlayer !== 'none' && !forcePlay;
+
+  // Filter messages based on Performance Mode
+  // If performance mode is ON, show only last 100 messages in the DOM.
+  // Otherwise show MAX_MESSAGES (500).
+  const visibleMessages = chatSettings.performanceMode 
+      ? messages.slice(-100) 
+      : messages;
+
   return (
     <div className="flex flex-col h-[100dvh] w-full overflow-hidden font-sans bg-black">
       <SettingsModal 
@@ -610,6 +632,8 @@ export default function App() {
         chatFilter={chatFilter}
         onSetChatFilter={setChatFilter}
         onSync={handleSyncPlayer}
+        cinemaMode={chatSettings.cinemaMode}
+        onToggleCinema={toggleCinemaMode}
       />
 
       {/* Main Layout */}
@@ -622,62 +646,73 @@ export default function App() {
               : 'w-full md:flex-1 aspect-video md:aspect-auto md:h-auto opacity-100'
             }`}
         >
-            {activePlayer === 'twitch' && (
-              <div className="relative w-full h-full group">
-                  <iframe
-                      key={`twitch-${playerKey}`}
-                      // FIX: muted=true helps bypass browser autoplay policies
-                      src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=true&autoplay=true`}
-                      className="w-full h-full border-none"
-                      allowFullScreen
-                      scrolling="no"
-                      // FIX: Detailed allow attributes
-                      allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                      // FIX: Standard referrer policy
-                      referrerPolicy="strict-origin-when-cross-origin"
-                      title="Twitch Player"
-                  ></iframe>
-                  
-                  {/* Fallback / External Link Button */}
-                  <a 
-                    href={`https://www.twitch.tv/${STREAMER_SLUG}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/60 hover:bg-twitch text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 backdrop-blur-md flex items-center gap-2"
-                  >
-                    <span>Assistir na Twitch ↗</span>
-                  </a>
+            {/* OFFLINE SCREEN LAYER */}
+            {showOfflineScreen ? (
+                 <OfflineScreen 
+                    twitchCreds={twitchCreds}
+                    streamerSlug={STREAMER_SLUG}
+                    onForcePlay={() => setForcePlay(true)}
+                 />
+            ) : (
+                <>
+                    {activePlayer === 'twitch' && (
+                    <div className="relative w-full h-full group">
+                        <iframe
+                            key={`twitch-${playerKey}`}
+                            // FIX: muted=true helps bypass browser autoplay policies
+                            src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=true&autoplay=true`}
+                            className="w-full h-full border-none"
+                            allowFullScreen
+                            scrolling="no"
+                            // FIX: Detailed allow attributes
+                            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                            // FIX: Standard referrer policy
+                            referrerPolicy="strict-origin-when-cross-origin"
+                            title="Twitch Player"
+                        ></iframe>
+                        
+                        {/* Fallback / External Link Button */}
+                        <a 
+                            href={`https://www.twitch.tv/${STREAMER_SLUG}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/60 hover:bg-twitch text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 backdrop-blur-md flex items-center gap-2"
+                        >
+                            <span>Assistir na Twitch ↗</span>
+                        </a>
 
-                  {/* Brave Warning Tooltip */}
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                      <div className="bg-black/90 backdrop-blur-md text-white text-[10px] p-3 rounded-xl border border-white/10 max-w-[220px] shadow-xl">
-                          <p className="mb-1 font-bold text-orange-400 flex items-center gap-1">
-                              <span>⚠️</span> Problemas com Play?
-                          </p>
-                          <p className="text-gray-300 leading-relaxed">
-                              Se o player não iniciar:<br/>
-                              1. Desative o <strong className="text-white">Brave Shields</strong> (Leão)<br/>
-                              2. Ou clique em "Assistir na Twitch"
-                          </p>
-                      </div>
-                  </div>
-              </div>
-            )}
+                        {/* Brave Warning Tooltip */}
+                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                            <div className="bg-black/90 backdrop-blur-md text-white text-[10px] p-3 rounded-xl border border-white/10 max-w-[220px] shadow-xl">
+                                <p className="mb-1 font-bold text-orange-400 flex items-center gap-1">
+                                    <span>⚠️</span> Problemas com Play?
+                                </p>
+                                <p className="text-gray-300 leading-relaxed">
+                                    Se o player não iniciar:<br/>
+                                    1. Desative o <strong className="text-white">Brave Shields</strong> (Leão)<br/>
+                                    2. Ou clique em "Assistir na Twitch"
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    )}
 
-            {activePlayer === 'kick' && (
-                <iframe
-                    key={`kick-${playerKey}`}
-                    src={`https://player.kick.com/${STREAMER_SLUG}?autoplay=true&muted=false`}
-                    className="w-full h-full border-none"
-                    allowFullScreen
-                    scrolling="no"
-                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
-                    title="Kick Player"
-                ></iframe>
-            )}
+                    {activePlayer === 'kick' && (
+                        <iframe
+                            key={`kick-${playerKey}`}
+                            src={`https://player.kick.com/${STREAMER_SLUG}?autoplay=true&muted=false`}
+                            className="w-full h-full border-none"
+                            allowFullScreen
+                            scrolling="no"
+                            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
+                            title="Kick Player"
+                        ></iframe>
+                    )}
 
-            {activePlayer === 'none' && (
-                <div className="w-full h-full bg-black"></div>
+                    {activePlayer === 'none' && (
+                        <div className="w-full h-full bg-black"></div>
+                    )}
+                </>
             )}
           
           {aiAnalysis && (
@@ -718,13 +753,13 @@ export default function App() {
             onScroll={handleScroll}
             >
             <div className="min-h-full flex flex-col justify-end pb-2">
-                {messages.length === 0 ? (
+                {visibleMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-white/20 space-y-2">
                     <div className="text-2xl animate-pulse">⚡</div>
                     <p className="text-xs font-medium tracking-widest">CONECTANDO...</p>
                 </div>
                 ) : (
-                messages
+                visibleMessages
                     .filter(msg => {
                         // 1. Platform Filter
                         if (chatFilter === 'twitch' && msg.platform !== Platform.TWITCH) return false;

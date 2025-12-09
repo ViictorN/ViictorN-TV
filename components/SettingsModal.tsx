@@ -140,9 +140,17 @@ export const SettingsModal: React.FC<Props> = ({
                         <input type="checkbox" checked={settings.smoothScroll} onChange={() => toggleSetting('smoothScroll')} className="accent-twitch w-4 h-4" />
                      </label>
 
+                     <label className="flex items-center justify-between p-3 bg-black/40 rounded-xl cursor-pointer hover:bg-black/60 transition-colors border border-white/5 border-l-4 border-l-orange-500">
+                        <div className="flex flex-col">
+                             <span className="text-sm text-gray-300 font-bold">Modo Desempenho</span>
+                             <span className="text-[9px] text-gray-500">Renderiza menos msgs (Leve)</span>
+                        </div>
+                        <input type="checkbox" checked={settings.performanceMode} onChange={() => toggleSetting('performanceMode')} className="accent-twitch w-4 h-4" />
+                     </label>
+
                      <label className="flex items-center justify-between p-3 bg-black/40 rounded-xl cursor-pointer hover:bg-black/60 transition-colors border border-white/5">
-                        <span className="text-sm text-gray-300">Ocultar Msgs Sistema</span>
-                        <input type="checkbox" checked={settings.hideSystemMessages} onChange={() => toggleSetting('hideSystemMessages')} className="accent-twitch w-4 h-4" />
+                        <span className="text-sm text-gray-300">Modo Cinema (Esconder Topo)</span>
+                        <input type="checkbox" checked={settings.cinemaMode} onChange={() => toggleSetting('cinemaMode')} className="accent-twitch w-4 h-4" />
                      </label>
 
                      {/* Dropdowns */}

@@ -14,6 +14,8 @@ interface Props {
   chatFilter: 'all' | 'twitch' | 'kick';
   onSetChatFilter: (filter: 'all' | 'twitch' | 'kick') => void;
   onSync: () => void;
+  cinemaMode: boolean;
+  onToggleCinema: () => void;
 }
 
 export const ControlPanel: React.FC<Props> = ({ 
@@ -27,7 +29,9 @@ export const ControlPanel: React.FC<Props> = ({
     onSetPlayer,
     chatFilter,
     onSetChatFilter,
-    onSync
+    onSync,
+    cinemaMode,
+    onToggleCinema
 }) => {
   
   const totalViewers = (streamStats.kickViewers || 0) + (streamStats.twitchViewers || 0);
@@ -39,10 +43,10 @@ export const ControlPanel: React.FC<Props> = ({
   };
 
   return (
-    <div className="w-full liquid-glass-strong border-b border-white/5 flex flex-row items-center justify-between px-3 md:px-4 h-[52px] md:h-[72px] z-50 sticky top-0 transition-all duration-500 ease-out-expo shrink-0">
+    <div className={`w-full liquid-glass-strong border-b border-white/5 flex flex-row items-center justify-between px-3 md:px-4 z-50 sticky top-0 transition-all duration-500 ease-out-expo shrink-0 ${cinemaMode ? 'h-0 opacity-0 overflow-hidden py-0 border-none' : 'h-[52px] md:h-[72px]'}`}>
       
-      {/* 1. LEFT: Brand (Mobile: Icon only, Desktop: Full) */}
-      <div className="flex items-center md:w-auto md:justify-start shrink-0 mr-2">
+      {/* 1. LEFT: Brand */}
+      <div className="flex items-center md:w-auto md:justify-start shrink-0 mr-2 gap-4">
         <div className="flex items-center gap-3 group cursor-default">
             <ViictorNLogo className="w-7 h-7 md:w-10 md:h-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_20px_rgba(145,70,255,0.4)] transition-all duration-500" />
             <div className="hidden md:flex flex-col justify-center">
@@ -54,7 +58,7 @@ export const ControlPanel: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* 2. CENTER: Player Selection (Neon Pill) - Mobile Optimized */}
+      {/* 2. CENTER: Player Selection (Neon Pill) */}
       <div className="flex-1 md:flex-none flex justify-center max-w-[280px] md:max-w-none mx-auto gap-2">
         {/* PLAYER SELECTOR */}
         <div className="flex p-0.5 md:p-1 bg-black rounded-full border border-white/10 w-auto shadow-inner shadow-white/5">
@@ -118,7 +122,7 @@ export const ControlPanel: React.FC<Props> = ({
         {/* Desktop Stats & Tools */}
         <div className="hidden md:flex items-center gap-4">
             
-            {/* Sync Button (New) */}
+            {/* Sync Button */}
             {activePlayer !== 'none' && (
                 <button
                     onClick={onSync}
@@ -152,6 +156,16 @@ export const ControlPanel: React.FC<Props> = ({
 
             {/* Tools */}
             <div className="flex items-center gap-2">
+                
+                {/* Cinema Mode Toggle */}
+                <button
+                    onClick={onToggleCinema}
+                    className="w-10 h-10 rounded-full flex items-center justify-center bg-black hover:bg-white/5 text-gray-400 hover:text-white transition-all duration-300 border border-white/10 hover:border-white/20 active:scale-90 shadow-lg"
+                    title="Cinema Mode (Hide Header)"
+                >
+                    <span className="text-lg">↕</span>
+                </button>
+
                 <button
                 onClick={onAnalyze}
                 disabled={isAnalyzing}
