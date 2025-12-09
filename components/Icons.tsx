@@ -67,9 +67,9 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({ platform, className 
     const twitchColor = 'text-[#9146FF]';
     const kickColor = 'text-[#53FC18]';
     
-    // Shadows
-    const twitchGlow = 'drop-shadow-[0_0_8px_rgba(145,70,255,0.6)]';
-    const kickGlow = 'drop-shadow-[0_0_8px_rgba(83,252,24,0.6)]';
+    // Shadows - Intensified for Neon Effect
+    const twitchGlow = 'drop-shadow-[0_0_8px_rgba(145,70,255,1)] filter brightness-125';
+    const kickGlow = 'drop-shadow-[0_0_8px_rgba(83,252,24,1)] filter brightness-110';
 
     let finalClass = className;
 

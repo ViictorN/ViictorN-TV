@@ -345,12 +345,13 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   // --- SPECIAL RENDER FOR SUBSCRIPTIONS ---
   if (message.isSubscription) {
       const isTwitch = message.platform === Platform.TWITCH;
+      // Gradient background for Subs
       const subStyle = isTwitch 
-        ? "bg-[#9146FF]/10 border-[#9146FF]" 
-        : "bg-[#53FC18]/10 border-[#53FC18]";
+        ? "bg-gradient-to-r from-[#9146FF]/20 via-[#9146FF]/5 to-transparent border-[#9146FF]" 
+        : "bg-gradient-to-r from-[#53FC18]/20 via-[#53FC18]/5 to-transparent border-[#53FC18]";
 
       return (
-        <div className={`group flex items-start gap-3 py-3 px-3 mx-1 my-2 rounded-lg border-l-4 relative transition-all animate-fade-in ${subStyle}`}>
+        <div className={`group flex items-start gap-3 py-3 px-3 mx-1 my-2 rounded-lg border-l-4 relative transition-all animate-fade-in shadow-sm ${subStyle}`}>
              {/* Left: Avatar */}
              {!settings.hideAvatars && AvatarComponent}
 
@@ -360,7 +361,7 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
                       <span className="text-xl leading-none">🎉</span>
                       <span className="font-bold text-white text-sm">
                           {message.user.username}
-                          <span className={`opacity-80 font-medium ml-2 text-xs uppercase tracking-wide px-1.5 py-0.5 rounded ${isTwitch ? 'bg-[#9146FF]/30 text-[#d8b4fe]' : 'bg-[#53FC18]/30 text-[#a3f78a]'}`}>
+                          <span className={`opacity-80 font-medium ml-2 text-xs uppercase tracking-wide px-1.5 py-0.5 rounded shadow-sm ${isTwitch ? 'bg-[#9146FF] text-white' : 'bg-[#53FC18] text-black'}`}>
                                 {message.subMonths ? `Sub x${message.subMonths}` : 'Novo Sub'}
                           </span>
                       </span>
@@ -390,16 +391,21 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
       {/* 2. RIGHT: CONTENT */}
       <div className="flex-1 min-w-0 overflow-hidden">
 
-          {/* Reply Context Block - CLEANER STYLE */}
+          {/* Reply Context Block - IMPROVED VISUALS */}
           {message.replyTo && (
-              <div className="flex items-center gap-1.5 mb-0.5 ml-0.5 opacity-60 select-none group-hover:opacity-100 transition-opacity">
-                  <div className="flex items-center gap-1 bg-white/5 rounded-md pl-1 pr-2 py-0.5 border-l-2 border-gray-500">
-                      <span className="text-[10px] text-gray-400">↪</span>
-                      <span className="text-[10px] font-bold text-gray-300">@{message.replyTo.username}</span>
+              <div className="flex items-center gap-2 mb-1 ml-0.5 group-hover:opacity-100 transition-opacity">
+                  {/* Curved Line Connector */}
+                  <div className="w-3 h-3 border-l-2 border-t-2 border-gray-600 rounded-tl-lg mt-2 opacity-50"></div>
+                  
+                  <div className="flex items-center gap-2 bg-[#1f1f23] rounded-md pl-1.5 pr-2 py-0.5 border border-white/5 opacity-70 group-hover:opacity-100 transition-all max-w-full">
+                      <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-[10px] text-gray-400">@</span>
+                          <span className="text-[10px] font-bold text-gray-300">{message.replyTo.username}</span>
+                      </div>
+                      <span className="text-[10px] text-gray-500 italic truncate max-w-[150px] md:max-w-[250px] border-l border-white/10 pl-2">
+                           {message.replyTo.content}
+                      </span>
                   </div>
-                  <span className="text-[10px] text-gray-500 italic truncate max-w-[200px]">
-                       {message.replyTo.content}
-                  </span>
               </div>
           )}
           
@@ -415,9 +421,9 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
                       </span>
                   )}
 
-                  {/* Platform Icon */}
-                  <span className="opacity-40 group-hover:opacity-100 transition-opacity inline-block mr-1.5 align-middle">
-                      <PlatformIcon platform={platformIcon} className="w-3.5 h-3.5" />
+                  {/* Platform Icon - NEON GLOW ENABLED (High Opacity) */}
+                  <span className="opacity-80 group-hover:opacity-100 transition-opacity inline-block mr-1.5 align-middle">
+                      <PlatformIcon platform={platformIcon} variant="glow" className="w-3.5 h-3.5" />
                   </span>
 
                   {/* Badges - Rendered Inline */}

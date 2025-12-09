@@ -128,6 +128,18 @@ export class TwitchConnection {
           let systemMsg = tags['system-msg'] || 'Subscription Event';
           systemMsg = systemMsg.replace(/\\s/g, ' '); // Unescape spaces
 
+          // Manual Portuguese Translation
+          const subMonths = tags['msg-param-cumulative-months'] ? parseInt(tags['msg-param-cumulative-months']) : 1;
+          
+          if (msgId === 'sub') {
+              systemMsg = 'Se inscreveu no canal!';
+          } else if (msgId === 'resub') {
+              systemMsg = `Re-inscreveu por ${subMonths} meses!`;
+          } else if (msgId === 'subgift') {
+              const recipient = tags['msg-param-recipient-display-name'] || tags['msg-param-recipient-user-name'] || 'alguém';
+              systemMsg = `Presenteou uma inscrição para ${recipient}!`;
+          }
+
           // Extract optional user message if exists
           let userMessage = '';
           const channelEnd = remaining.indexOf(' :', remaining.indexOf('USERNOTICE'));
@@ -138,8 +150,7 @@ export class TwitchConnection {
           const username = tags['display-name'] || tags['login'] || 'Twitch';
           const userId = tags['user-id'];
           const color = tags['color'];
-          const subMonths = tags['msg-param-cumulative-months'] ? parseInt(tags['msg-param-cumulative-months']) : 1;
-
+          
            // Parse Badges
             const badges: Badge[] = [];
             if (tags['badges']) {
