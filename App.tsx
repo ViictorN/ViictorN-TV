@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ControlPanel } from './components/ControlPanel';
 import { ChatMessageItem } from './components/ChatMessageItem';
 import { SettingsModal } from './components/SettingsModal';
@@ -125,6 +125,10 @@ export default function App() {
   const [channelBadges, setChannelBadges] = useState<BadgeMap>({});
   const [kickBadges, setKickBadges] = useState<BadgeMap>({});
   const [sevenTVEmotes, setSevenTVEmotes] = useState<EmoteMap>({});
+  
+  // Avatar Cache
+  const [avatarCache, setAvatarCache] = useState<Record<string, string>>({});
+  const pendingAvatars = useRef<Set<string>>(new Set());
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const twitchRef = useRef<TwitchConnection | null>(null);
@@ -229,6 +233,70 @@ export default function App() {
       });
     }
   };
+
+  // --- AVATAR FETCH SERVICE ---
+  const requestAvatar = useCallback(async (platform: Platform, user: User) => {
+      const key = `${platform}-${user.username}`;
+      
+      // Prevent redundant fetches
+      if (avatarCache[key] || pendingAvatars.current.has(key)) return;
+      if (user.avatarUrl) return; // Already has native avatar
+
+      pendingAvatars.current.add(key);
+
+      try {
+          let url: string | null = null;
+          
+          // 1. Try 7TV API (Works for both if ID is present)
+          // Twitch/Kick IDs are usually available in our connection logic
+          if (user.id) {
+              const p = platform === Platform.TWITCH ? 'twitch' : 'kick';
+              try {
+                  const res = await fetch(`https://7tv.io/v3/users/${p}/${user.id}`);
+                  if (res.ok) {
+                      const data = await res.json();
+                      if (data.user?.avatar_url) {
+                          url = data.user.avatar_url.startsWith('//') 
+                            ? `https:${data.user.avatar_url}` 
+                            : data.user.avatar_url;
+                      }
+                  }
+              } catch (e) {}
+          }
+
+          // 2. Fallbacks
+          if (!url) {
+              if (platform === Platform.TWITCH) {
+                  // IVR API (Username based)
+                  try {
+                    const res = await fetch(`https://api.ivr.fi/v2/twitch/user?login=${user.username}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data[0] && data[0].logo) url = data[0].logo;
+                    }
+                  } catch(e) {}
+              } 
+              else if (platform === Platform.KICK) {
+                  // Kick Public API (via Proxy)
+                  try {
+                      const res = await fetch(`https://corsproxy.io/?https://kick.com/api/v1/users/${user.username}`);
+                      if (res.ok) {
+                          const data = await res.json();
+                          if (data && data.profile_pic) url = data.profile_pic;
+                      }
+                  } catch(e) {}
+              }
+          }
+
+          if (url) {
+              setAvatarCache(prev => ({ ...prev, [key]: url! }));
+          }
+      } catch (e) {
+          // Silent fail
+      } finally {
+          pendingAvatars.current.delete(key);
+      }
+  }, [avatarCache]);
 
   // --- SCROLL HANDLER (Chat Freeze) ---
   const handleScroll = () => {
@@ -827,6 +895,8 @@ export default function App() {
                         }}
                         onReply={handleReply}
                         onUserClick={handleUserClick}
+                        avatarCache={avatarCache}
+                        onRequestAvatar={requestAvatar}
                     />
                 ))
                 )}
@@ -838,12 +908,13 @@ export default function App() {
               <div className="absolute bottom-20 left-0 right-0 flex justify-center z-20 pointer-events-none">
                   <button 
                     onClick={scrollToBottom}
-                    className="pointer-events-auto bg-twitch text-white px-4 py-2 rounded-full shadow-xl text-xs font-bold flex items-center gap-2 animate-slide-up hover:bg-twitch/90 active:scale-95 transition-all"
+                    className="pointer-events-auto liquid-glass px-5 py-2.5 rounded-full text-xs font-bold flex items-center gap-2 animate-slide-up hover:bg-white/10 active:scale-95 transition-all text-white border border-white/20 shadow-[0_4px_20px_rgba(0,0,0,0.5)]"
                   >
                       {unreadCount > 0 ? (
                         <>
+                            <span className="text-twitch">●</span>
                             <span>Ver {unreadCount} novas mensagens</span>
-                            <span className="text-white/60">⬇</span>
+                            <span className="text-white/60 ml-1">⬇</span>
                         </>
                       ) : (
                         <span>Chat Pausado</span>

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { ChatMessage, Platform, Badge, BadgeMap, EmoteMap, ChatSettings, User } from '../types';
 import { PlatformIcon } from './Icons';
 
@@ -16,6 +16,8 @@ interface Props {
   };
   onReply: (username: string) => void;
   onUserClick: (user: User, platform: Platform) => void;
+  avatarCache: Record<string, string>;
+  onRequestAvatar: (platform: Platform, user: User) => void;
 }
 
 // Unified Badge Styling
@@ -84,10 +86,24 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
     sevenTVEmotes, 
     settings, 
     currentUser, 
-    onReply,
-    onUserClick
+    onReply, 
+    onUserClick,
+    avatarCache,
+    onRequestAvatar
 }) => {
   const isSystem = message.platform === Platform.SYSTEM;
+
+  // Determine Avatar URL
+  const avatarKey = `${message.platform}-${message.user.username}`;
+  const displayAvatar = message.user.avatarUrl || avatarCache[avatarKey];
+
+  // Effect: Fetch Avatar if missing and not hidden
+  useEffect(() => {
+    if (!settings.hideAvatars && !displayAvatar && !isSystem) {
+       onRequestAvatar(message.platform, message.user);
+    }
+  }, [settings.hideAvatars, displayAvatar, isSystem, message.platform, message.user, onRequestAvatar]);
+
 
   // Render System Message
   if (isSystem) {
@@ -113,38 +129,27 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
       });
 
       return filteredBadges.map((badge, idx) => {
-          // KICK BADGES
           if (message.platform === Platform.KICK) {
-             // 1. Native Kick Badges (SVG)
              if (['broadcaster', 'moderator', 'vip', 'verified', 'founder'].includes(badge.type)) {
                  return <KickBadgeSVG key={`${message.id}-badge-${idx}`} type={badge.type} />;
              }
-             // 2. Kick Subscriber (Image from API)
              if (badge.type === 'subscriber' && kickBadges?.['subscriber']) {
-                 const months = parseInt(badge.version || '1');
-                 // Find closest month badge (logic: find badge <= months)
-                 // Simple approach: direct lookup or default
                  const url = kickBadges['subscriber'][badge.version || '1'];
                  if (url) return <img key={idx} src={url} className={BADGE_CLASS} alt="sub" />;
              }
-             // Fallback Kick Sub
              if (badge.type === 'subscriber') {
                   return <span key={idx} className="bg-kick text-black text-[9px] px-1 rounded mr-1 font-bold">SUB</span>;
              }
              return null;
           }
           
-          // TWITCH BADGES
           if (message.platform === Platform.TWITCH) {
-              // 1. Try Channel Badges (Sub, Bits)
               if (channelBadges && channelBadges[badge.type] && channelBadges[badge.type][badge.version || '1']) {
                   return <img key={idx} src={channelBadges[badge.type][badge.version || '1']} className={BADGE_CLASS} alt={badge.type} />;
               }
-              // 2. Try Global Badges (Turbo, Prime, etc)
               if (globalBadges && globalBadges[badge.type] && globalBadges[badge.type][badge.version || '1']) {
                    return <img key={idx} src={globalBadges[badge.type][badge.version || '1']} className={BADGE_CLASS} alt={badge.type} />;
               }
-              // 3. Fallback to Hardcoded URLs (if API failed)
               if (FALLBACK_TWITCH_BADGES[badge.type]) {
                   return <img key={idx} src={FALLBACK_TWITCH_BADGES[badge.type]} className={BADGE_CLASS} alt={badge.type} />;
               }
@@ -153,39 +158,150 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
       });
   };
 
-  // --- MESSAGE CONTENT PARSING (7TV) ---
-  const renderContent = () => {
+  // --- COMPLEX MESSAGE CONTENT PARSING ---
+  // Handles: Twitch Native Ranges, Kick Regex [emote:id:name], and 7TV Words
+  const renderContent = useMemo(() => {
       if (message.isDeleted) {
           if (settings.deletedMessageBehavior === 'hide') return null;
           return <span className="text-gray-500 italic line-through text-xs">&lt;mensagem deletada&gt;</span>;
       }
 
-      // 1. Check for 7TV Emotes (Split by words)
-      const words = message.content.split(' ');
-      
-      return words.map((word, i) => {
-          // Check if word is a 7TV emote
-          if (sevenTVEmotes && sevenTVEmotes[word]) {
+      // 1. Build an array of segments (text or react nodes)
+      // If we have native twitch emotes, we must split by index
+      let parts: (string | React.ReactNode)[] = [message.content];
+
+      // --- PASS 1: NATIVE TWITCH EMOTES (by index) ---
+      if (message.platform === Platform.TWITCH && message.emotes) {
+          const sortedEmotes: { id: string, start: number, end: number }[] = [];
+          Object.entries(message.emotes).forEach(([id, positions]) => {
+              positions.forEach(pos => {
+                  const [start, end] = pos.split('-').map(Number);
+                  sortedEmotes.push({ id, start, end });
+              });
+          });
+          
+          // Sort descending to replace from end to start without messing up indices
+          sortedEmotes.sort((a, b) => b.start - a.start);
+
+          let currentText = message.content;
+          const newParts: (string | React.ReactNode)[] = [];
+          
+          // We iterate through the string and carve out emotes
+          // But actually, it's easier to map character array or use a library, 
+          // For simplicity/perf in React, we'll assume non-overlapping ranges (guaranteed by Twitch)
+          
+          // Re-approach: split string by ranges
+          // To do this efficiently in React, we need to build the array from start to end
+          // So let's sort Ascending
+          sortedEmotes.sort((a, b) => a.start - b.start);
+          
+          const result: (string | React.ReactNode)[] = [];
+          let cursor = 0;
+
+          sortedEmotes.forEach((emote, i) => {
+               // Push text before emote
+               if (emote.start > cursor) {
+                   result.push(message.content.substring(cursor, emote.start));
+               }
+               
+               // Push Emote
                const sizeClass = settings.largeEmotes ? "h-8" : "h-5";
-               return (
+               result.push(
                    <img 
-                    key={i} 
-                    src={sevenTVEmotes[word]} 
-                    alt={word} 
-                    title={word}
-                    className={`inline-block mx-0.5 align-middle hover:scale-110 transition-transform ${sizeClass}`} 
+                       key={`twitch-emote-${emote.id}-${i}`}
+                       src={`https://static-cdn.jtvnw.net/emoticons/v2/${emote.id}/default/dark/1.0`}
+                       alt="emote"
+                       className={`inline-block mx-0.5 align-middle hover:scale-110 transition-transform ${sizeClass}`}
                    />
                );
+               
+               cursor = emote.end + 1;
+          });
+
+          // Push remaining text
+          if (cursor < message.content.length) {
+              result.push(message.content.substring(cursor));
           }
+          
+          parts = result.length > 0 ? result : [message.content];
+      }
 
-          // Check if word is a Native Twitch Emote (if provided in payload)
-          // Twitch IRC sends parsing info, but we also just have text. 
-          // If native parsing was robust we'd use parsing ranges.
-          // For now, text fallback is fine, assuming 7TV covers most visual needs.
+      // --- PASS 2: KICK NATIVE EMOTES (Regex) ---
+      // Pattern: [emote:1234:name]
+      const processKickEmotes = (segment: string | React.ReactNode): (string | React.ReactNode)[] => {
+          if (typeof segment !== 'string') return [segment];
+          
+          const kickRegex = /\[emote:(\d+):([\w\s-]+)\]/g;
+          const split = segment.split(kickRegex);
+          
+          if (split.length === 1) return [segment];
 
-          return <span key={i}>{word} </span>;
-      });
-  };
+          const res: (string | React.ReactNode)[] = [];
+          let match;
+          // We need to loop regex to get IDs, because split eats them or puts them in weird spots depending on capture groups
+          // Actually, split with capture groups includes the captures in the array.
+          // [text, id, name, text, id, name, ...]
+          
+          for (let i = 0; i < split.length; i++) {
+              const part = split[i];
+              
+              // If we are at a position that was a capture group
+              // Logic: text (0) -> id (1) -> name (2) -> text (3) ...
+              // So if i % 3 === 1, it's ID. If i % 3 === 2, it's Name. If i % 3 === 0, it's Text.
+              if (i % 3 === 0) {
+                  if (part) res.push(part);
+              } else if (i % 3 === 1) {
+                  const id = part;
+                  const name = split[i+1]; // Next is name
+                  const sizeClass = settings.largeEmotes ? "h-8" : "h-5";
+                  res.push(
+                       <img 
+                           key={`kick-emote-${id}-${i}`}
+                           src={`https://files.kick.com/emotes/${id}/fullsize`}
+                           alt={name}
+                           title={name}
+                           className={`inline-block mx-0.5 align-middle hover:scale-110 transition-transform ${sizeClass}`}
+                       />
+                  );
+              }
+              // Skip i % 3 === 2 (name) as it's handled above
+          }
+          return res;
+      };
+
+      if (message.platform === Platform.KICK) {
+          parts = parts.flatMap(processKickEmotes);
+      }
+
+      // --- PASS 3: 7TV EMOTES (Word replacement) ---
+      // We only split STRINGS by space. Existing Nodes (images) are left alone.
+      const process7TV = (segment: string | React.ReactNode): (string | React.ReactNode)[] => {
+          if (typeof segment !== 'string') return [segment];
+          
+          const words = segment.split(' ');
+          return words.map((word, i) => {
+              const emoteUrl = sevenTVEmotes?.[word];
+              if (emoteUrl) {
+                  const sizeClass = settings.largeEmotes ? "h-8" : "h-5";
+                  // Add a space after if it's not the last word, to maintain spacing
+                  return (
+                      <React.Fragment key={`7tv-${i}`}>
+                        <img 
+                            src={emoteUrl} 
+                            alt={word} 
+                            title={word}
+                            className={`inline-block mx-0.5 align-middle hover:scale-110 transition-transform ${sizeClass}`} 
+                        />
+                        {i < words.length - 1 ? ' ' : ''}
+                      </React.Fragment>
+                  );
+              }
+              return i < words.length - 1 ? word + ' ' : word;
+          });
+      };
+
+      return parts.flatMap(process7TV);
+  }, [message.content, message.emotes, message.platform, message.isDeleted, sevenTVEmotes, settings.largeEmotes, settings.deletedMessageBehavior]);
 
   // --- STYLES ---
   const isMention = settings.highlightMentions && (
@@ -215,7 +331,6 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
       onUserClick(message.user, message.platform);
   };
 
-  const avatarUrl = message.user.avatarUrl;
   const initial = message.user.username.charAt(0).toUpperCase();
 
   return (
@@ -224,8 +339,8 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
       {/* 1. LEFT: AVATAR (NEW) */}
       {!settings.hideAvatars && (
           <div className="flex-shrink-0 mt-0.5 cursor-pointer hover:opacity-80 active:scale-95 transition-all" onClick={handleAvatarClick}>
-               {avatarUrl ? (
-                   <img src={avatarUrl} alt={message.user.username} className="w-[28px] h-[28px] rounded-full object-cover bg-gray-800" />
+               {displayAvatar ? (
+                   <img src={displayAvatar} alt={message.user.username} className="w-[28px] h-[28px] rounded-full object-cover bg-gray-800" loading="lazy" />
                ) : (
                    <div 
                     className="w-[28px] h-[28px] rounded-full flex items-center justify-center text-[10px] font-bold text-white text-shadow-sm shadow-inner" 
@@ -278,7 +393,7 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
           
           {/* Message Content */}
           <div className={`text-white/90 break-words leading-snug mt-0.5 ${textSizeClass} ${fontClass} ${message.isSubscription ? 'text-yellow-300 font-bold' : ''}`}>
-               {renderContent()}
+               {renderContent}
           </div>
       </div>
 
