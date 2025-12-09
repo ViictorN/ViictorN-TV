@@ -181,7 +181,7 @@ export class TwitchConnection {
   }
 }
 
-// --- KICK IMPLEMENTATION (Public API Metadata + Pusher WebSocket) ---
+// --- KICK IMPLEMENTATION (Hybrid: Internal/Public API + Pusher) ---
 export class KickConnection {
   private ws: WebSocket | null = null;
   private channelSlug: string;
@@ -204,40 +204,63 @@ export class KickConnection {
 
   async connect() {
     try {
-      // 1. Get Chatroom ID via Public API (Docs: https://docs.kick.com/apis/chat)
-      // Endpoint: https://api.kick.com/public/v1/channels/{slug}
-      const response = await fetch(`https://corsproxy.io/?https://api.kick.com/public/v1/channels/${this.channelSlug}`);
-      const data = await response.json();
+      let data = null;
       
+      // Strategy 1: Internal API via Proxy (Often works better for read-only metadata)
+      // This was the method that worked in the initial version.
+      try {
+        const res = await fetch(`https://corsproxy.io/?https://kick.com/api/v1/channels/${this.channelSlug}`);
+        if (res.ok) {
+            data = await res.json();
+            console.log('[Kick] Metadata retrieved via Internal API');
+        }
+      } catch (e) { console.warn("[Kick] Internal API failed, trying fallback...", e); }
+
+      // Strategy 2: Public API via Proxy (Fallback if internal fails)
+      if (!data) {
+         try {
+            const res = await fetch(`https://corsproxy.io/?https://api.kick.com/public/v1/channels/${this.channelSlug}`);
+            if (res.ok) {
+                data = await res.json();
+                console.log('[Kick] Metadata retrieved via Public API');
+            }
+         } catch (e) { console.warn("[Kick] Public API failed", e); }
+      }
+
       if (data && data.chatroom && data.chatroom.id) {
         this.chatroomId = data.chatroom.id;
         
-        // 2. Fetch Chat History (Official API) to fill the chat immediately
-        await this.fetchHistory();
-
-        // 3. Connect to Pusher for Real-time events
+        // 1. Connect WebSocket (Priority: High)
         this.connectWs();
+        
+        // 2. Fetch Chat History (Priority: Low - Don't block if fails)
+        this.fetchHistory().catch(e => console.warn("[Kick] History fetch failed, but realtime should work.", e));
       } else {
-          console.warn('[Kick] Could not find chatroom ID for', this.channelSlug);
+          console.error('[Kick] Could not find chatroom ID. Both APIs might be blocked by CORS/Cloudflare.');
       }
     } catch (e) {
-      console.error('[Kick] Connect Error (Metadata):', e);
+      console.error('[Kick] Connect Fatal Error:', e);
     }
   }
 
   private async fetchHistory() {
       if (!this.chatroomId) return;
+      
+      // We try the Public API endpoint for messages as it's cleaner, but wrap in try/catch
       try {
           const res = await fetch(`https://corsproxy.io/?https://api.kick.com/public/v1/chatrooms/${this.chatroomId}/messages`);
-          const json = await res.json();
-          if (json.data && Array.isArray(json.data)) {
-              // API returns newest first, so we reverse to show chronologically
-              // We process them through the same logic as live messages for consistency
-              const history = json.data.reverse();
-              history.forEach((msgData: any) => this.processMessage(msgData));
+          if (res.ok) {
+              const json = await res.json();
+              if (json.data && Array.isArray(json.data)) {
+                  // API returns newest first, reverse for display
+                  const history = json.data.reverse();
+                  history.forEach((msgData: any) => this.processMessage(msgData));
+              }
+          } else {
+              throw new Error("API responded with error");
           }
       } catch (e) {
-          console.warn('[Kick] History fetch failed', e);
+          throw e; 
       }
   }
 
