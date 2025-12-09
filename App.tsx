@@ -3,7 +3,7 @@ import { ControlPanel } from './components/ControlPanel';
 import { ChatMessageItem } from './components/ChatMessageItem';
 import { SettingsModal } from './components/SettingsModal';
 import { SendIcon, TwitchLogo, KickLogo, ViictorNLogo } from './components/Icons';
-import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, EmoteMap } from './types';
+import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, EmoteMap, ChatSettings } from './types';
 import { TwitchConnection, KickConnection } from './services/chatConnection';
 import { analyzeChatVibe } from './services/geminiService';
 import { fetch7TVEmotes } from './services/sevenTVService';
@@ -23,8 +23,18 @@ export default function App() {
     kickUsername: ''
   });
 
+  // Settings State
+  const [chatSettings, setChatSettings] = useState<ChatSettings>({
+      showTimestamps: false,
+      hideAvatars: false,
+      fontSize: 'medium',
+      hideSystemMessages: false,
+      deletedMessageBehavior: 'strikethrough'
+  });
+
   // UI State
   const [activePlayer, setActivePlayer] = useState<'twitch' | 'kick' | 'none'>('twitch');
+  const [chatFilter, setChatFilter] = useState<'all' | 'twitch' | 'kick'>('all'); // New Filter State
   const [commentPlatform, setCommentPlatform] = useState<'twitch' | 'kick'>('twitch');
   const [chatInput, setChatInput] = useState('');
   
@@ -217,6 +227,13 @@ export default function App() {
   const handleNewMessage = (msg: ChatMessage) => {
     messageQueue.current.push(msg);
   };
+  
+  const handleDeleteMessage = (msgId: string) => {
+      // Direct state update for deletion as it's critical to UI and shouldn't be queued
+      setMessages(prev => prev.map(m => 
+          m.id === msgId ? { ...m, isDeleted: true } : m
+      ));
+  };
 
   // Twitch Connection Logic (Handles Anonymous + Auth)
   useEffect(() => {
@@ -231,6 +248,7 @@ export default function App() {
     twitchRef.current = new TwitchConnection(
         STREAMER_SLUG, 
         handleNewMessage, 
+        handleDeleteMessage,
         twitchCreds.accessToken || undefined, 
         authState.twitchUsername || undefined
     );
@@ -257,7 +275,7 @@ export default function App() {
   // Kick Connection Logic
   useEffect(() => {
     if (!kickRef.current) {
-      kickRef.current = new KickConnection(STREAMER_SLUG, handleNewMessage);
+      kickRef.current = new KickConnection(STREAMER_SLUG, handleNewMessage, handleDeleteMessage);
       kickRef.current.connect();
       addSystemMsg('Kick', true);
     }
@@ -336,6 +354,8 @@ export default function App() {
         onSaveTwitch={setTwitchCreds}
         kickUsername={kickUsername}
         onSaveKick={setKickUsername}
+        chatSettings={chatSettings}
+        onUpdateSettings={setChatSettings}
       />
 
       <ControlPanel 
@@ -347,6 +367,8 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         activePlayer={activePlayer}
         onSetPlayer={setActivePlayer}
+        chatFilter={chatFilter}
+        onSetChatFilter={setChatFilter}
       />
 
       {/* Main Layout */}
@@ -410,6 +432,15 @@ export default function App() {
             flex flex-col z-10 transition-all duration-500 ease-out-expo min-h-0 relative
         `}>
           
+           {/* Mobile Chat Filter - Only show if in Chat Only mode for easier access */}
+           <div className={`md:hidden flex justify-center py-2 bg-black border-b border-white/5 ${activePlayer !== 'none' ? 'hidden' : ''}`}>
+               <div className="flex p-1 bg-white/5 rounded-full border border-white/5">
+                   <button onClick={() => setChatFilter('all')} className={`px-4 py-1 rounded-full text-xs ${chatFilter === 'all' ? 'bg-white/20' : 'text-gray-500'}`}>All</button>
+                   <button onClick={() => setChatFilter('twitch')} className={`px-4 py-1 rounded-full text-xs ${chatFilter === 'twitch' ? 'bg-twitch/20 text-twitch' : 'text-gray-500'}`}>Twitch</button>
+                   <button onClick={() => setChatFilter('kick')} className={`px-4 py-1 rounded-full text-xs ${chatFilter === 'kick' ? 'bg-kick/20 text-kick' : 'text-gray-500'}`}>Kick</button>
+               </div>
+           </div>
+
           {/* Messages */}
           <div className="flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-2" ref={chatContainerRef}>
             <div className="min-h-full flex flex-col justify-end pb-2">
@@ -419,13 +450,21 @@ export default function App() {
                     <p className="text-xs font-medium tracking-widest">CONECTANDO...</p>
                 </div>
                 ) : (
-                messages.map((msg) => (
+                messages
+                    .filter(msg => {
+                        if (chatFilter === 'all') return true;
+                        if (chatFilter === 'twitch') return msg.platform === Platform.TWITCH;
+                        if (chatFilter === 'kick') return msg.platform === Platform.KICK;
+                        return true;
+                    })
+                    .map((msg) => (
                     <ChatMessageItem 
                         key={msg.id} 
                         message={msg} 
                         globalBadges={globalBadges}
                         channelBadges={channelBadges}
                         sevenTVEmotes={sevenTVEmotes}
+                        settings={chatSettings}
                     />
                 ))
                 )}

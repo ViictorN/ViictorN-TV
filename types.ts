@@ -30,6 +30,15 @@ export interface ChatMessage {
   timestamp: number;
   emotes?: Record<string, string[]>;
   replyTo?: ReplyInfo;
+  isDeleted?: boolean;
+}
+
+export interface ChatSettings {
+  showTimestamps: boolean;
+  hideAvatars: boolean;
+  fontSize: 'small' | 'medium' | 'large';
+  hideSystemMessages: boolean;
+  deletedMessageBehavior: 'hide' | 'strikethrough';
 }
 
 export interface StreamStats {

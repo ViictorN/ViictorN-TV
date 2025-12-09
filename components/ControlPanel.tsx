@@ -1,6 +1,6 @@
 import React from 'react';
 import { AuthState, StreamStats } from '../types';
-import { KickLogo, TwitchLogo, SettingsIcon, ViictorNLogo } from './Icons';
+import { KickLogo, TwitchLogo, SettingsIcon, ViictorNLogo, UsersIcon } from './Icons';
 
 interface Props {
   authState: AuthState;
@@ -11,6 +11,8 @@ interface Props {
   onOpenSettings: () => void;
   activePlayer: 'twitch' | 'kick' | 'none';
   onSetPlayer: (player: 'twitch' | 'kick' | 'none') => void;
+  chatFilter: 'all' | 'twitch' | 'kick';
+  onSetChatFilter: (filter: 'all' | 'twitch' | 'kick') => void;
 }
 
 export const ControlPanel: React.FC<Props> = ({ 
@@ -21,7 +23,9 @@ export const ControlPanel: React.FC<Props> = ({
     streamStats, 
     onOpenSettings,
     activePlayer,
-    onSetPlayer
+    onSetPlayer,
+    chatFilter,
+    onSetChatFilter
 }) => {
   
   const totalViewers = (streamStats.kickViewers || 0) + (streamStats.twitchViewers || 0);
@@ -49,28 +53,52 @@ export const ControlPanel: React.FC<Props> = ({
       </div>
 
       {/* 2. CENTER: Player Selection (Neon Pill) - Mobile Optimized */}
-      <div className="flex-1 md:flex-none flex justify-center max-w-[280px] md:max-w-none mx-auto">
-        <div className="flex p-0.5 md:p-1 bg-black rounded-full border border-white/5 w-full md:w-auto shadow-inner shadow-white/5">
+      <div className="flex-1 md:flex-none flex justify-center max-w-[280px] md:max-w-none mx-auto gap-2">
+        {/* PLAYER SELECTOR */}
+        <div className="flex p-0.5 md:p-1 bg-black rounded-full border border-white/5 w-auto shadow-inner shadow-white/5">
             <button
                 onClick={() => onSetPlayer('twitch')}
-                className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-6 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold transition-all duration-500 ease-out-expo ${activePlayer === 'twitch' ? 'bg-[#9146FF] text-white shadow-[0_0_20px_rgba(145,70,255,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}
+                className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-5 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold transition-all duration-500 ease-out-expo ${activePlayer === 'twitch' ? 'bg-[#9146FF] text-white shadow-[0_0_20px_rgba(145,70,255,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}
+                title="Assistir Twitch"
             >
                 <TwitchLogo className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                <span className="inline">Twitch</span>
             </button>
             <button
                 onClick={() => onSetPlayer('kick')}
-                className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-6 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold transition-all duration-500 ease-out-expo ${activePlayer === 'kick' ? 'bg-[#53FC18] text-black shadow-[0_0_20px_rgba(83,252,24,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}
+                className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-5 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold transition-all duration-500 ease-out-expo ${activePlayer === 'kick' ? 'bg-[#53FC18] text-black shadow-[0_0_20px_rgba(83,252,24,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}
+                title="Assistir Kick"
             >
                 <KickLogo className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                <span className="inline">Kick</span>
             </button>
             <button
                 onClick={() => onSetPlayer('none')}
-                className={`flex-1 md:flex-none flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-6 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold transition-all duration-500 ease-out-expo ${activePlayer === 'none' ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]' : 'text-gray-500 hover:text-gray-300'}`}
+                className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-5 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold transition-all duration-500 ease-out-expo ${activePlayer === 'none' ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]' : 'text-gray-500 hover:text-gray-300'}`}
+                title="Modo Apenas Chat"
             >
                 Chat
             </button>
+        </div>
+
+        {/* CHAT FILTER (VISIBLE ALWAYS) */}
+        <div className="hidden sm:flex p-0.5 md:p-1 bg-black rounded-full border border-white/5 w-auto ml-2">
+             <button 
+                onClick={() => onSetChatFilter('all')} 
+                className={`px-3 py-1.5 rounded-full text-[10px] font-bold ${chatFilter === 'all' ? 'bg-white/20 text-white' : 'text-gray-500'}`}
+             >
+                 All
+             </button>
+             <button 
+                onClick={() => onSetChatFilter('twitch')} 
+                className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'twitch' ? 'text-twitch bg-twitch/10' : 'text-gray-600'}`}
+             >
+                 <TwitchLogo className="w-3 h-3" />
+             </button>
+             <button 
+                onClick={() => onSetChatFilter('kick')} 
+                className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'kick' ? 'text-kick bg-kick/10' : 'text-gray-600'}`}
+             >
+                 <KickLogo className="w-3 h-3" />
+             </button>
         </div>
       </div>
       

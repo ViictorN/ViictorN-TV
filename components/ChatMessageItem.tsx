@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ChatMessage, Platform, Badge, BadgeMap, EmoteMap } from '../types';
+import { ChatMessage, Platform, Badge, BadgeMap, EmoteMap, ChatSettings } from '../types';
 import { KickLogo, TwitchLogo } from './Icons';
 
 interface Props {
@@ -7,6 +7,7 @@ interface Props {
   globalBadges?: BadgeMap;
   channelBadges?: BadgeMap;
   sevenTVEmotes?: EmoteMap;
+  settings: ChatSettings;
 }
 
 // Fallback Twitch badges (if API not connected)
@@ -116,7 +117,7 @@ const SevenTVTextRenderer: React.FC<{ text: string; emoteMap?: EmoteMap }> = ({ 
     );
 };
 
-const ParsedContent: React.FC<{ message: ChatMessage; sevenTVEmotes?: EmoteMap }> = ({ message, sevenTVEmotes }) => {
+const ParsedContent: React.FC<{ message: ChatMessage; sevenTVEmotes?: EmoteMap; fontSize: string }> = ({ message, sevenTVEmotes, fontSize }) => {
   const parsedElements = useMemo(() => {
     // 1. If there are Twitch native emotes (positional)
     if (message.emotes && Object.keys(message.emotes).length > 0) {
@@ -168,14 +169,16 @@ const ParsedContent: React.FC<{ message: ChatMessage; sevenTVEmotes?: EmoteMap }
 
   }, [message.content, message.emotes, message.id, sevenTVEmotes]);
 
-  return <span className="text-[13px] text-gray-200 font-medium break-words inline leading-6">{parsedElements}</span>;
+  return <span className={`${fontSize} text-gray-200 font-medium break-words inline leading-6 ${message.isDeleted ? 'line-through text-gray-500' : ''}`}>{parsedElements}</span>;
 };
 
-export const ChatMessageItem = React.memo<Props>(({ message, globalBadges, channelBadges, sevenTVEmotes }) => {
+export const ChatMessageItem = React.memo<Props>(({ message, globalBadges, channelBadges, sevenTVEmotes, settings }) => {
   const isTwitch = message.platform === Platform.TWITCH;
   const isSystem = message.platform === Platform.SYSTEM;
 
+  // SYSTEM MESSAGES FILTER
   if (isSystem) {
+    if (settings.hideSystemMessages) return null;
     return (
       <div className="flex items-center justify-center my-3 animate-slide-in">
         <div className="py-0.5 px-3 text-[10px] uppercase tracking-widest text-gray-500 bg-glass border border-glass-border rounded-full shadow-sm backdrop-blur-md">
@@ -185,8 +188,20 @@ export const ChatMessageItem = React.memo<Props>(({ message, globalBadges, chann
     );
   }
 
+  // DELETED MESSAGES
+  if (message.isDeleted && settings.deletedMessageBehavior === 'hide') {
+      return null;
+  }
+
+  // FONT SIZE MAP
+  const fontSizeClass = {
+      small: 'text-[12px]',
+      medium: 'text-[13px]',
+      large: 'text-[15px]'
+  }[settings.fontSize];
+
   return (
-    <div className={`group relative py-1 px-2 mb-0.5 rounded hover:bg-white/5 transition-colors duration-200 flex flex-col items-start`}>
+    <div className={`group relative py-1 px-2 mb-0.5 rounded hover:bg-white/5 transition-colors duration-200 flex flex-col items-start ${message.isDeleted ? 'opacity-50' : ''}`}>
       
       {/* --- REPLY HEADER --- */}
       {message.replyTo && (
@@ -202,11 +217,19 @@ export const ChatMessageItem = React.memo<Props>(({ message, globalBadges, chann
       <div className="flex-1 min-w-0 w-full">
         <div className="inline-block align-top leading-6">
             
-            {/* 1. Platform Icon */}
+            {/* 0. Timestamp (New) */}
+            {settings.showTimestamps && (
+                <span className="text-[10px] text-gray-500 mr-2 font-mono tabular-nums select-none">
+                    {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+            )}
+
+            {/* 1. Platform Icon (Hide if avatars are hidden to save space? No, keep generic icon) */}
+            {/* If hideAvatars is TRUE, we might want to be even cleaner, but keeping platform icon helps context */}
             <PlatformBadge platform={message.platform} />
             
-            {/* 2. Badges (Subs, Mods, etc) */}
-            {message.user.badges.map((badge, idx) => (
+            {/* 2. Badges (Subs, Mods, etc) - Hide in Clean Mode */}
+            {!settings.hideAvatars && message.user.badges.map((badge, idx) => (
                 <BadgeIcon 
                     key={`${badge.type}-${idx}`} 
                     badge={badge} 
@@ -220,7 +243,7 @@ export const ChatMessageItem = React.memo<Props>(({ message, globalBadges, chann
             <span 
                 className="font-bold text-sm hover:underline cursor-pointer mr-2 align-baseline"
                 style={{ 
-                    color: message.user.color || (isTwitch ? '#a970ff' : '#53FC18'),
+                    color: message.isDeleted ? '#888' : (message.user.color || (isTwitch ? '#a970ff' : '#53FC18')),
                 }}
             >
                 {message.user.username}
@@ -228,9 +251,15 @@ export const ChatMessageItem = React.memo<Props>(({ message, globalBadges, chann
             </span>
              
             {/* 4. Message Content */}
-            <ParsedContent message={message} sevenTVEmotes={sevenTVEmotes} />
+            <ParsedContent 
+                message={message} 
+                sevenTVEmotes={sevenTVEmotes} 
+                fontSize={fontSizeClass}
+            />
+            
+            {message.isDeleted && <span className="text-[10px] text-gray-500 italic ml-2">(deletado)</span>}
         </div>
       </div>
     </div>
   );
-}, (prev, next) => prev.message.id === next.message.id);
+}, (prev, next) => prev.message.id === next.message.id && prev.message.isDeleted === next.message.isDeleted && prev.settings === next.settings);

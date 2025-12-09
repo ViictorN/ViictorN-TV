@@ -1,19 +1,22 @@
 import { ChatMessage, Platform, Badge, ReplyInfo } from "../types";
 
 type MessageCallback = (msg: ChatMessage) => void;
+type DeleteCallback = (msgId: string) => void;
 
 // --- TWITCH IMPLEMENTATION ---
 export class TwitchConnection {
   private ws: WebSocket | null = null;
   private channel: string;
   private onMessage: MessageCallback;
+  private onDelete: DeleteCallback;
   private pingInterval: number | null = null;
   private oauth: string | null = null;
   private username: string | null = null;
 
-  constructor(channel: string, onMessage: MessageCallback, oauth?: string, username?: string) {
+  constructor(channel: string, onMessage: MessageCallback, onDelete: DeleteCallback, oauth?: string, username?: string) {
     this.channel = channel.toLowerCase();
     this.onMessage = onMessage;
+    this.onDelete = onDelete;
     this.oauth = oauth || null;
     this.username = username || 'justinfan' + Math.floor(Math.random() * 100000);
   }
@@ -56,6 +59,8 @@ export class TwitchConnection {
 
         if (line.includes('PRIVMSG')) {
           this.parseMessage(line);
+        } else if (line.includes('CLEARMSG')) {
+          this.handleClearMsg(line);
         }
       });
     };
@@ -79,6 +84,25 @@ export class TwitchConnection {
       this.ws = null;
     }
     if (this.pingInterval) clearInterval(this.pingInterval);
+  }
+
+  private handleClearMsg(raw: string) {
+      // @login=...;target-msg-id=UUID ... CLEARMSG ...
+      const tagsStart = raw.indexOf('@');
+      if (tagsStart === -1) return;
+      
+      const tagsEnd = raw.indexOf(' ');
+      const tagsStr = raw.substring(tagsStart + 1, tagsEnd);
+      
+      const tags: Record<string, string> = {};
+      tagsStr.split(';').forEach(t => {
+          const [key, val] = t.split('=');
+          tags[key] = val;
+      });
+
+      if (tags['target-msg-id']) {
+          this.onDelete(tags['target-msg-id']);
+      }
   }
 
   private parseMessage(raw: string) {
@@ -162,6 +186,7 @@ export class KickConnection {
   private ws: WebSocket | null = null;
   private channelSlug: string;
   private onMessage: MessageCallback;
+  private onDelete: DeleteCallback;
   private chatroomId: number | null = null;
   private pingInterval: number | null = null;
 
@@ -169,15 +194,15 @@ export class KickConnection {
   private readonly PUSHER_KEY = '32cbd69e4b950bf97679';
   private readonly PUSHER_CLUSTER = 'us2';
 
-  constructor(channelSlug: string, onMessage: MessageCallback) {
+  constructor(channelSlug: string, onMessage: MessageCallback, onDelete: DeleteCallback) {
     this.channelSlug = channelSlug;
     this.onMessage = onMessage;
+    this.onDelete = onDelete;
   }
 
   async connect() {
     try {
       // 1. Get Chatroom ID
-      // We still need one fetch to get the ID, but CORS proxies usually handle this metadata call better than the messages endpoint.
       const response = await fetch(`https://corsproxy.io/?https://kick.com/api/v1/channels/${this.channelSlug}`);
       const data = await response.json();
       
@@ -201,7 +226,6 @@ export class KickConnection {
     this.ws.onopen = () => {
       console.log('[Kick] WS Connected');
       
-      // Subscribe to the Chatroom V2 Channel
       const subscribePayload = {
         event: 'pusher:subscribe',
         data: {
@@ -211,9 +235,8 @@ export class KickConnection {
       };
       this.ws?.send(JSON.stringify(subscribePayload));
       
-      // Keep Alive logic
       this.pingInterval = window.setInterval(() => {
-          // Standard WS keep-alive
+          // Standard WS keep-alive if needed
       }, 30000);
     };
 
@@ -221,14 +244,18 @@ export class KickConnection {
       try {
         const payload = JSON.parse(event.data);
         
-        // Handle Chat Message Event
         if (payload.event === 'App\\Events\\ChatMessageEvent') {
-           // The actual message data is a JSON string *inside* the data property
            const data = JSON.parse(payload.data);
            this.processMessage(data);
         }
+        else if (payload.event === 'App\\Events\\MessageDeletedEvent') {
+            const data = JSON.parse(payload.data);
+            if (data && data.message && data.message.id) {
+                this.onDelete(data.message.id);
+            }
+        }
       } catch (e) {
-          // Ignore parsing errors for non-chat events
+          // Ignore parsing errors
       }
     };
 
@@ -239,7 +266,6 @@ export class KickConnection {
   }
 
   private processMessage(data: any) {
-    // Parse Kick Badges
     const badges: Badge[] = [];
     if (data.sender && data.sender.identity && data.sender.identity.badges) {
         data.sender.identity.badges.forEach((b: any) => {
@@ -247,7 +273,6 @@ export class KickConnection {
         });
     }
 
-    // Check for Reply
     let replyTo: ReplyInfo | undefined = undefined;
     if (data.reply_to) {
         replyTo = {
@@ -262,7 +287,7 @@ export class KickConnection {
       platform: Platform.KICK,
       user: {
         username: data.sender.username,
-        color: data.sender.identity?.color || '#53FC18', // Default Kick Green
+        color: data.sender.identity?.color || '#53FC18',
         badges: badges
       },
       content: data.content,
