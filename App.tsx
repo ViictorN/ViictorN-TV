@@ -350,13 +350,14 @@ export default function App() {
       />
 
       {/* Main Layout */}
-      <div className="flex flex-1 flex-col lg:flex-row overflow-hidden relative z-0">
+      {/* Changed lg:flex-row to md:flex-row to allow tablets/landscape phones to have side-by-side layout */}
+      <div className="flex flex-1 flex-col md:flex-row overflow-hidden relative z-0">
         
         {/* Player Area - Collapses width to 0 when 'none' is active */}
         <div className={`bg-black relative shrink-0 transition-all duration-500 ease-out-expo overflow-hidden
             ${activePlayer === 'none' 
-              ? 'lg:w-0 w-full h-0 lg:h-auto opacity-0' 
-              : 'w-full lg:flex-1 aspect-video lg:aspect-auto lg:h-auto opacity-100'
+              ? 'md:w-0 w-full h-0 md:h-auto opacity-0' 
+              : 'w-full md:flex-1 aspect-video md:aspect-auto md:h-auto opacity-100'
             }`}
         >
             
@@ -365,6 +366,8 @@ export default function App() {
                   src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=false&autoplay=true`}
                   className="w-full h-full border-none"
                   allowFullScreen
+                  scrolling="no"
+                  allow="autoplay; fullscreen; picture-in-picture"
                   title="Twitch Player"
               ></iframe>
             )}
@@ -374,6 +377,8 @@ export default function App() {
                     src={`https://player.kick.com/${STREAMER_SLUG}?autoplay=true&muted=false`}
                     className="w-full h-full border-none"
                     allowFullScreen
+                    scrolling="no"
+                    allow="autoplay; fullscreen; picture-in-picture"
                     title="Kick Player"
                 ></iframe>
             )}
@@ -399,9 +404,9 @@ export default function App() {
 
         {/* Chat Area - Expands to fill space */}
         <div className={`
-            ${activePlayer === 'none' ? 'w-full flex-1' : 'lg:w-[380px] xl:w-[420px] w-full'}
-            bg-[#000000] border-t lg:border-t-0 
-            ${activePlayer !== 'none' ? 'lg:border-l border-white/5' : ''}
+            ${activePlayer === 'none' ? 'w-full flex-1' : 'md:w-[380px] xl:w-[420px] w-full'}
+            bg-[#000000] border-t md:border-t-0 
+            ${activePlayer !== 'none' ? 'md:border-l border-white/5' : ''}
             flex flex-col z-10 transition-all duration-500 ease-out-expo min-h-0 relative
         `}>
           

@@ -33,12 +33,12 @@ export const ControlPanel: React.FC<Props> = ({
   };
 
   return (
-    <div className="w-full liquid-glass-strong border-b border-white/5 flex flex-row items-center justify-between px-3 md:px-4 h-[60px] md:h-[72px] z-50 sticky top-0 transition-all duration-500 ease-out-expo shrink-0">
+    <div className="w-full liquid-glass-strong border-b border-white/5 flex flex-row items-center justify-between px-3 md:px-4 h-[52px] md:h-[72px] z-50 sticky top-0 transition-all duration-500 ease-out-expo shrink-0">
       
       {/* 1. LEFT: Brand (Mobile: Icon only, Desktop: Full) */}
       <div className="flex items-center md:w-auto md:justify-start shrink-0 mr-2">
         <div className="flex items-center gap-3 group cursor-default">
-            <ViictorNLogo className="w-8 h-8 md:w-10 md:h-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_20px_rgba(145,70,255,0.4)] transition-all duration-500" />
+            <ViictorNLogo className="w-7 h-7 md:w-10 md:h-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_20px_rgba(145,70,255,0.4)] transition-all duration-500" />
             <div className="hidden md:flex flex-col justify-center">
                 <h1 className="font-display font-bold text-base leading-tight text-white tracking-wide">
                   ViictorN
@@ -80,7 +80,7 @@ export const ControlPanel: React.FC<Props> = ({
         {/* Mobile Settings Trigger */}
          <button
             onClick={onOpenSettings}
-            className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 active:scale-95 transition-transform"
+            className="md:hidden w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 active:scale-95 transition-transform"
         >
             <SettingsIcon className="w-4 h-4" />
         </button>
