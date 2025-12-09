@@ -3,8 +3,9 @@ import { ControlPanel } from './components/ControlPanel';
 import { ChatMessageItem } from './components/ChatMessageItem';
 import { SettingsModal } from './components/SettingsModal';
 import { OfflineScreen } from './components/OfflineScreen';
+import { UserCard } from './components/UserCard';
 import { SendIcon, PlatformIcon } from './components/Icons';
-import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, EmoteMap, ChatSettings } from './types';
+import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, EmoteMap, ChatSettings, User } from './types';
 import { TwitchConnection, KickConnection } from './services/chatConnection';
 import { analyzeChatVibe } from './services/geminiService';
 import { fetch7TVEmotes } from './services/sevenTVService';
@@ -16,7 +17,7 @@ const TWITCH_USER_LOGIN = 'gabepeixe';
 // Default Settings
 const DEFAULT_SETTINGS: ChatSettings = {
     showTimestamps: false,
-    hideAvatars: false,
+    hideAvatars: true, // Changed to true by default per user request
     fontSize: 'medium',
     hideSystemMessages: false,
     deletedMessageBehavior: 'strikethrough',
@@ -71,6 +72,9 @@ export default function App() {
       return (localStorage.getItem('chat_filter') as any) || 'all';
   });
   
+  // User Card Selection
+  const [selectedUser, setSelectedUser] = useState<{user: User, platform: Platform} | null>(null);
+  
   // Player Refresh Key (for Sync)
   const [playerKey, setPlayerKey] = useState(0);
 
@@ -85,12 +89,12 @@ export default function App() {
   const [isPaused, setIsPaused] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Stats / Offline Logic
+  // Stats / Offline Logic - Initialize as null to prevent premature offline screen
   const [streamStats, setStreamStats] = useState<StreamStats>({ 
     kickViewers: null, 
     twitchViewers: null,
-    isLiveKick: false, 
-    isLiveTwitch: false 
+    isLiveKick: null, 
+    isLiveTwitch: null 
   });
   
   // Force play bypass for offline screen
@@ -287,7 +291,11 @@ export default function App() {
                 setKickBadges(prev => ({ ...prev, 'subscriber': subBadges }));
             }
         }
-    } catch (e) { console.warn("Kick stats fail"); }
+    } catch (e) { 
+        // If fetch fails (mobile CORS?), don't force false, keep previous state or assume unknown if it was null
+        // However, to fix "false offline", if we fail we might just not update status or set to null
+        console.warn("Kick stats fail", e); 
+    }
 
     if (twitchCreds.accessToken && twitchCreds.clientId) {
         try {
@@ -407,6 +415,10 @@ export default function App() {
           if (prev.length > 0) return `${prev} @${username} `;
           return `@${username} `;
       });
+  };
+
+  const handleUserClick = (user: User, platform: Platform) => {
+      setSelectedUser({ user, platform });
   };
 
   const handleSyncPlayer = () => {
@@ -594,8 +606,7 @@ export default function App() {
   };
 
   // Detect Offline Status
-  // Note: We use !isLiveTwitch AND !isLiveKick. 
-  // We assume if one is null, it's not live yet or loading, but strictly check false.
+  // STRICT CHECK: Only show offline if explicitly false. If null (checking) or undefined, show nothing/loading.
   const isGlobalOffline = streamStats.isLiveTwitch === false && streamStats.isLiveKick === false;
   const showOfflineScreen = isGlobalOffline && activePlayer !== 'none' && !forcePlay;
 
@@ -631,6 +642,17 @@ export default function App() {
              <span className="text-xl leading-none block">✕</span>
            </div>
          </button>
+      )}
+
+      {/* USER CARD POPUP */}
+      {selectedUser && (
+        <UserCard 
+            user={selectedUser.user}
+            platform={selectedUser.platform}
+            messages={messages}
+            onClose={() => setSelectedUser(null)}
+            twitchCreds={twitchCreds}
+        />
       )}
 
       <ControlPanel 
@@ -804,6 +826,7 @@ export default function App() {
                             kick: authState.kickUsername
                         }}
                         onReply={handleReply}
+                        onUserClick={handleUserClick}
                     />
                 ))
                 )}

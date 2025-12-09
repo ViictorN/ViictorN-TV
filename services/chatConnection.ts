@@ -136,6 +136,7 @@ export class TwitchConnection {
           }
 
           const username = tags['display-name'] || tags['login'] || 'Twitch';
+          const userId = tags['user-id'];
           const color = tags['color'];
           const subMonths = tags['msg-param-cumulative-months'] ? parseInt(tags['msg-param-cumulative-months']) : 1;
 
@@ -151,7 +152,7 @@ export class TwitchConnection {
           const msg: ChatMessage = {
               id: tags['id'] || crypto.randomUUID(),
               platform: Platform.TWITCH,
-              user: { username, color, badges },
+              user: { username, color, badges, id: userId },
               content: userMessage ? `${systemMsg}: ${userMessage}` : systemMsg,
               timestamp: Number(tags['tmi-sent-ts']) || Date.now(),
               isSubscription: true,
@@ -184,6 +185,7 @@ export class TwitchConnection {
 
     const content = remaining.substring(channelEnd + 2).trim();
     const username = tags['display-name'] || 'Unknown';
+    const userId = tags['user-id'];
     const color = tags['color'];
     
     const badges: Badge[] = [];
@@ -218,7 +220,7 @@ export class TwitchConnection {
     const msg: ChatMessage = {
       id: tags['id'] || crypto.randomUUID(),
       platform: Platform.TWITCH,
-      user: { username, color, badges },
+      user: { username, color, badges, id: userId },
       content,
       timestamp: Number(tags['tmi-sent-ts']) || Date.now(),
       emotes,
@@ -361,7 +363,7 @@ export class KickConnection {
             this.onMessage({
                 id: crypto.randomUUID(),
                 platform: Platform.KICK,
-                user: { username, badges: [], color: '#53FC18' },
+                user: { username, badges: [], color: '#53FC18', id: data.user_id },
                 content: `${username} se inscreveu! (${months} meses)`,
                 timestamp: Date.now(),
                 isSubscription: true,
@@ -414,7 +416,9 @@ export class KickConnection {
       user: {
         username: data.sender.username,
         color: data.sender.identity?.color || '#53FC18',
-        badges: badges
+        badges: badges,
+        avatarUrl: data.sender.profile_pic, // Captura o Avatar da Kick
+        id: String(data.sender.id)
       },
       content: data.content,
       timestamp: new Date(data.created_at).getTime(),

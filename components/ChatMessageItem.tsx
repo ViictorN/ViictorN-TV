@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ChatMessage, Platform, Badge, BadgeMap, EmoteMap, ChatSettings } from '../types';
+import { ChatMessage, Platform, Badge, BadgeMap, EmoteMap, ChatSettings, User } from '../types';
 import { PlatformIcon } from './Icons';
 
 interface Props {
@@ -15,6 +15,7 @@ interface Props {
       kick?: string;
   };
   onReply: (username: string) => void;
+  onUserClick: (user: User, platform: Platform) => void;
 }
 
 // Unified Badge Styling
@@ -70,427 +71,221 @@ const KickBadgeSVG: React.FC<{ type: string }> = ({ type }) => {
             <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="white" strokeWidth="1" />
         </svg>
       );
-    case 'og':
-        return (
-             <svg {...props} className={`${BADGE_CLASS} text-[#FF9800]`}>
-                 <title>OG</title>
-                 <rect x="2" y="4" width="20" height="16" rx="4" fill="currentColor" stroke="white" strokeWidth="1"/>
-                 <path d="M12 12C12 13.66 10.66 15 9 15C7.34 15 6 13.66 6 12C6 10.34 7.34 9 9 9C10.66 9 12 10.34 12 12ZM18 15V13H14V15H18ZM18 11V9H14V11H18Z" fill="white"/>
-             </svg>
-        );
-    default:
-      return null;
+    default: return null;
   }
 };
 
-const BadgeIcon: React.FC<{ badge: Badge; platform: Platform; globalBadges?: BadgeMap; channelBadges?: BadgeMap; kickBadges?: BadgeMap }> = ({ badge, platform, globalBadges, channelBadges, kickBadges }) => {
-  
-  // --- TWITCH RENDERING ---
-  if (platform === Platform.TWITCH) {
-    let url = '';
-
-    // 1. Try Channel Specific Badge (e.g. Subscriber)
-    if (channelBadges && channelBadges[badge.type] && channelBadges[badge.type][badge.version || '0']) {
-        url = channelBadges[badge.type][badge.version || '0'];
-    } 
-    // 2. Try Global API Badge
-    else if (globalBadges && globalBadges[badge.type] && globalBadges[badge.type][badge.version || '0']) {
-        url = globalBadges[badge.type][badge.version || '0'];
-    }
-    // 3. Fallback to hardcoded
-    else {
-        url = FALLBACK_TWITCH_BADGES[badge.type];
-    }
-
-    if (url) {
-      return (
-        <img 
-            src={url} 
-            alt={badge.type} 
-            title={badge.type.charAt(0).toUpperCase() + badge.type.slice(1)}
-            className={BADGE_CLASS} 
-            draggable={false} 
-        />
-      );
-    }
-    
-    return null;
-  }
-
-  // --- KICK RENDERING ---
-  if (platform === Platform.KICK) {
-    
-    // 1. Try Subscriber (Using Channel API Data)
-    if (badge.type === 'subscriber' && kickBadges && kickBadges['subscriber']) {
-        let url = '';
-        
-        // Logic: Find closest badge month <= current badge version
-        const months = parseInt(badge.version || '0');
-        
-        if (!isNaN(months) && kickBadges['subscriber']) {
-             // Exact match
-             if (kickBadges['subscriber'][String(months)]) {
-                 url = kickBadges['subscriber'][String(months)];
-             } else {
-                 // Best fit match
-                 const availableMonths = Object.keys(kickBadges['subscriber']).map(Number).sort((a,b) => a - b);
-                 const bestFit = availableMonths.reverse().find(m => m <= months);
-                 if (bestFit) {
-                     url = kickBadges['subscriber'][String(bestFit)];
-                 }
-             }
-        }
-
-        if (url) {
-            return (
-                <img 
-                    src={url} 
-                    alt="Subscriber" 
-                    title={`Subscriber (${months} months)`}
-                    className={BADGE_CLASS} 
-                    draggable={false} 
-                />
-            );
-        }
-        
-        // Text Fallback if image fails but we know it's a sub
-        return (
-            <span 
-                className="mr-1 inline-flex items-center justify-center h-4 px-1 text-[9px] font-bold rounded uppercase tracking-tighter bg-[#FFD700] text-black border border-yellow-600 align-middle select-none"
-                title={`Subscriber (${badge.version} months)`}
-            >
-                SUB
-            </span>
-        );
-    }
-
-    // 2. Global/Static Kick Badges (Broadcaster, Mod, VIP, etc)
-    return <KickBadgeSVG type={badge.type} />;
-  }
-
-  return null;
-};
-
-const PlatformBadge: React.FC<{ platform: Platform }> = ({ platform }) => {
-  const wrapperClass = "inline-flex items-center justify-center w-5 h-5 mr-1 align-middle select-none";
-  const iconClass = "w-3.5 h-3.5";
-
-  if (platform === Platform.TWITCH) {
-    return (
-      <div className={wrapperClass} title="Twitch User">
-        <PlatformIcon platform="twitch" variant="glow" className={iconClass} />
-      </div>
-    );
-  }
-  if (platform === Platform.KICK) {
-     return (
-      <div className={wrapperClass} title="Kick User">
-        <PlatformIcon platform="kick" variant="glow" className={iconClass} />
-      </div>
-    );
-  }
-  return null;
-};
-
-const SevenTVTextRenderer: React.FC<{ text: string; emoteMap?: EmoteMap; largeEmotes: boolean }> = ({ text, emoteMap, largeEmotes }) => {
-    if (!emoteMap) return <>{text}</>;
-
-    const words = text.split(' ');
-    const emoteSize = largeEmotes ? 'h-10' : 'h-7'; // 7TV size
-
-    return (
-        <>
-            {words.map((word, index) => {
-                const emoteUrl = emoteMap[word];
-                if (emoteUrl) {
-                    return (
-                        <span key={index}>
-                            <img 
-                                src={emoteUrl} 
-                                alt={word} 
-                                title={word}
-                                className={`inline-block align-middle mx-0.5 ${emoteSize} w-auto object-contain transform -translate-y-0.5 select-none`}
-                                draggable={false}
-                            />
-                            {index < words.length - 1 && ' '}
-                        </span>
-                    );
-                }
-                return <span key={index}>{word}{index < words.length - 1 ? ' ' : ''}</span>;
-            })}
-        </>
-    );
-};
-
-// Helper: Split string by Kick Emote pattern [emote:id:name]
-const splitByKickEmotes = (text: string) => {
-  // Regex captures: 1=ID, 2=Name
-  const regex = /\[emote:(\d+):([\w\s\S]+?)\]/g;
-  const parts: (string | { id: string, name: string })[] = [];
-  let lastIndex = 0;
-  let match;
-
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(text.substring(lastIndex, match.index));
-    }
-    parts.push({ id: match[1], name: match[2] });
-    lastIndex = regex.lastIndex;
-  }
-  
-  if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex));
-  }
-  
-  return parts;
-};
-
-const ParsedContent: React.FC<{ message: ChatMessage; sevenTVEmotes?: EmoteMap; fontSize: string; largeEmotes: boolean }> = ({ message, sevenTVEmotes, fontSize, largeEmotes }) => {
-  const parsedElements = useMemo(() => {
-    
-    const twitchEmoteSize = largeEmotes ? 'h-9' : 'h-6';
-    const kickEmoteSize = largeEmotes ? 'h-10' : 'h-8';
-
-    // 1. If there are Twitch native emotes (positional metadata)
-    // Twitch sends emotes via metadata indices, ignoring content string
-    if (message.emotes && Object.keys(message.emotes).length > 0) {
-        const replacements: { start: number; end: number; id: string }[] = [];
-        const emotes = message.emotes as Record<string, string[]>;
-        
-        Object.entries(emotes).forEach(([id, positions]) => {
-            positions.forEach(pos => {
-                const [start, end] = pos.split('-').map(Number);
-                replacements.push({ start, end, id });
-            });
-        });
-
-        replacements.sort((a, b) => a.start - b.start);
-
-        const parts: React.ReactNode[] = [];
-        let lastIndex = 0;
-
-        replacements.forEach((rep, i) => {
-            if (rep.start > lastIndex) {
-                // The text BEFORE the twitch emote might contain 7TV emotes
-                const textPart = message.content.substring(lastIndex, rep.start);
-                parts.push(<SevenTVTextRenderer key={`txt-${i}`} text={textPart} emoteMap={sevenTVEmotes} largeEmotes={largeEmotes} />);
-            }
-
-            parts.push(
-                <img 
-                    key={`${message.id}-twitch-${i}`}
-                    src={`https://static-cdn.jtvnw.net/emoticons/v2/${rep.id}/default/dark/1.0`}
-                    alt="emote"
-                    className={`inline-block align-middle mx-0.5 ${twitchEmoteSize} w-auto object-contain transform -translate-y-0.5 select-none`}
-                    draggable={false}
-                />
-            );
-
-            lastIndex = rep.end + 1;
-        });
-
-        if (lastIndex < message.content.length) {
-            // The remaining text might contain 7TV emotes
-            const textPart = message.content.substring(lastIndex);
-             parts.push(<SevenTVTextRenderer key={`txt-end`} text={textPart} emoteMap={sevenTVEmotes} largeEmotes={largeEmotes} />);
-        }
-
-        return parts;
-    } 
-    
-    // 2. Kick Emotes (Parsed from text) + 7TV Emotes
-    // Since Kick sends emotes as text "[emote:id:name]", we need to parse them first, then parse 7TV in the remaining text.
-    const kickParts = splitByKickEmotes(message.content);
-    
-    return kickParts.map((part, i) => {
-        if (typeof part === 'string') {
-            // Render 7TV in plain text parts
-            return <SevenTVTextRenderer key={`part-${i}`} text={part} emoteMap={sevenTVEmotes} largeEmotes={largeEmotes} />;
-        } else {
-            // Render Kick Emote
-            return (
-                 <img 
-                    key={`kick-emote-${i}`}
-                    src={`https://files.kick.com/emotes/${part.id}/fullsize`}
-                    alt={part.name}
-                    title={part.name}
-                    className={`inline-block align-middle mx-0.5 ${kickEmoteSize} w-auto object-contain transform -translate-y-1 select-none`}
-                    draggable={false}
-                />
-            );
-        }
-    });
-
-  }, [message.content, message.emotes, message.id, sevenTVEmotes, largeEmotes]);
-
-  return <span className={`${fontSize} text-gray-200 font-medium break-words whitespace-pre-wrap leading-6 ${message.isDeleted ? 'line-through text-gray-500' : ''}`}>{parsedElements}</span>;
-};
-
-export const ChatMessageItem = React.memo<Props>(({ message, index, globalBadges, channelBadges, kickBadges, sevenTVEmotes, settings, currentUser, onReply }) => {
-  const isTwitch = message.platform === Platform.TWITCH;
+export const ChatMessageItem: React.FC<Props> = React.memo(({ 
+    message, 
+    index, 
+    globalBadges, 
+    channelBadges, 
+    kickBadges, 
+    sevenTVEmotes, 
+    settings, 
+    currentUser, 
+    onReply,
+    onUserClick
+}) => {
   const isSystem = message.platform === Platform.SYSTEM;
 
-  // SYSTEM MESSAGES FILTER
+  // Render System Message
   if (isSystem) {
-    if (settings.hideSystemMessages) return null;
-    return (
-      <div className="flex items-center justify-center my-3 animate-slide-in">
-        <div className="py-0.5 px-3 text-[10px] uppercase tracking-widest text-gray-500 bg-glass border border-glass-border rounded-full shadow-sm backdrop-blur-md">
-          {message.content}
-        </div>
-      </div>
-    );
-  }
-
-  // DELETED MESSAGES
-  if (message.isDeleted && settings.deletedMessageBehavior === 'hide') {
-      return null;
-  }
-  
-  // SUBSCRIPTION MESSAGES (GOLD HIGHLIGHT)
-  if (message.isSubscription) {
+      if (settings.hideSystemMessages) return null;
       return (
-          <div className="my-2 mx-1 p-3 rounded-xl bg-gradient-to-r from-yellow-900/40 to-transparent border-l-4 border-yellow-500 flex items-start gap-3 animate-slide-in">
-              <div className="mt-1">
-                  <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center text-xl">🎉</div>
-              </div>
-              <div className="flex-1">
-                 <div className="flex items-center gap-2 mb-1">
-                     <span className="font-bold text-yellow-400">{message.user.username}</span>
-                     {message.platform === Platform.TWITCH ? <PlatformIcon platform="twitch" variant="default" className="w-3 h-3" /> : <PlatformIcon platform="kick" variant="default" className="w-3 h-3" />}
-                 </div>
-                 <div className="text-sm text-yellow-100/90 font-medium">{message.content}</div>
-              </div>
+          <div className="py-1 px-4 text-xs text-gray-500 italic flex items-center gap-2 border-l-2 border-transparent hover:bg-white/5 transition-colors">
+              <span>⚙️</span>
+              {message.content}
           </div>
       );
   }
 
-  // FONT SIZE MAP
-  const fontSizeClass = {
-      small: 'text-[12px]',
-      medium: 'text-[13px]',
-      large: 'text-[15px]'
-  }[settings.fontSize];
+  // --- BADGE RENDERING LOGIC ---
+  const renderBadges = () => {
+      // 1. Filter Badges based on Settings
+      const filteredBadges = message.user.badges.filter(b => {
+          if (!settings.showBadgeBroadcaster && b.type === 'broadcaster') return false;
+          if (!settings.showBadgeMod && b.type === 'moderator') return false;
+          if (!settings.showBadgeVip && b.type === 'vip') return false;
+          if (!settings.showBadgeSub && (b.type === 'subscriber' || b.type === 'founder')) return false;
+          if (!settings.showBadgeFounder && b.type === 'founder') return false;
+          return true;
+      });
 
-  // BACKGROUND STRIPING (Zebra)
-  const bgClass = settings.alternatingBackground && index % 2 !== 0 
-    ? 'bg-white/[0.03]' 
-    : 'bg-transparent';
+      return filteredBadges.map((badge, idx) => {
+          // KICK BADGES
+          if (message.platform === Platform.KICK) {
+             // 1. Native Kick Badges (SVG)
+             if (['broadcaster', 'moderator', 'vip', 'verified', 'founder'].includes(badge.type)) {
+                 return <KickBadgeSVG key={`${message.id}-badge-${idx}`} type={badge.type} />;
+             }
+             // 2. Kick Subscriber (Image from API)
+             if (badge.type === 'subscriber' && kickBadges?.['subscriber']) {
+                 const months = parseInt(badge.version || '1');
+                 // Find closest month badge (logic: find badge <= months)
+                 // Simple approach: direct lookup or default
+                 const url = kickBadges['subscriber'][badge.version || '1'];
+                 if (url) return <img key={idx} src={url} className={BADGE_CLASS} alt="sub" />;
+             }
+             // Fallback Kick Sub
+             if (badge.type === 'subscriber') {
+                  return <span key={idx} className="bg-kick text-black text-[9px] px-1 rounded mr-1 font-bold">SUB</span>;
+             }
+             return null;
+          }
+          
+          // TWITCH BADGES
+          if (message.platform === Platform.TWITCH) {
+              // 1. Try Channel Badges (Sub, Bits)
+              if (channelBadges && channelBadges[badge.type] && channelBadges[badge.type][badge.version || '1']) {
+                  return <img key={idx} src={channelBadges[badge.type][badge.version || '1']} className={BADGE_CLASS} alt={badge.type} />;
+              }
+              // 2. Try Global Badges (Turbo, Prime, etc)
+              if (globalBadges && globalBadges[badge.type] && globalBadges[badge.type][badge.version || '1']) {
+                   return <img key={idx} src={globalBadges[badge.type][badge.version || '1']} className={BADGE_CLASS} alt={badge.type} />;
+              }
+              // 3. Fallback to Hardcoded URLs (if API failed)
+              if (FALLBACK_TWITCH_BADGES[badge.type]) {
+                  return <img key={idx} src={FALLBACK_TWITCH_BADGES[badge.type]} className={BADGE_CLASS} alt={badge.type} />;
+              }
+          }
+          return null;
+      });
+  };
 
-  // HIGHLIGHT MENTIONS
-  const isMentioned = useMemo(() => {
-      if (!settings.highlightMentions) return false;
-      const contentLower = message.content.toLowerCase();
-      // Check for current user mentions
-      if (isTwitch && currentUser.twitch && contentLower.includes(currentUser.twitch.toLowerCase())) return true;
-      if (!isTwitch && currentUser.kick && contentLower.includes(currentUser.kick.toLowerCase())) return true;
-      return false;
-  }, [message.content, settings.highlightMentions, currentUser]);
+  // --- MESSAGE CONTENT PARSING (7TV) ---
+  const renderContent = () => {
+      if (message.isDeleted) {
+          if (settings.deletedMessageBehavior === 'hide') return null;
+          return <span className="text-gray-500 italic line-through text-xs">&lt;mensagem deletada&gt;</span>;
+      }
 
-  const highlightClass = isMentioned 
-    ? (isTwitch ? 'bg-twitch/10 border-l-2 border-twitch pl-1' : 'bg-kick/10 border-l-2 border-kick pl-1') 
-    : '';
-
-  // FONT FAMILY
-  const fontClass = settings.fontFamily === 'mono' ? 'font-mono tracking-tight' : 'font-sans';
-  
-  // SEPARATOR
-  const separatorClass = settings.showSeparator ? 'border-b border-white/5 pb-1 mb-1' : 'mb-0.5';
-
-  // FIRST MESSAGE HIGHLIGHT
-  const firstMessageClass = message.isFirstMessage 
-    ? 'border border-l-4 border-white/20 border-l-white bg-white/[0.02] pl-1 relative overflow-hidden' 
-    : '';
-    
-  // --- BADGE FILTERING LOGIC ---
-  const filteredBadges = message.user.badges.filter(badge => {
-      const type = badge.type;
+      // 1. Check for 7TV Emotes (Split by words)
+      const words = message.content.split(' ');
       
-      if (type === 'broadcaster' && !settings.showBadgeBroadcaster) return false;
-      if (type === 'moderator' && !settings.showBadgeMod) return false;
-      if (type === 'vip' && !settings.showBadgeVip) return false;
-      if (type === 'subscriber' && !settings.showBadgeSub) return false;
-      if ((type === 'founder' || type === 'og') && !settings.showBadgeFounder) return false;
+      return words.map((word, i) => {
+          // Check if word is a 7TV emote
+          if (sevenTVEmotes && sevenTVEmotes[word]) {
+               const sizeClass = settings.largeEmotes ? "h-8" : "h-5";
+               return (
+                   <img 
+                    key={i} 
+                    src={sevenTVEmotes[word]} 
+                    alt={word} 
+                    title={word}
+                    className={`inline-block mx-0.5 align-middle hover:scale-110 transition-transform ${sizeClass}`} 
+                   />
+               );
+          }
 
-      return true;
-  });
+          // Check if word is a Native Twitch Emote (if provided in payload)
+          // Twitch IRC sends parsing info, but we also just have text. 
+          // If native parsing was robust we'd use parsing ranges.
+          // For now, text fallback is fine, assuming 7TV covers most visual needs.
+
+          return <span key={i}>{word} </span>;
+      });
+  };
+
+  // --- STYLES ---
+  const isMention = settings.highlightMentions && (
+      (currentUser.twitch && message.content.toLowerCase().includes(currentUser.twitch.toLowerCase())) ||
+      (currentUser.kick && message.content.toLowerCase().includes(currentUser.kick.toLowerCase()))
+  );
+
+  const zebraClass = settings.alternatingBackground && index % 2 === 0 ? 'bg-white/[0.02]' : '';
+  const hoverClass = 'hover:bg-white/5';
+  const mentionClass = isMention ? 'bg-red-500/20 border-l-2 border-red-500' : 'border-l-2 border-transparent';
+  const deletedClass = message.isDeleted && settings.deletedMessageBehavior === 'hide' ? 'hidden' : '';
+
+  const usernameColor = message.user.color || (message.platform === Platform.TWITCH ? '#9146FF' : '#53FC18');
+  const platformIcon = message.platform === Platform.TWITCH ? 'twitch' : 'kick';
+  
+  // Font Size
+  let textSizeClass = "text-sm";
+  if (settings.fontSize === 'small') textSizeClass = "text-xs";
+  if (settings.fontSize === 'large') textSizeClass = "text-base";
+  
+  // Font Family
+  const fontClass = settings.fontFamily === 'mono' ? 'font-mono' : 'font-sans';
+
+  // Avatar Logic
+  const handleAvatarClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onUserClick(message.user, message.platform);
+  };
+
+  const avatarUrl = message.user.avatarUrl;
+  const initial = message.user.username.charAt(0).toUpperCase();
 
   return (
-    <div className={`group relative py-1 px-2 rounded transition-colors duration-200 flex flex-col items-start ${bgClass} ${highlightClass} ${firstMessageClass} ${separatorClass} ${message.isDeleted ? 'opacity-50' : ''} hover:bg-white/5`}>
+    <div className={`group flex items-start gap-2 py-1 px-2 transition-colors relative ${zebraClass} ${hoverClass} ${mentionClass} ${deletedClass}`}>
       
-      {/* First Message Sparkle */}
-      {message.isFirstMessage && (
-          <div className="absolute top-0 right-0 p-1 opacity-30 group-hover:opacity-100 transition-opacity">
-              <span className="text-[10px]" title="Primeira mensagem na sessão">✨</span>
+      {/* 1. LEFT: AVATAR (NEW) */}
+      {!settings.hideAvatars && (
+          <div className="flex-shrink-0 mt-0.5 cursor-pointer hover:opacity-80 active:scale-95 transition-all" onClick={handleAvatarClick}>
+               {avatarUrl ? (
+                   <img src={avatarUrl} alt={message.user.username} className="w-[28px] h-[28px] rounded-full object-cover bg-gray-800" />
+               ) : (
+                   <div 
+                    className="w-[28px] h-[28px] rounded-full flex items-center justify-center text-[10px] font-bold text-white text-shadow-sm shadow-inner" 
+                    style={{ backgroundColor: usernameColor }}
+                   >
+                       {initial}
+                   </div>
+               )}
           </div>
       )}
 
-      {/* --- REPLY HEADER --- */}
-      {message.replyTo && (
-          <div className="flex items-center gap-1.5 ml-8 mb-0.5 opacity-60">
-              <div className="w-6 h-2 border-t-2 border-l-2 border-gray-600 rounded-tl-lg absolute left-3 top-3"></div>
-              <span className="text-[10px] bg-white/10 px-1.5 rounded text-gray-300 flex items-center gap-1">
-                 <span className="font-bold">@{message.replyTo.username}</span>
-                 <span className="truncate max-w-[150px] italic font-normal text-gray-400">{message.replyTo.content}</span>
-              </span>
+      {/* 2. RIGHT: CONTENT */}
+      <div className="flex-1 min-w-0 overflow-hidden">
+          
+          {/* Metadata Line */}
+          <div className="flex items-center flex-wrap gap-x-1 leading-snug">
+              
+              {/* Timestamp */}
+              {settings.showTimestamps && (
+                  <span className="text-[10px] text-gray-500 font-mono mr-1">
+                      {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+              )}
+
+              {/* Platform Icon (Small indicator) */}
+              <div className="opacity-50 group-hover:opacity-100 transition-opacity">
+                  <PlatformIcon platform={platformIcon} className="w-3 h-3 inline-block mr-1 align-middle" />
+              </div>
+
+              {/* Badges */}
+              <span className="inline-flex items-center align-middle">{renderBadges()}</span>
+              
+              {/* Username */}
+              <button 
+                  onClick={() => onReply(message.user.username)}
+                  className={`font-bold hover:underline cursor-pointer align-middle mr-1 ${settings.rainbowUsernames ? 'rainbow-text' : ''}`}
+                  style={{ color: settings.rainbowUsernames ? undefined : usernameColor }}
+              >
+                  {message.user.username}
+              </button>
+              
+              {/* Reply Indicator (if exists) */}
+              {message.replyTo && (
+                  <span className="text-[10px] text-gray-500 bg-white/5 px-1 rounded flex items-center gap-1 align-middle">
+                      <span>↪</span>
+                      <span>{message.replyTo.username}</span>
+                  </span>
+              )}
           </div>
-      )}
-
-      <div className={`flex-1 min-w-0 w-full ${fontClass}`}>
-        <div className="inline-block align-top leading-6 w-full break-words">
-            
-            {/* 0. Timestamp */}
-            {settings.showTimestamps && (
-                <span className="text-[10px] text-gray-500 mr-2 font-mono tabular-nums select-none">
-                    {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-            )}
-
-            {/* 1. Platform Icon (Fully Opaque Now) */}
-            <PlatformBadge platform={message.platform} />
-            
-            {/* 2. Badges (Filtered) */}
-            {!settings.hideAvatars && filteredBadges.map((badge, idx) => (
-                <BadgeIcon 
-                    key={`${badge.type}-${idx}`} 
-                    badge={badge} 
-                    platform={message.platform} 
-                    globalBadges={globalBadges}
-                    channelBadges={channelBadges}
-                    kickBadges={kickBadges}
-                />
-            ))}
-
-            {/* 3. Username (Click to Reply + Rainbow) */}
-            <span 
-                className={`font-bold text-sm cursor-pointer mr-2 align-baseline hover:underline ${settings.rainbowUsernames ? 'rainbow-text' : ''}`}
-                style={!settings.rainbowUsernames ? { 
-                    color: message.isDeleted ? '#888' : (message.user.color || (isTwitch ? '#a970ff' : '#53FC18')),
-                } : {}}
-                onClick={() => onReply(message.user.username)}
-                title="Clique para responder"
-            >
-                {message.user.username}
-                <span className="text-gray-500 font-normal opacity-50 ml-0.5">:</span>
-            </span>
-             
-            {/* 4. Message Content */}
-            <ParsedContent 
-                message={message} 
-                sevenTVEmotes={sevenTVEmotes} 
-                fontSize={fontSizeClass}
-                largeEmotes={settings.largeEmotes}
-            />
-            
-            {message.isDeleted && <span className="text-[10px] text-gray-500 italic ml-2">(deletado)</span>}
-        </div>
+          
+          {/* Message Content */}
+          <div className={`text-white/90 break-words leading-snug mt-0.5 ${textSizeClass} ${fontClass} ${message.isSubscription ? 'text-yellow-300 font-bold' : ''}`}>
+               {renderContent()}
+          </div>
       </div>
+
+      {/* Separator Line (Optional) */}
+      {settings.showSeparator && (
+          <div className="absolute bottom-0 left-2 right-2 h-px bg-white/5"></div>
+      )}
     </div>
   );
-}, (prev, next) => 
-    prev.message.id === next.message.id && 
-    prev.message.isDeleted === next.message.isDeleted && 
-    prev.settings === next.settings &&
-    prev.index === next.index &&
-    prev.kickBadges === next.kickBadges
-);
+});

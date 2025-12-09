@@ -15,6 +15,8 @@ export interface User {
   username: string;
   badges: Badge[]; 
   color?: string;
+  avatarUrl?: string; // URL da foto de perfil
+  id?: string; // ID numérico ou único da plataforma
 }
 
 export interface ReplyInfo {
@@ -75,8 +77,8 @@ export interface ChatSettings {
 export interface StreamStats {
   kickViewers: number | null;
   twitchViewers: number | null;
-  isLiveKick: boolean;
-  isLiveTwitch: boolean;
+  isLiveKick: boolean | null; // Null implies "checking" or "unknown", preventing false offline screens
+  isLiveTwitch: boolean | null;
 }
 
 export interface AuthState {

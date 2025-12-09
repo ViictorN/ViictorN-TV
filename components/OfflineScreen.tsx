@@ -61,22 +61,22 @@ export const OfflineScreen: React.FC<Props> = ({ twitchCreds, streamerSlug, onFo
   }, [twitchCreds, streamerSlug]);
 
   return (
-    <div className="w-full h-full bg-black relative flex flex-col items-center justify-center overflow-hidden">
+    <div className="w-full h-full bg-black relative flex flex-col items-center justify-center overflow-hidden p-6">
         {/* Background Ambient */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-twitch/10 via-black to-black opacity-50"></div>
         
-        <div className="z-10 flex flex-col items-center w-full max-w-5xl px-6">
+        <div className="z-10 flex flex-col items-center w-full max-w-5xl">
             
             {/* Header */}
-            <div className="text-center mb-10">
+            <div className="text-center mb-6 md:mb-10">
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4 animate-fade-in">
                     <span className="w-2 h-2 rounded-full bg-red-500"></span>
                     <span className="text-xs font-bold tracking-widest uppercase text-gray-300">Offline</span>
                 </div>
-                <h2 className="text-4xl md:text-5xl font-display font-bold text-white mb-2 tracking-tight">
+                <h2 className="text-2xl md:text-5xl font-display font-bold text-white mb-2 tracking-tight leading-tight">
                     {streamerSlug} está offline
                 </h2>
-                <p className="text-white/40 text-sm md:text-base">
+                <p className="text-white/40 text-xs md:text-base px-4">
                     A live acabou ou ainda não começou. Confira os destaques abaixo.
                 </p>
             </div>
@@ -84,7 +84,7 @@ export const OfflineScreen: React.FC<Props> = ({ twitchCreds, streamerSlug, onFo
             {/* Clips Grid (Only if we have creds/data) */}
             {clips.length > 0 && (
                 <div className="w-full mb-8">
-                     <h3 className="text-xs font-bold uppercase tracking-widest text-white/50 mb-4 flex items-center gap-2">
+                     <h3 className="text-xs font-bold uppercase tracking-widest text-white/50 mb-4 flex items-center gap-2 justify-center md:justify-start">
                          <PlatformIcon platform="twitch" className="w-3 h-3 text-twitch" />
                          Clipes do Mês
                      </h3>
@@ -117,26 +117,26 @@ export const OfflineScreen: React.FC<Props> = ({ twitchCreds, streamerSlug, onFo
                     href={`https://www.twitch.tv/${streamerSlug}/videos`} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="px-6 py-3 rounded-xl bg-[#9146FF]/10 hover:bg-[#9146FF]/20 text-[#9146FF] border border-[#9146FF]/20 hover:border-[#9146FF]/50 transition-all font-bold text-sm flex items-center gap-2"
+                    className="px-5 py-3 rounded-xl bg-[#9146FF]/10 hover:bg-[#9146FF]/20 text-[#9146FF] border border-[#9146FF]/20 hover:border-[#9146FF]/50 transition-all font-bold text-xs md:text-sm flex items-center gap-2"
                 >
                     <PlatformIcon platform="twitch" className="w-4 h-4" />
-                    Ver VODs na Twitch
+                    VODs Twitch
                 </a>
                 <a 
                     href={`https://kick.com/${streamerSlug}/videos`} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="px-6 py-3 rounded-xl bg-[#53FC18]/10 hover:bg-[#53FC18]/20 text-[#53FC18] border border-[#53FC18]/20 hover:border-[#53FC18]/50 transition-all font-bold text-sm flex items-center gap-2"
+                    className="px-5 py-3 rounded-xl bg-[#53FC18]/10 hover:bg-[#53FC18]/20 text-[#53FC18] border border-[#53FC18]/20 hover:border-[#53FC18]/50 transition-all font-bold text-xs md:text-sm flex items-center gap-2"
                 >
                     <PlatformIcon platform="kick" className="w-4 h-4" />
-                    Ver VODs na Kick
+                    VODs Kick
                 </a>
             </div>
 
             {/* Emergency Play Button */}
             <button 
                 onClick={onForcePlay}
-                className="mt-8 text-[10px] text-gray-600 hover:text-gray-400 underline decoration-gray-700 underline-offset-2"
+                className="mt-6 md:mt-8 text-[10px] text-gray-600 hover:text-gray-400 underline decoration-gray-700 underline-offset-2"
             >
                 A API diz que está offline, mas eu quero abrir o player mesmo assim.
             </button>
