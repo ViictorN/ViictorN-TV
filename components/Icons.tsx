@@ -1,21 +1,20 @@
 import React from 'react';
 
 export const ViictorNLogo = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-     <path d="M12 14L24 38L36 14" stroke="url(#paint0_linear)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-     <path d="M18 14L24 26L30 14" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" opacity="0.6"/>
-     <circle cx="24" cy="24" r="22" stroke="url(#paint1_linear)" strokeWidth="1.5" strokeDasharray="4 4"/>
-     <defs>
-       <linearGradient id="paint0_linear" x1="12" y1="14" x2="36" y2="38" gradientUnits="userSpaceOnUse">
-         <stop stopColor="#9146FF"/>
-         <stop offset="1" stopColor="#53FC18"/>
-       </linearGradient>
-       <linearGradient id="paint1_linear" x1="2" y1="24" x2="46" y2="24" gradientUnits="userSpaceOnUse">
-         <stop stopColor="white" stopOpacity="0.1"/>
-         <stop offset="0.5" stopColor="white" stopOpacity="0.5"/>
-         <stop offset="1" stopColor="white" stopOpacity="0.1"/>
-       </linearGradient>
-     </defs>
+  <svg className={className} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="glassGradient" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="white" stopOpacity="0.4" />
+        <stop offset="100%" stopColor="white" stopOpacity="0.1" />
+      </linearGradient>
+       <linearGradient id="accentGradient" x1="10" y1="30" x2="30" y2="10" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="#9146FF" />
+        <stop offset="100%" stopColor="#53FC18" />
+      </linearGradient>
+    </defs>
+    
+    <rect x="4" y="4" width="32" height="32" rx="10" fill="url(#glassGradient)" stroke="white" strokeOpacity="0.1" strokeWidth="1" />
+    <path d="M14 14L20 28L26 14" stroke="url(#accentGradient)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 

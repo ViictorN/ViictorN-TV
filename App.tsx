@@ -273,8 +273,6 @@ export default function App() {
         setChatInput('');
     } 
     else if (commentPlatform === 'kick') {
-        // Kick does not support sending messages via frontend-only WebSocket without auth cookies
-        // which are HttpOnly and protected by Cloudflare. 
         alert('O envio de mensagens para a Kick diretamente pelo navegador está bloqueado por segurança (CORS/Cloudflare). Apenas leitura é suportada nesta versão web.');
     }
   };
@@ -301,7 +299,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] overflow-hidden bg-dark text-white font-sans">
+    <div className="flex flex-col h-[100dvh] w-full overflow-hidden font-sans">
       <SettingsModal 
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)} 
@@ -323,9 +321,9 @@ export default function App() {
       />
 
       {/* Main Layout */}
-      <div className="flex flex-1 flex-col lg:flex-row overflow-hidden relative z-20">
+      <div className="flex flex-1 flex-col lg:flex-row overflow-hidden relative z-0">
         
-        {/* Player Area - Mobile: Auto height based on ratio, Desktop: Flex 1 */}
+        {/* Player Area */}
         <div className={`w-full lg:flex-1 bg-black relative shrink-0 transition-all duration-300 ${activePlayer === 'none' ? 'hidden lg:block lg:flex-[0.01] lg:opacity-0' : 'aspect-video lg:aspect-auto lg:h-auto'}`}>
             
             {activePlayer === 'twitch' && (
@@ -348,34 +346,34 @@ export default function App() {
 
             {activePlayer === 'none' && (
                 <div className="w-full h-full flex items-center justify-center bg-[#050505]">
-                    <ViictorNLogo className="w-20 h-20 opacity-10 grayscale" />
+                    <ViictorNLogo className="w-24 h-24 opacity-10 grayscale" />
                 </div>
             )}
           
           {aiAnalysis && (
-            <div className="absolute top-8 left-1/2 transform -translate-x-1/2 max-w-2xl w-[90%] bg-dark/90 backdrop-blur-xl border border-glass-border p-6 rounded-2xl shadow-2xl z-50 animate-slide-in">
-                <div className="flex justify-between items-start mb-3 border-b border-glass-border pb-2">
+            <div className="absolute top-8 left-1/2 transform -translate-x-1/2 max-w-2xl w-[90%] liquid-glass-strong p-6 rounded-3xl z-50 animate-slide-in">
+                <div className="flex justify-between items-start mb-3 border-b border-white/5 pb-2">
                     <div className="flex items-center gap-2">
                         <span className="text-xl">🤖</span>
-                        <h3 className="font-display font-bold text-lg text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Analysis</h3>
+                        <h3 className="font-display font-bold text-lg text-white">Analysis</h3>
                     </div>
-                    <button onClick={() => setAiAnalysis(null)} className="text-gray-500 hover:text-white">✕</button>
+                    <button onClick={() => setAiAnalysis(null)} className="text-white/50 hover:text-white">✕</button>
                 </div>
-                <p className="text-gray-300 text-sm">{aiAnalysis}</p>
+                <p className="text-white/80 text-sm leading-relaxed">{aiAnalysis}</p>
             </div>
           )}
         </div>
 
-        {/* Chat Area - Mobile: Fills remaining vertical space */}
-        <div className={`w-full ${activePlayer === 'none' ? 'lg:w-full' : 'lg:w-[380px] xl:w-[420px]'} flex-1 lg:flex-none lg:h-auto bg-[#09090b] border-t lg:border-t-0 lg:border-l border-glass-border flex flex-col z-10 shadow-2xl transition-all duration-300 min-h-0`}>
+        {/* Chat Area */}
+        <div className={`w-full ${activePlayer === 'none' ? 'lg:w-full' : 'lg:w-[380px] xl:w-[420px]'} flex-1 lg:flex-none lg:h-auto liquid-glass border-l-0 lg:border-l border-glass-border flex flex-col z-10 transition-all duration-300 min-h-0`}>
           
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar relative px-1 pt-2" ref={chatContainerRef}>
+          <div className="flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-2" ref={chatContainerRef}>
             <div className="min-h-full flex flex-col justify-end pb-2">
                 {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-600 opacity-50 space-y-2">
+                <div className="flex flex-col items-center justify-center h-full text-white/20 space-y-2">
                     <div className="text-2xl animate-pulse">⚡</div>
-                    <p className="text-xs font-mono">CONECTANDO...</p>
+                    <p className="text-xs font-medium tracking-widest">CONECTANDO...</p>
                 </div>
                 ) : (
                 messages.map((msg) => (
@@ -392,15 +390,14 @@ export default function App() {
           </div>
 
           {/* Input Area */}
-          <div className="p-3 bg-[#09090b] border-t border-glass-border safe-area-bottom">
-             <div className={`relative flex items-center bg-[#121214] rounded-lg border transition-all duration-300 ${commentPlatform === 'twitch' ? 'border-twitch/40 focus-within:border-twitch shadow-[0_0_10px_rgba(145,70,255,0.05)]' : 'border-kick/40 focus-within:border-kick shadow-[0_0_10px_rgba(83,252,24,0.05)]'}`}>
+          <div className="p-3 bg-black/20 border-t border-white/5 safe-area-bottom">
+             <div className={`relative flex items-center bg-white/5 rounded-2xl border transition-all duration-300 ${commentPlatform === 'twitch' ? 'border-twitch/40 focus-within:border-twitch/80 shadow-[0_0_15px_rgba(145,70,255,0.1)]' : 'border-kick/40 focus-within:border-kick/80 shadow-[0_0_15px_rgba(83,252,24,0.1)]'}`}>
                   
                   {/* Platform Selector */}
                   <div className="pl-1.5 pr-1 py-1">
                       <button 
                         onClick={() => setCommentPlatform(prev => prev === 'twitch' ? 'kick' : 'twitch')}
-                        className={`p-1.5 rounded-md transition-colors ${commentPlatform === 'twitch' ? 'bg-twitch/10 text-twitch hover:bg-twitch/20' : 'bg-kick/10 text-kick hover:bg-kick/20'}`}
-                        title={`Enviar como: ${commentPlatform === 'twitch' ? 'Twitch' : 'Kick'}`}
+                        className={`p-2 rounded-xl transition-all ${commentPlatform === 'twitch' ? 'bg-twitch/10 text-twitch hover:bg-twitch/20' : 'bg-kick/10 text-kick hover:bg-kick/20'}`}
                       >
                           {commentPlatform === 'twitch' ? <TwitchLogo className="w-4 h-4" /> : <KickLogo className="w-4 h-4" />}
                       </button>
@@ -411,14 +408,14 @@ export default function App() {
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder={`Enviar mensagem na ${commentPlatform === 'twitch' ? 'Twitch' : 'Kick'}...`}
-                    className="w-full bg-transparent text-gray-200 px-2 py-3 text-sm focus:outline-none placeholder-gray-600" 
+                    placeholder={`Enviar na ${commentPlatform === 'twitch' ? 'Twitch' : 'Kick'}...`}
+                    className="w-full bg-transparent text-white px-2 py-3 text-sm focus:outline-none placeholder-white/30" 
                   />
                   
                   <button 
                     onClick={handleSendMessage}
                     disabled={!chatInput.trim()}
-                    className={`p-2 mr-1 rounded-md transition-all ${chatInput.trim() ? (commentPlatform === 'twitch' ? 'text-twitch hover:bg-twitch/10' : 'text-kick hover:bg-kick/10') : 'text-gray-600 cursor-not-allowed'}`}
+                    className={`p-2 mr-1 rounded-xl transition-all ${chatInput.trim() ? (commentPlatform === 'twitch' ? 'text-twitch hover:bg-twitch/10' : 'text-kick hover:bg-kick/10') : 'text-white/20 cursor-not-allowed'}`}
                   >
                       <SendIcon className="w-5 h-5" />
                   </button>
@@ -426,8 +423,8 @@ export default function App() {
              
              {/* Info/Warning footer */}
              {commentPlatform === 'kick' && (
-                 <div className="text-[10px] text-yellow-500/80 mt-1.5 px-1 text-center font-mono">
-                     ⚠️ Leitura apenas (API Restrita)
+                 <div className="text-[10px] text-yellow-200/60 mt-2 px-1 text-center font-medium tracking-wide">
+                     Leitura apenas (Modo Espectador)
                  </div>
              )}
           </div>

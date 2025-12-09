@@ -63,71 +63,76 @@ export const SettingsModal: React.FC<Props> = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose}></div>
-      <div className="bg-[#0f0f11] border border-glass-border w-full max-w-xl p-6 rounded-2xl shadow-2xl relative z-10 animate-slide-in max-h-[90vh] overflow-y-auto custom-scrollbar">
-        <h2 className="text-2xl font-display font-bold mb-6 text-white sticky top-0 bg-[#0f0f11] py-2 z-20">
-           Contas & Conexões
-        </h2>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity" onClick={onClose}></div>
+      <div className="liquid-glass w-full max-w-xl p-0 rounded-3xl shadow-2xl relative z-10 animate-slide-in max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col">
         
-        <div className="space-y-8">
+        {/* Header */}
+        <div className="sticky top-0 bg-black/40 backdrop-blur-xl border-b border-white/5 p-6 z-20 flex justify-between items-center">
+             <h2 className="text-2xl font-display font-bold text-white tracking-tight">
+                Contas & Conexões
+            </h2>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70">
+                ✕
+            </button>
+        </div>
+        
+        <div className="p-6 space-y-8">
             {/* TWITCH SECTION */}
             <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                    <div className="flex items-center gap-2">
-                        <TwitchLogo className="w-6 h-6 text-twitch" />
-                        <h3 className="font-bold text-xl text-gray-200">Twitch</h3>
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-twitch/20 flex items-center justify-center text-twitch">
+                        <TwitchLogo className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-lg text-white">Twitch</h3>
+                        <p className="text-xs text-white/50">Conecte para enviar mensagens</p>
                     </div>
                 </div>
 
-                <div className="flex p-1 bg-black/50 rounded-lg border border-white/5 mb-4">
+                <div className="bg-black/20 p-1 rounded-xl flex gap-1">
                     <button
                         onClick={() => setAuthMethod('manual')}
-                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${authMethod === 'manual' ? 'bg-twitch text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${authMethod === 'manual' ? 'bg-white/10 text-white shadow-sm' : 'text-white/40 hover:text-white/70'}`}
                     >
                         Gerador (Fácil)
                     </button>
                     <button
                         onClick={() => setAuthMethod('auto')}
-                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${authMethod === 'auto' ? 'bg-twitch text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${authMethod === 'auto' ? 'bg-white/10 text-white shadow-sm' : 'text-white/40 hover:text-white/70'}`}
                     >
-                        App Próprio (Avançado)
+                        App Próprio
                     </button>
                 </div>
 
-                <div className="bg-twitch/5 p-5 rounded-xl border border-twitch/10">
+                <div className="space-y-4">
                     {authMethod === 'manual' && (
-                        <div className="animate-slide-in">
-                            <p className="text-xs text-gray-400 mb-4 leading-relaxed">
-                                Use o site <strong>TwitchTokenGenerator</strong> para criar suas credenciais.
-                            </p>
-                            
-                            <a 
+                        <div className="animate-fade-in space-y-4">
+                             <a 
                                 href="https://twitchtokengenerator.com/" 
                                 target="_blank" 
                                 rel="noopener noreferrer nofollow"
-                                className="flex items-center justify-center gap-2 w-full py-3 bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/20 hover:bg-[#00f0ff]/20 rounded-lg text-xs font-bold mb-5 transition-all"
+                                className="flex items-center justify-center gap-2 w-full py-3 bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/20 hover:bg-[#00f0ff]/20 rounded-xl text-xs font-bold transition-all"
                             >
                                 🔗 Abrir Gerador de Token
                             </a>
-
                             <div className="space-y-3">
-                                <div>
-                                    <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider font-bold">Client ID</label>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider ml-1">Client ID</label>
                                     <input 
                                         type="text" 
                                         value={clientId}
                                         onChange={e => setClientId(e.target.value)}
-                                        className="w-full bg-black/50 border border-glass-border rounded-lg p-2.5 text-sm focus:border-twitch outline-none transition-colors"
+                                        className="w-full bg-black/30 border border-white/5 rounded-xl p-3 text-sm focus:border-twitch/50 outline-none transition-colors text-white"
                                         placeholder="Cole o Client ID"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider font-bold">Access Token</label>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider ml-1">Access Token</label>
                                     <input 
                                         type="password" 
                                         value={accessToken}
                                         onChange={e => setAccessToken(e.target.value)}
-                                        className="w-full bg-black/50 border border-glass-border rounded-lg p-2.5 text-sm focus:border-twitch outline-none transition-colors"
+                                        className="w-full bg-black/30 border border-white/5 rounded-xl p-3 text-sm focus:border-twitch/50 outline-none transition-colors text-white"
                                         placeholder="Cole o Access Token"
                                     />
                                 </div>
@@ -136,28 +141,23 @@ export const SettingsModal: React.FC<Props> = ({
                     )}
 
                     {authMethod === 'auto' && (
-                        <div className="animate-slide-in">
-                             <div className="mb-4 p-3 bg-black/30 rounded border border-white/5">
-                                <label className="block text-[10px] font-mono text-gray-400 mb-1 uppercase tracking-wider font-bold">Redirect URL Obrigatória</label>
-                                <div className="flex items-center gap-2">
-                                    <code className="text-[10px] text-green-400 font-mono break-all select-all">{currentUrl}</code>
-                                </div>
+                        <div className="animate-fade-in space-y-4">
+                            <div className="p-3 bg-black/30 rounded-xl border border-white/5">
+                                <label className="block text-[10px] font-mono text-white/40 mb-1 uppercase tracking-wider font-bold">Redirect URL</label>
+                                <code className="text-[11px] text-green-400 font-mono break-all select-all">{currentUrl}</code>
                             </div>
-
-                            <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider font-bold">Seu Client ID</label>
                             <input 
                                 type="text" 
                                 value={clientId}
                                 onChange={e => setClientId(e.target.value)}
-                                className="w-full bg-black/50 border border-glass-border rounded-lg p-3 text-sm focus:border-twitch outline-none transition-colors mb-4"
+                                className="w-full bg-black/30 border border-white/5 rounded-xl p-3 text-sm focus:border-twitch/50 outline-none transition-colors text-white"
                                 placeholder="Client ID do App"
                             />
-                            
                             {!accessToken && (
                                 <button 
                                     type="button"
                                     onClick={handleTwitchLogin}
-                                    className="w-full py-3 rounded-lg bg-twitch text-white font-bold text-xs hover:bg-twitch/90 transition-all shadow-lg shadow-twitch/20"
+                                    className="w-full py-3 rounded-xl bg-twitch text-white font-bold text-xs hover:bg-twitch/90 transition-all shadow-lg shadow-twitch/20"
                                 >
                                     Autenticar via Popup
                                 </button>
@@ -167,47 +167,46 @@ export const SettingsModal: React.FC<Props> = ({
                 </div>
             </div>
 
+            <div className="h-px w-full bg-white/5"></div>
+
             {/* KICK SECTION */}
             <div className="space-y-4">
-                <div className="flex items-center gap-2 border-b border-white/10 pb-2">
-                    <KickLogo className="w-6 h-6 text-kick" />
-                    <h3 className="font-bold text-xl text-gray-200">Kick</h3>
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-kick/20 flex items-center justify-center text-kick">
+                        <KickLogo className="w-6 h-6" />
+                    </div>
+                    <div>
+                         <h3 className="font-bold text-lg text-white">Kick</h3>
+                         <p className="text-xs text-white/50">Somente Leitura</p>
+                    </div>
                 </div>
                 
-                <div className="bg-kick/5 p-5 rounded-xl border border-kick/10">
-                    <div className="mb-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                        <p className="text-[11px] text-yellow-200 font-medium">
-                            ⚠️ <strong>Aviso Importante:</strong> A Kick não possui login público (OAuth). 
-                            O chat funcionará em modo <strong>Apenas Leitura</strong> aqui no site.
-                        </p>
-                    </div>
+                <div className="bg-yellow-500/5 p-4 rounded-xl border border-yellow-500/10">
+                    <p className="text-xs text-yellow-200/80 leading-relaxed">
+                        A Kick não permite login via API pública. O chat funcionará apenas para leitura.
+                    </p>
+                </div>
 
-                    <label className="block text-xs font-mono text-gray-500 mb-2 uppercase tracking-wider font-bold">Seu Nick (Apenas para salvar preferências)</label>
+                <div className="space-y-1">
+                    <label className="text-[10px] uppercase font-bold text-white/40 tracking-wider ml-1">Seu Username</label>
                     <input 
                         type="text" 
                         value={localKickUser}
                         onChange={e => setLocalKickUser(e.target.value)}
-                        className="w-full bg-black/50 border border-glass-border rounded-lg p-3 text-base focus:border-kick outline-none transition-colors placeholder-gray-700"
+                        className="w-full bg-black/30 border border-white/5 rounded-xl p-3 text-sm focus:border-kick/50 outline-none transition-colors text-white"
                         placeholder="Ex: ViictorN"
                     />
                 </div>
             </div>
         </div>
 
-        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-8 pt-4 border-t border-white/10">
-            <button 
-                type="button"
-                onClick={onClose}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-            >
-                Cancelar
-            </button>
+        <div className="p-6 border-t border-white/5 bg-black/20">
             <button 
                 type="button"
                 onClick={handleSave}
-                className="w-full sm:w-auto px-8 py-3 rounded-xl text-sm font-bold bg-white text-black hover:bg-gray-200 transition-colors shadow-lg active:scale-[0.98]"
+                className="w-full py-4 rounded-2xl text-sm font-bold bg-white text-black hover:bg-gray-200 transition-all shadow-xl shadow-white/5 active:scale-[0.98]"
             >
-                Salvar Tudo
+                Salvar Alterações
             </button>
         </div>
       </div>

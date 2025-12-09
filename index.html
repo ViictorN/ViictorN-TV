@@ -2,36 +2,45 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="https://picsum.photos/32/32" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📺</text></svg>">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>ViictorN TV</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              display: ['Space Grotesk', 'sans-serif'],
+              sans: ['SF Pro Display', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+              display: ['SF Pro Display', 'Inter', 'sans-serif'],
             },
             colors: {
               twitch: '#9146FF',
               kick: '#53FC18',
-              dark: '#050505',
-              glass: 'rgba(255, 255, 255, 0.03)',
-              'glass-border': 'rgba(255, 255, 255, 0.08)',
+              dark: '#000000',
+              glass: 'rgba(255, 255, 255, 0.05)',
+              'glass-hover': 'rgba(255, 255, 255, 0.1)',
+              'glass-border': 'rgba(255, 255, 255, 0.12)',
+              'glass-strong': 'rgba(20, 20, 20, 0.6)',
+            },
+            backdropBlur: {
+              'xs': '2px',
             },
             animation: {
-              'slide-in': 'slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'slide-in': 'slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+              'fade-in': 'fadeIn 0.5s ease-out',
             },
             keyframes: {
               slideIn: {
-                '0%': { transform: 'translateY(10px)', opacity: '0' },
-                '100%': { transform: 'translateY(0)', opacity: '1' },
+                '0%': { transform: 'translateY(20px) scale(0.96)', opacity: '0' },
+                '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+              },
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
               }
             }
           }
@@ -40,38 +49,45 @@
     </script>
     <style>
       body {
-        background-color: #050505;
+        background-color: #000000;
         color: white;
         overflow: hidden;
-        background-image: radial-gradient(circle at 50% 0%, #1a1a2e 0%, #050505 60%);
+        /* Apple-style Aurora Background */
+        background: 
+          radial-gradient(circle at 15% 50%, rgba(83, 252, 24, 0.08), transparent 25%), 
+          radial-gradient(circle at 85% 30%, rgba(145, 70, 255, 0.08), transparent 25%);
+        background-attachment: fixed;
       }
       
-      /* Smooth Scrollbar for Chat */
+      /* Liquid Glass Utility */
+      .liquid-glass {
+        background: rgba(25, 25, 25, 0.65);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.36);
+      }
+
+      .liquid-glass-strong {
+        background: rgba(10, 10, 10, 0.85);
+        backdrop-filter: blur(40px);
+        -webkit-backdrop-filter: blur(40px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      /* Scrollbar */
       .custom-scrollbar::-webkit-scrollbar {
-        width: 6px;
+        width: 5px;
       }
       .custom-scrollbar::-webkit-scrollbar-track {
         background: transparent;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 100vh;
       }
       .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.2);
-      }
-
-      /* Noise overlay effect - Z-index lowered to 10 to allow interactions with z-20+ elements */
-      .noise-bg {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        pointer-events: none;
-        z-index: 10;
-        opacity: 0.03;
-        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        background: rgba(255, 255, 255, 0.25);
       }
     </style>
   <script type="importmap">
@@ -86,7 +102,6 @@
 </script>
 </head>
   <body>
-    <div class="noise-bg"></div>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
