@@ -17,6 +17,9 @@ interface Props {
   onReply: (username: string) => void;
 }
 
+// Unified Badge Styling
+const BADGE_CLASS = "h-4 w-auto mr-1 inline-block align-middle select-none object-contain";
+
 // Fallback Twitch badges (if API not connected)
 const FALLBACK_TWITCH_BADGES: Record<string, string> = {
   'broadcaster': 'https://static-cdn.jtvnw.net/badges/v1/5527c58c-fb7d-422d-b71b-f309dcb85cc1/2',
@@ -24,59 +27,54 @@ const FALLBACK_TWITCH_BADGES: Record<string, string> = {
   'vip': 'https://static-cdn.jtvnw.net/badges/v1/b817aba4-fad8-49e2-b88a-7cc744dfa6ec/2',
   'subscriber': 'https://static-cdn.jtvnw.net/badges/v1/5d9f2208-5dd8-11e7-8513-2ff4adfae661/2',
   'premium': 'https://static-cdn.jtvnw.net/badges/v1/bbbe0db0-a598-423e-86d0-f9fb98ca1933/2',
+  'turbo': 'https://static-cdn.jtvnw.net/badges/v1/bd444ec6-8f34-4bf9-91f4-af1e3428d80f/2',
 };
 
-// Inline SVGs for Kick Badges to prevent broken image links
+// Inline SVGs for Kick Badges
 const KickBadgeSVG: React.FC<{ type: string }> = ({ type }) => {
-  const className = "h-4 w-4 mr-1.5 inline-block align-middle select-none";
+  const props = { className: BADGE_CLASS, viewBox: "0 0 24 24", fill: "currentColor" };
   
   switch (type) {
     case 'broadcaster':
-      // Host Icon (Crown/Mic style)
       return (
-         <svg className={className} viewBox="0 0 24 24" fill="#53FC18" xmlns="http://www.w3.org/2000/svg">
+         <svg {...props} className={`${BADGE_CLASS} text-kick`}>
              <title>Broadcaster</title>
              <path d="M12 2L15 8H9L12 2ZM18 8H22V14H18V8ZM2 8H6V14H2V8ZM9 10H15V16H9V10ZM12 22C14.2091 22 16 20.2091 16 18H8C8 20.2091 9.79086 22 12 22Z" />
          </svg>
       );
     case 'moderator':
-      // Green Shield with Swords
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="#00D26A" xmlns="http://www.w3.org/2000/svg">
+        <svg {...props} className={`${BADGE_CLASS} text-[#00D26A]`}>
            <title>Moderator</title>
            <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1ZM12 11.99H7V10.01H12V7.48L15.41 11L12 14.52V11.99Z" />
         </svg>
       ); 
     case 'vip':
-      // Diamond
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg {...props} fill="none" className={`${BADGE_CLASS} text-[#F06292]`}>
              <title>VIP</title>
-             <path d="M12 2L2 9L12 22L22 9L12 2Z" fill="#F06292" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
+             <path d="M12 2L2 9L12 22L22 9L12 2Z" fill="currentColor" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
         </svg>
       );
     case 'verified':
-      // Verified Check
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="#53FC18" xmlns="http://www.w3.org/2000/svg">
+        <svg {...props} className={`${BADGE_CLASS} text-kick`}>
             <title>Verified</title>
             <path d="M23 12L20.56 9.21L20.9 5.52L17.29 4.7L15.4 1.5L12 2.96L8.6 1.5L6.71 4.69L3.1 5.5L3.44 9.2L1 12L3.44 14.79L3.1 18.49L6.71 19.31L8.6 22.5L12 21.03L15.4 22.49L17.29 19.3L20.9 18.48L20.56 14.79L23 12ZM10.09 16.72L6.29 12.91L7.7 11.5L10.09 13.88L16.29 7.69L17.7 9.1L10.09 16.72Z" />
         </svg>
       );
     case 'founder':
-      // Founder (Red Badge)
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="#FF5252" xmlns="http://www.w3.org/2000/svg">
+        <svg {...props} className={`${BADGE_CLASS} text-[#FF5252]`}>
             <title>Founder</title>
             <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="white" strokeWidth="1" />
         </svg>
       );
     case 'og':
-        // OG Badge
         return (
-             <svg className={className} viewBox="0 0 24 24" fill="#FF9800" xmlns="http://www.w3.org/2000/svg">
+             <svg {...props} className={`${BADGE_CLASS} text-[#FF9800]`}>
                  <title>OG</title>
-                 <rect x="2" y="4" width="20" height="16" rx="4" fill="#FF9800" stroke="white" strokeWidth="1"/>
+                 <rect x="2" y="4" width="20" height="16" rx="4" fill="currentColor" stroke="white" strokeWidth="1"/>
                  <path d="M12 12C12 13.66 10.66 15 9 15C7.34 15 6 13.66 6 12C6 10.34 7.34 9 9 9C10.66 9 12 10.34 12 12ZM18 15V13H14V15H18ZM18 11V9H14V11H18Z" fill="white"/>
              </svg>
         );
@@ -105,7 +103,15 @@ const BadgeIcon: React.FC<{ badge: Badge; platform: Platform; globalBadges?: Bad
     }
 
     if (url) {
-      return <img src={url} alt={badge.type} className="h-4 w-auto mr-1.5 inline-block object-contain align-middle select-none" draggable={false} />;
+      return (
+        <img 
+            src={url} 
+            alt={badge.type} 
+            title={badge.type.charAt(0).toUpperCase() + badge.type.slice(1)}
+            className={BADGE_CLASS} 
+            draggable={false} 
+        />
+      );
     }
     
     return null;
@@ -114,16 +120,19 @@ const BadgeIcon: React.FC<{ badge: Badge; platform: Platform; globalBadges?: Bad
   // --- KICK RENDERING ---
   if (platform === Platform.KICK) {
     
-    // 1. Try Subscriber (Image URL from API)
+    // 1. Try Subscriber (Using Channel API Data)
     if (badge.type === 'subscriber' && kickBadges && kickBadges['subscriber']) {
         let url = '';
-        // Exact match
-        if (kickBadges['subscriber'][badge.version]) {
-            url = kickBadges['subscriber'][badge.version];
-        } else {
-             // Fallback logic
-             const months = parseInt(badge.version);
-             if (!isNaN(months)) {
+        
+        // Logic: Find closest badge month <= current badge version
+        const months = parseInt(badge.version || '0');
+        
+        if (!isNaN(months) && kickBadges['subscriber']) {
+             // Exact match
+             if (kickBadges['subscriber'][String(months)]) {
+                 url = kickBadges['subscriber'][String(months)];
+             } else {
+                 // Best fit match
                  const availableMonths = Object.keys(kickBadges['subscriber']).map(Number).sort((a,b) => a - b);
                  const bestFit = availableMonths.reverse().find(m => m <= months);
                  if (bestFit) {
@@ -131,40 +140,52 @@ const BadgeIcon: React.FC<{ badge: Badge; platform: Platform; globalBadges?: Bad
                  }
              }
         }
+
         if (url) {
-            return <img src={url} alt="Sub" className="h-4 w-auto mr-1.5 inline-block object-contain align-middle select-none" draggable={false} title={`Subscriber ${badge.version} Months`} />;
+            return (
+                <img 
+                    src={url} 
+                    alt="Subscriber" 
+                    title={`Subscriber (${months} months)`}
+                    className={BADGE_CLASS} 
+                    draggable={false} 
+                />
+            );
         }
+        
+        // Text Fallback if image fails but we know it's a sub
+        return (
+            <span 
+                className="mr-1 inline-flex items-center justify-center h-4 px-1 text-[9px] font-bold rounded uppercase tracking-tighter bg-[#FFD700] text-black border border-yellow-600 align-middle select-none"
+                title={`Subscriber (${badge.version} months)`}
+            >
+                SUB
+            </span>
+        );
     }
 
-    // 2. Use Reliable Inline SVGs for Global Badges
-    const svgBadge = <KickBadgeSVG type={badge.type} />;
-    if (svgBadge && (badge.type !== 'subscriber')) {
-        return svgBadge;
-    }
-
-    // 3. Last resort fallback text
-    if (badge.type === 'subscriber') { 
-        return <span className="mr-1 inline-flex items-center justify-center h-4 px-1 text-[9px] font-bold rounded uppercase tracking-tighter bg-[#FFD700] text-black border border-yellow-600 align-middle">SUB</span>;
-    }
-    
-    return null;
+    // 2. Global/Static Kick Badges (Broadcaster, Mod, VIP, etc)
+    return <KickBadgeSVG type={badge.type} />;
   }
 
   return null;
 };
 
 const PlatformBadge: React.FC<{ platform: Platform }> = ({ platform }) => {
+  const wrapperClass = "inline-flex items-center justify-center w-5 h-5 mr-1 align-middle select-none";
+  const iconClass = "w-3.5 h-3.5";
+
   if (platform === Platform.TWITCH) {
     return (
-      <div className="inline-flex items-center justify-center w-5 h-5 mr-1.5 align-middle select-none" title="Twitch User">
-        <PlatformIcon platform="twitch" variant="glow" className="w-3.5 h-3.5" />
+      <div className={wrapperClass} title="Twitch User">
+        <PlatformIcon platform="twitch" variant="glow" className={iconClass} />
       </div>
     );
   }
   if (platform === Platform.KICK) {
      return (
-      <div className="inline-flex items-center justify-center w-5 h-5 mr-1.5 align-middle select-none" title="Kick User">
-        <PlatformIcon platform="kick" variant="glow" className="w-3.5 h-3.5" />
+      <div className={wrapperClass} title="Kick User">
+        <PlatformIcon platform="kick" variant="glow" className={iconClass} />
       </div>
     );
   }
@@ -189,6 +210,7 @@ const SevenTVTextRenderer: React.FC<{ text: string; emoteMap?: EmoteMap; largeEm
                                 alt={word} 
                                 title={word}
                                 className={`inline-block align-middle mx-0.5 ${emoteSize} w-auto object-contain transform -translate-y-0.5 select-none`}
+                                draggable={false}
                             />
                             {index < words.length - 1 && ' '}
                         </span>
@@ -260,6 +282,7 @@ const ParsedContent: React.FC<{ message: ChatMessage; sevenTVEmotes?: EmoteMap; 
                     src={`https://static-cdn.jtvnw.net/emoticons/v2/${rep.id}/default/dark/1.0`}
                     alt="emote"
                     className={`inline-block align-middle mx-0.5 ${twitchEmoteSize} w-auto object-contain transform -translate-y-0.5 select-none`}
+                    draggable={false}
                 />
             );
 
@@ -292,6 +315,7 @@ const ParsedContent: React.FC<{ message: ChatMessage; sevenTVEmotes?: EmoteMap; 
                     alt={part.name}
                     title={part.name}
                     className={`inline-block align-middle mx-0.5 ${kickEmoteSize} w-auto object-contain transform -translate-y-1 select-none`}
+                    draggable={false}
                 />
             );
         }
