@@ -194,12 +194,37 @@ const SevenTVTextRenderer: React.FC<{ text: string; emoteMap?: EmoteMap; largeEm
     );
 };
 
+// Helper: Split string by Kick Emote pattern [emote:id:name]
+const splitByKickEmotes = (text: string) => {
+  // Regex captures: 1=ID, 2=Name
+  const regex = /\[emote:(\d+):([\w\s\S]+?)\]/g;
+  const parts: (string | { id: string, name: string })[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+    parts.push({ id: match[1], name: match[2] });
+    lastIndex = regex.lastIndex;
+  }
+  
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+  
+  return parts;
+};
+
 const ParsedContent: React.FC<{ message: ChatMessage; sevenTVEmotes?: EmoteMap; fontSize: string; largeEmotes: boolean }> = ({ message, sevenTVEmotes, fontSize, largeEmotes }) => {
   const parsedElements = useMemo(() => {
     
     const twitchEmoteSize = largeEmotes ? 'h-9' : 'h-6';
+    const kickEmoteSize = largeEmotes ? 'h-10' : 'h-8';
 
-    // 1. If there are Twitch native emotes (positional)
+    // 1. If there are Twitch native emotes (positional metadata)
+    // Twitch sends emotes via metadata indices, ignoring content string
     if (message.emotes && Object.keys(message.emotes).length > 0) {
         const replacements: { start: number; end: number; id: string }[] = [];
         const emotes = message.emotes as Record<string, string[]>;
@@ -244,8 +269,27 @@ const ParsedContent: React.FC<{ message: ChatMessage; sevenTVEmotes?: EmoteMap; 
         return parts;
     } 
     
-    // 2. If no native emotes, just parse for 7TV
-    return <SevenTVTextRenderer text={message.content} emoteMap={sevenTVEmotes} largeEmotes={largeEmotes} />;
+    // 2. Kick Emotes (Parsed from text) + 7TV Emotes
+    // Since Kick sends emotes as text "[emote:id:name]", we need to parse them first, then parse 7TV in the remaining text.
+    const kickParts = splitByKickEmotes(message.content);
+    
+    return kickParts.map((part, i) => {
+        if (typeof part === 'string') {
+            // Render 7TV in plain text parts
+            return <SevenTVTextRenderer key={`part-${i}`} text={part} emoteMap={sevenTVEmotes} largeEmotes={largeEmotes} />;
+        } else {
+            // Render Kick Emote
+            return (
+                 <img 
+                    key={`kick-emote-${i}`}
+                    src={`https://files.kick.com/emotes/${part.id}/fullsize`}
+                    alt={part.name}
+                    title={part.name}
+                    className={`inline-block align-middle mx-0.5 ${kickEmoteSize} w-auto object-contain transform -translate-y-1 select-none`}
+                />
+            );
+        }
+    });
 
   }, [message.content, message.emotes, message.id, sevenTVEmotes, largeEmotes]);
 
