@@ -181,7 +181,7 @@ export class TwitchConnection {
   }
 }
 
-// --- KICK IMPLEMENTATION (Pusher WebSocket) ---
+// --- KICK IMPLEMENTATION (Pusher WebSocket + API Write) ---
 export class KickConnection {
   private ws: WebSocket | null = null;
   private channelSlug: string;
@@ -189,15 +189,17 @@ export class KickConnection {
   private onDelete: DeleteCallback;
   private chatroomId: number | null = null;
   private pingInterval: number | null = null;
+  private accessToken: string | null = null;
 
   // Kick Pusher Public Key & Cluster
   private readonly PUSHER_KEY = '32cbd69e4b950bf97679';
   private readonly PUSHER_CLUSTER = 'us2';
 
-  constructor(channelSlug: string, onMessage: MessageCallback, onDelete: DeleteCallback) {
+  constructor(channelSlug: string, onMessage: MessageCallback, onDelete: DeleteCallback, accessToken?: string) {
     this.channelSlug = channelSlug;
     this.onMessage = onMessage;
     this.onDelete = onDelete;
+    this.accessToken = accessToken || null;
   }
 
   async connect() {
@@ -297,6 +299,41 @@ export class KickConnection {
     };
     
     this.onMessage(msg);
+  }
+
+  // SEND MESSAGE IMPLEMENTATION
+  async sendMessage(content: string) {
+      if (!this.chatroomId || !this.accessToken) {
+          throw new Error("Missing Chatroom ID or Access Token");
+      }
+
+      // We use corsproxy to attempt to bypass browser CORS checks, 
+      // but Cloudflare may still block these requests.
+      const endpoint = `https://corsproxy.io/?https://api.kick.com/public/v1/chatrooms/${this.chatroomId}/messages`;
+
+      const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+              'Authorization': `Bearer ${this.accessToken}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+          },
+          body: JSON.stringify({ 
+              content: content, 
+              type: 'message' 
+          })
+      });
+
+      if (!res.ok) {
+          let errorMsg = 'Unknown Error';
+          try {
+              const errData = await res.json();
+              errorMsg = errData.message || JSON.stringify(errData);
+          } catch {
+              errorMsg = await res.text();
+          }
+          throw new Error(`Kick API Error: ${errorMsg}`);
+      }
   }
 
   disconnect() {

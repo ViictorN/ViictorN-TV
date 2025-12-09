@@ -37,7 +37,8 @@ export default function App() {
     twitch: false, 
     kick: false,
     twitchUsername: '',
-    kickUsername: ''
+    kickUsername: '',
+    kickAccessToken: ''
   });
 
   // Settings State (Persisted)
@@ -84,6 +85,10 @@ export default function App() {
   
   const [kickUsername, setKickUsername] = useState(() => {
      return localStorage.getItem('kick_username') || '';
+  });
+
+  const [kickAccessToken, setKickAccessToken] = useState(() => {
+     return localStorage.getItem('kick_access_token') || '';
   });
 
   // Assets
@@ -167,12 +172,15 @@ export default function App() {
 
   useEffect(() => {
       localStorage.setItem('kick_username', kickUsername);
+      localStorage.setItem('kick_access_token', kickAccessToken);
+
       setAuthState(prev => ({ 
           ...prev, 
           kick: !!kickUsername, 
-          kickUsername: kickUsername 
+          kickUsername: kickUsername,
+          kickAccessToken: kickAccessToken
       }));
-  }, [kickUsername]);
+  }, [kickUsername, kickAccessToken]);
 
 
   const flushBuffer = () => {
@@ -324,9 +332,15 @@ export default function App() {
   // Kick Connection Logic
   useEffect(() => {
     if (!kickRef.current) {
-      kickRef.current = new KickConnection(STREAMER_SLUG, handleNewMessage, handleDeleteMessage);
+      // Re-initialize if token changes
+      kickRef.current = new KickConnection(STREAMER_SLUG, handleNewMessage, handleDeleteMessage, kickAccessToken);
       kickRef.current.connect();
       addSystemMsg('Kick', true);
+    } else {
+        // Just reconnect if needed, or simple ref replacement (cleaner to replace)
+         kickRef.current.disconnect();
+         kickRef.current = new KickConnection(STREAMER_SLUG, handleNewMessage, handleDeleteMessage, kickAccessToken);
+         kickRef.current.connect();
     }
     
     return () => {
@@ -335,7 +349,7 @@ export default function App() {
             kickRef.current = null;
         }
     };
-  }, []);
+  }, [kickAccessToken]); // Re-run when token changes
 
   const addSystemMsg = (platform: string, connected: boolean) => {
     handleNewMessage({
@@ -347,7 +361,7 @@ export default function App() {
     });
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
 
     if (commentPlatform === 'twitch') {
@@ -367,7 +381,33 @@ export default function App() {
         setChatInput('');
     } 
     else if (commentPlatform === 'kick') {
-        alert('O envio de mensagens para a Kick diretamente pelo navegador está bloqueado por segurança (CORS/Cloudflare). Apenas leitura é suportada nesta versão web.');
+        if (!kickAccessToken) {
+            alert('Para enviar mensagens na Kick, você precisa de um Access Token. Vá em Configurações > Kick > Access Token.');
+            return;
+        }
+
+        if (!kickRef.current) return;
+
+        try {
+            await kickRef.current.sendMessage(chatInput);
+             
+            // Optimistic UI Update
+            handleNewMessage({
+                id: crypto.randomUUID(),
+                platform: Platform.KICK,
+                user: { 
+                    username: authState.kickUsername || 'Eu', 
+                    badges: [], 
+                    color: '#53FC18' 
+                },
+                content: chatInput,
+                timestamp: Date.now()
+            });
+            setChatInput('');
+
+        } catch (error: any) {
+            alert(`Falha ao enviar para Kick: ${error.message}\n\nNota: A API da Kick pode bloquear envios diretos do navegador (CORS).`);
+        }
     }
   };
 
@@ -391,6 +431,11 @@ export default function App() {
       return `&parent=${hostname}`;
   };
 
+  const saveKickSettings = (username: string, token: string) => {
+      setKickUsername(username);
+      setKickAccessToken(token);
+  };
+
   return (
     <div className="flex flex-col h-[100dvh] w-full overflow-hidden font-sans bg-black">
       <SettingsModal 
@@ -399,7 +444,8 @@ export default function App() {
         currentCreds={twitchCreds}
         onSaveTwitch={setTwitchCreds}
         kickUsername={kickUsername}
-        onSaveKick={setKickUsername}
+        kickAccessToken={kickAccessToken}
+        onSaveKick={saveKickSettings}
         chatSettings={chatSettings}
         onUpdateSettings={setChatSettings}
       />
@@ -532,7 +578,7 @@ export default function App() {
           </div>
 
           {/* Input Area */}
-          {authState.twitch && (
+          {(authState.twitch || authState.kickAccessToken) && (
               <div className="bg-black border-t border-white/5 pb-[env(safe-area-inset-bottom)]">
                  <div className="p-3">
                     <div className={`relative flex items-center bg-white/5 rounded-2xl border transition-all duration-300 ease-out-expo ${commentPlatform === 'twitch' ? 'border-twitch/30 focus-within:border-twitch/80 shadow-[0_0_20px_rgba(145,70,255,0.05)]' : 'border-kick/30 focus-within:border-kick/80 shadow-[0_0_20px_rgba(83,252,24,0.05)]'}`}>
@@ -551,7 +597,7 @@ export default function App() {
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="Enviar mensagem..."
+                            placeholder={`Enviar mensagem na ${commentPlatform}...`}
                             className="w-full bg-transparent text-white px-2 py-3 text-sm focus:outline-none placeholder-white/20"
                         />
                         
@@ -564,9 +610,9 @@ export default function App() {
                         </button>
                     </div>
                     
-                    {commentPlatform === 'kick' && (
+                    {commentPlatform === 'kick' && !kickAccessToken && (
                         <div className="text-[10px] text-yellow-500/60 mt-2 px-1 text-center font-medium tracking-wide">
-                            Leitura apenas (Modo Espectador)
+                            Configure o Access Token para enviar mensagens na Kick.
                         </div>
                     )}
                  </div>

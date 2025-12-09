@@ -64,6 +64,7 @@ export interface AuthState {
   kick: boolean;
   twitchUsername?: string;
   kickUsername?: string;
+  kickAccessToken?: string; // Token for API calls (OAuth)
 }
 
 // Map: BadgeSetID -> VersionID -> ImageURL

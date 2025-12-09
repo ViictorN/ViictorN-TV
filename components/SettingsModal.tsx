@@ -8,7 +8,8 @@ interface Props {
   onSaveTwitch: (creds: TwitchCreds) => void;
   currentCreds: TwitchCreds;
   kickUsername: string;
-  onSaveKick: (username: string) => void;
+  onSaveKick: (username: string, token: string) => void;
+  kickAccessToken?: string;
   chatSettings: ChatSettings;
   onUpdateSettings: (s: ChatSettings) => void;
 }
@@ -20,12 +21,15 @@ export const SettingsModal: React.FC<Props> = ({
     currentCreds,
     kickUsername,
     onSaveKick,
+    kickAccessToken = '',
     chatSettings,
     onUpdateSettings
 }) => {
   const [clientId, setClientId] = useState(currentCreds.clientId || '');
   const [accessToken, setAccessToken] = useState(currentCreds.accessToken || '');
+  
   const [localKickUser, setLocalKickUser] = useState(kickUsername || '');
+  const [localKickToken, setLocalKickToken] = useState(kickAccessToken || '');
   
   // Local Settings State
   const [settings, setSettings] = useState<ChatSettings>(chatSettings);
@@ -38,16 +42,17 @@ export const SettingsModal: React.FC<Props> = ({
     setClientId(currentCreds.clientId);
     setAccessToken(currentCreds.accessToken);
     setLocalKickUser(kickUsername);
+    setLocalKickToken(kickAccessToken);
     setSettings(chatSettings);
     setBlockedUsersStr(chatSettings.ignoredUsers.join(', '));
     setBlockedKeywordsStr(chatSettings.ignoredKeywords.join(', '));
-  }, [currentCreds, kickUsername, isOpen, chatSettings]);
+  }, [currentCreds, kickUsername, kickAccessToken, isOpen, chatSettings]);
 
   if (!isOpen) return null;
 
   const handleSave = () => {
       onSaveTwitch({ clientId, accessToken });
-      onSaveKick(localKickUser);
+      onSaveKick(localKickUser, localKickToken);
       
       // Parse blocklists
       const usersList = blockedUsersStr.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0);
@@ -215,22 +220,45 @@ export const SettingsModal: React.FC<Props> = ({
                         </div>
                         <div>
                              <h3 className="font-bold text-xl text-white">Kick</h3>
-                             <p className="text-xs text-gray-400">Modo Espectador Avançado</p>
+                             <p className="text-xs text-gray-400">Integração Avançada</p>
                         </div>
                     </div>
 
-                    <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                        <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-2 block">Seu Username (para Highlight)</label>
-                        <input 
-                            type="text" 
-                            value={localKickUser}
-                            onChange={e => setLocalKickUser(e.target.value)}
-                            className="w-full bg-black border border-white/10 rounded-lg p-3 text-sm focus:border-kick/50 outline-none text-white font-mono placeholder-white/20"
-                            placeholder="Ex: UserKick123"
-                        />
-                         <p className="text-[10px] text-gray-500 mt-2">
-                             * Necessário para destacar quando te mencionarem no chat da Kick.
-                         </p>
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/5 space-y-4">
+                        <div>
+                            <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-2 block">Seu Username</label>
+                            <input 
+                                type="text" 
+                                value={localKickUser}
+                                onChange={e => setLocalKickUser(e.target.value)}
+                                className="w-full bg-black border border-white/10 rounded-lg p-3 text-sm focus:border-kick/50 outline-none text-white font-mono placeholder-white/20"
+                                placeholder="Ex: UserKick123"
+                            />
+                            <p className="text-[10px] text-gray-500 mt-2">
+                                * Necessário para destacar quando te mencionarem.
+                            </p>
+                        </div>
+                        
+                        <div>
+                             <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider mb-2 block">Access Token (Bearer)</label>
+                             <input 
+                                 type="password" 
+                                 value={localKickToken}
+                                 onChange={e => setLocalKickToken(e.target.value)}
+                                 className="w-full bg-black border border-white/10 rounded-lg p-3 text-xs focus:border-kick/50 outline-none text-white font-mono placeholder-white/20"
+                                 placeholder="ey..."
+                             />
+                             <div className="mt-2 text-[10px] text-gray-500">
+                                 <p className="mb-1">* Permite enviar mensagens no chat.</p>
+                                 <a 
+                                    href="https://docs.kick.com/getting-started/generating-tokens-oauth2-flow" 
+                                    target="_blank" 
+                                    className="text-kick underline hover:text-white"
+                                 >
+                                    Documentação Oficial OAuth2 ↗
+                                 </a>
+                             </div>
+                        </div>
                     </div>
                 </div>
 
