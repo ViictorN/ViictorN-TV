@@ -20,13 +20,13 @@ export const ViictorNLogo = ({ className }: { className?: string }) => (
 
 export const TwitchLogo = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-     <path fillRule="evenodd" clipRule="evenodd" d="M5.14286 0L1.71429 3.42857V18H6.85714V21.4286H10.2857L13.7143 18H18L22.2857 13.7143V0H5.14286ZM20.5714 12.8571L17.1429 16.2857H12.8571L10.2857 18.8571V16.2857H6.85714V1.71429H20.5714V12.8571ZM10.2857 8.57143H12V5.14286H10.2857V8.57143ZM15.4286 8.57143H17.1429V5.14286H15.4286V8.57143Z" />
+     <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/>
   </svg>
 );
 
 export const KickLogo = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <path fillRule="evenodd" clipRule="evenodd" d="M4 0C1.79086 0 0 1.79086 0 4V20C0 22.2091 1.79086 24 4 24H20C22.2091 24 24 22.2091 24 20V4C24 1.79086 22.2091 0 20 0H4ZM7 5H10.5V10.5L14.5 5H19L13.5 11.5L19.5 19H15.5L11 13V19H7V5Z" />
+    <path fillRule="evenodd" clipRule="evenodd" d="M4 0C1.79086 0 0 1.79086 0 4V20C0 22.2091 1.79086 24 4 24H20C22.2091 24 24 22.2091 24 20V4C24 1.79086 22.2091 0 20 0H4ZM8.5 6H11.5L14.5 10.5L18 6H21.5L16.5 12.5L21.5 19H18L13.5 13.5L11.5 16V19H8.5V6Z" />
   </svg>
 );
 

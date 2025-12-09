@@ -607,7 +607,7 @@ export default function App() {
       : messages;
 
   return (
-    <div className="flex flex-col h-[100dvh] w-full overflow-hidden font-sans bg-black">
+    <div className="flex flex-col h-[100dvh] w-full overflow-hidden font-sans bg-black relative">
       <SettingsModal 
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)} 
@@ -619,6 +619,19 @@ export default function App() {
         chatSettings={chatSettings}
         onUpdateSettings={setChatSettings}
       />
+
+      {/* FLOATING BUTTON: Exit Cinema Mode */}
+      {chatSettings.cinemaMode && (
+         <button 
+           onClick={toggleCinemaMode}
+           className="fixed top-4 right-4 z-[999] bg-black/60 hover:bg-black/90 text-white/70 hover:text-white p-3 rounded-full backdrop-blur-md transition-all border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] active:scale-95 group animate-fade-in"
+           title="Sair do Modo Cinema (Mostrar Cabeçalho)"
+         >
+           <div className="group-hover:rotate-180 transition-transform duration-500">
+             <span className="text-xl leading-none block">✕</span>
+           </div>
+         </button>
+      )}
 
       <ControlPanel 
         authState={authState} 

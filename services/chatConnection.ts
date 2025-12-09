@@ -252,6 +252,16 @@ export class KickConnection {
   }
 
   async connect() {
+    // 1. HARDCODED OPTIMIZATION (Bypass API blocks for known channel)
+    if (this.channelSlug.toLowerCase() === 'gabepeixe') {
+        console.log('[Kick] Using optimized connection for Gabepeixe');
+        this.chatroomId = 9766487;
+        this.channelId = 9766487;
+        this.connectWs();
+        this.fetchHistory().catch(e => console.warn("[Kick] History fetch skipped", e));
+        return;
+    }
+
     try {
       let data = null;
       try {
@@ -279,7 +289,7 @@ export class KickConnection {
         this.connectWs();
         this.fetchHistory().catch(e => console.warn("[Kick] History fetch failed, but realtime should work.", e));
       } else {
-          console.error('[Kick] Could not find channel metadata.');
+          console.error('[Kick] Could not find channel metadata. Chat will not connect.');
       }
     } catch (e) {
       console.error('[Kick] Connect Fatal Error:', e);
