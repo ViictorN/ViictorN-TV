@@ -103,7 +103,7 @@ export default function App() {
     };
   }, []);
 
-  // Sync Auth State
+  // Sync Auth State & Fetch Data ONLY if creds exist
   useEffect(() => {
     localStorage.setItem('twitch_creds', JSON.stringify(twitchCreds));
     
@@ -112,8 +112,9 @@ export default function App() {
 
     if (isTwitchReady) {
         fetchTwitchData();
-        fetchStats();
     }
+    // Always fetch stats regardless of auth
+    fetchStats();
   }, [twitchCreds]);
 
   useEffect(() => {
@@ -151,6 +152,9 @@ export default function App() {
         }
     } catch (e) { console.warn("Kick stats fail"); }
 
+    // If we have creds, use Helix. If not, we can't easily get Twitch Viewers without a key.
+    // For anonymous mode, we might just show 0 or skip it, OR use a public proxy if available.
+    // Here we stick to Helix if available.
     if (twitchCreds.accessToken && twitchCreds.clientId) {
         try {
             const res = await fetch(`https://api.twitch.tv/helix/streams?user_login=${TWITCH_USER_LOGIN}`, {
@@ -217,29 +221,57 @@ export default function App() {
     messageQueue.current.push(msg);
   };
 
+  // Twitch Connection Logic (Handles Anonymous + Auth)
   useEffect(() => {
-    // Twitch Connection
-    if (authState.twitch && !twitchRef.current) {
-      twitchRef.current = new TwitchConnection(STREAMER_SLUG, handleNewMessage, twitchCreds.accessToken, authState.twitchUsername);
-      twitchRef.current.connect();
-      addSystemMsg('Twitch', true);
-    } else if (!authState.twitch && twitchRef.current) {
-      twitchRef.current.disconnect();
-      twitchRef.current = null;
-      addSystemMsg('Twitch', false);
+    // If a connection exists, disconnect it first to apply new credentials (or switch to anon)
+    if (twitchRef.current) {
+        twitchRef.current.disconnect();
+        twitchRef.current = null;
+        addSystemMsg('Twitch', false);
     }
 
-    // Kick Connection
-    if (authState.kick && !kickRef.current) {
+    // Always connect. If tokens are missing, it connects anonymously.
+    twitchRef.current = new TwitchConnection(
+        STREAMER_SLUG, 
+        handleNewMessage, 
+        twitchCreds.accessToken || undefined, 
+        authState.twitchUsername || undefined
+    );
+    twitchRef.current.connect();
+    
+    // Determine connection type for the system message
+    const mode = authState.twitch ? 'Autenticado' : 'Anônimo (Leitura)';
+    handleNewMessage({
+      id: crypto.randomUUID(),
+      platform: Platform.SYSTEM,
+      user: { username: 'System', badges: [] },
+      content: `Conectado à Twitch em modo: ${mode}.`,
+      timestamp: Date.now()
+    });
+
+    return () => {
+        if (twitchRef.current) {
+            twitchRef.current.disconnect();
+            twitchRef.current = null;
+        }
+    };
+  }, [twitchCreds.accessToken, authState.twitchUsername]); // Re-run if auth changes
+
+  // Kick Connection Logic
+  useEffect(() => {
+    if (!kickRef.current) {
       kickRef.current = new KickConnection(STREAMER_SLUG, handleNewMessage);
       kickRef.current.connect();
       addSystemMsg('Kick', true);
-    } else if (!authState.kick && kickRef.current) {
-      kickRef.current.disconnect();
-      kickRef.current = null;
-      addSystemMsg('Kick', false);
     }
-  }, [authState.twitch, authState.kick]);
+    
+    return () => {
+        if (kickRef.current) {
+            kickRef.current.disconnect();
+            kickRef.current = null;
+        }
+    };
+  }, []); // Run once on mount
 
   const addSystemMsg = (platform: string, connected: boolean) => {
     handleNewMessage({
@@ -256,7 +288,7 @@ export default function App() {
 
     if (commentPlatform === 'twitch') {
         if (!twitchRef.current || !authState.twitch) {
-            alert('Você precisa conectar sua conta da Twitch para enviar mensagens.');
+            alert('Você está em modo anônimo. Conecte sua conta da Twitch nas configurações (engrenagem) para enviar mensagens.');
             return;
         }
         // Send via WebSocket
@@ -400,6 +432,26 @@ export default function App() {
 
           {/* Input Area */}
           <div className="p-3 bg-black border-t border-white/5 safe-area-bottom">
+             
+             {/* Auth Warning Banner */}
+             {!authState.twitch && (
+                 <div className="mb-3 px-3 py-2 rounded-xl bg-gradient-to-r from-twitch/10 to-transparent border border-twitch/20 flex items-center justify-between group">
+                     <div className="flex items-center gap-2">
+                         <span className="text-twitch text-lg">🔒</span>
+                         <div className="flex flex-col">
+                             <span className="text-[11px] font-bold text-white">Modo Espectador</span>
+                             <span className="text-[10px] text-gray-400">O chat está funcionando em leitura.</span>
+                         </div>
+                     </div>
+                     <button 
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="text-[10px] font-bold text-twitch hover:text-white bg-twitch/10 hover:bg-twitch px-3 py-1.5 rounded-lg transition-all"
+                     >
+                         Conectar
+                     </button>
+                 </div>
+             )}
+
              <div className={`relative flex items-center bg-white/5 rounded-2xl border transition-all duration-300 ease-out-expo ${commentPlatform === 'twitch' ? 'border-twitch/30 focus-within:border-twitch/80 shadow-[0_0_20px_rgba(145,70,255,0.05)]' : 'border-kick/30 focus-within:border-kick/80 shadow-[0_0_20px_rgba(83,252,24,0.05)]'}`}>
                   
                   {/* Platform Selector */}
@@ -417,13 +469,14 @@ export default function App() {
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder={`Enviar na ${commentPlatform === 'twitch' ? 'Twitch' : 'Kick'}...`}
-                    className="w-full bg-transparent text-white px-2 py-3 text-sm focus:outline-none placeholder-white/20" 
+                    placeholder={!authState.twitch && commentPlatform === 'twitch' ? 'Conecte sua conta para falar...' : `Enviar na ${commentPlatform === 'twitch' ? 'Twitch' : 'Kick'}...`}
+                    disabled={!authState.twitch && commentPlatform === 'twitch'}
+                    className={`w-full bg-transparent text-white px-2 py-3 text-sm focus:outline-none placeholder-white/20 ${!authState.twitch && commentPlatform === 'twitch' ? 'cursor-not-allowed opacity-50' : ''}`} 
                   />
                   
                   <button 
                     onClick={handleSendMessage}
-                    disabled={!chatInput.trim()}
+                    disabled={!chatInput.trim() || (!authState.twitch && commentPlatform === 'twitch')}
                     className={`p-2 mr-1 rounded-xl transition-all duration-300 ${chatInput.trim() ? (commentPlatform === 'twitch' ? 'text-twitch hover:bg-twitch/10' : 'text-kick hover:bg-kick/10') : 'text-white/20 cursor-not-allowed'}`}
                   >
                       <SendIcon className="w-5 h-5" />

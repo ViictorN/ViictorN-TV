@@ -85,8 +85,14 @@ export const SettingsModal: React.FC<Props> = ({
                     </div>
                     <div>
                         <h3 className="font-bold text-lg text-white">Twitch</h3>
-                        <p className="text-xs text-gray-500">Conecte para enviar mensagens</p>
+                        <p className="text-xs text-gray-400">Opcional: Necessário apenas para enviar mensagens</p>
                     </div>
+                </div>
+
+                <div className="bg-twitch/5 p-4 rounded-xl border border-twitch/10">
+                    <p className="text-xs text-twitch/80 leading-relaxed font-medium">
+                        ℹ️ O chat já está funcionando em modo leitura. Conecte sua conta abaixo apenas se quiser interagir/falar no chat.
+                    </p>
                 </div>
 
                 <div className="bg-black border border-white/5 p-1 rounded-xl flex gap-1">
@@ -188,7 +194,7 @@ export const SettingsModal: React.FC<Props> = ({
                 </div>
 
                 <div className="space-y-1">
-                    <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider ml-1">Seu Username</label>
+                    <label className="text-[10px] uppercase font-bold text-gray-500 tracking-wider ml-1">Seu Username (Opcional)</label>
                     <input 
                         type="text" 
                         value={localKickUser}
