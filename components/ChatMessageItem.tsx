@@ -38,8 +38,7 @@ const BadgeIcon: React.FC<{ badge: Badge; platform: Platform; globalBadges?: Bad
     }
 
     if (url) {
-      // FIX: Altura fixa (h-5 / 20px) para alinhar com o ícone da plataforma
-      return <img src={url} alt={badge.type} className="h-5 w-auto mr-1 inline-block object-contain align-middle" />;
+      return <img src={url} alt={badge.type} className="h-4 w-auto mr-1 inline-block object-contain align-middle" />;
     }
     
     return null;
@@ -47,8 +46,7 @@ const BadgeIcon: React.FC<{ badge: Badge; platform: Platform; globalBadges?: Bad
 
   // --- KICK RENDERING ---
   if (platform === Platform.KICK) {
-    // FIX: Usando altura fixa e alinhamento flex para imitar o tamanho das badges da twitch
-    const commonClasses = "mr-1 inline-flex items-center justify-center h-5 px-1.5 text-[10px] font-bold rounded uppercase tracking-tighter border border-transparent shadow-sm align-middle";
+    const commonClasses = "mr-1 inline-flex items-center justify-center h-4 px-1 text-[9px] font-bold rounded uppercase tracking-tighter border border-transparent shadow-sm align-middle";
     
     if (badge.type === 'broadcaster') {
         return <span className={`${commonClasses} bg-kick text-black border-kick/50`}>HOST</span>;
@@ -76,22 +74,21 @@ const BadgeIcon: React.FC<{ badge: Badge; platform: Platform; globalBadges?: Bad
 const PlatformBadge: React.FC<{ platform: Platform }> = ({ platform }) => {
   if (platform === Platform.TWITCH) {
     return (
-      <div className="inline-flex items-center justify-center w-5 h-5 mr-1 align-middle" title="Twitch User">
-        <TwitchLogo className="w-4 h-4 text-twitch" />
+      <div className="inline-flex items-center justify-center w-5 h-5 mr-1 align-middle opacity-50" title="Twitch User">
+        <TwitchLogo className="w-3.5 h-3.5 text-twitch" />
       </div>
     );
   }
   if (platform === Platform.KICK) {
      return (
-      <div className="inline-flex items-center justify-center w-5 h-5 mr-1 align-middle" title="Kick User">
-        <KickLogo className="w-4 h-4 text-kick" />
+      <div className="inline-flex items-center justify-center w-5 h-5 mr-1 align-middle opacity-50" title="Kick User">
+        <KickLogo className="w-3.5 h-3.5 text-kick" />
       </div>
     );
   }
   return null;
 };
 
-// Helper component to render text with 7TV emote replacement
 const SevenTVTextRenderer: React.FC<{ text: string; emoteMap?: EmoteMap }> = ({ text, emoteMap }) => {
     if (!emoteMap) return <>{text}</>;
 
@@ -107,7 +104,7 @@ const SevenTVTextRenderer: React.FC<{ text: string; emoteMap?: EmoteMap }> = ({ 
                                 src={emoteUrl} 
                                 alt={word} 
                                 title={word}
-                                className="inline-block align-middle mx-0.5 h-8 w-auto object-contain transform -translate-y-0.5"
+                                className="inline-block align-middle mx-0.5 h-7 w-auto object-contain transform -translate-y-0.5"
                             />
                             {index < words.length - 1 && ' '}
                         </span>
@@ -150,7 +147,7 @@ const ParsedContent: React.FC<{ message: ChatMessage; sevenTVEmotes?: EmoteMap }
                     key={`${message.id}-twitch-${i}`}
                     src={`https://static-cdn.jtvnw.net/emoticons/v2/${rep.id}/default/dark/1.0`}
                     alt="emote"
-                    className="inline-block align-middle mx-0.5 h-7 w-auto object-contain transform -translate-y-0.5"
+                    className="inline-block align-middle mx-0.5 h-6 w-auto object-contain transform -translate-y-0.5"
                 />
             );
 
@@ -189,8 +186,20 @@ export const ChatMessageItem = React.memo<Props>(({ message, globalBadges, chann
   }
 
   return (
-    <div className={`group relative py-1 px-2 mb-0.5 rounded hover:bg-white/5 transition-colors duration-200 flex items-start`}>
-      <div className="flex-1 min-w-0">
+    <div className={`group relative py-1 px-2 mb-0.5 rounded hover:bg-white/5 transition-colors duration-200 flex flex-col items-start`}>
+      
+      {/* --- REPLY HEADER --- */}
+      {message.replyTo && (
+          <div className="flex items-center gap-1.5 ml-8 mb-0.5 opacity-60">
+              <div className="w-6 h-2 border-t-2 border-l-2 border-gray-600 rounded-tl-lg absolute left-3 top-3"></div>
+              <span className="text-[10px] bg-white/10 px-1.5 rounded text-gray-300 flex items-center gap-1">
+                 <span className="font-bold">@{message.replyTo.username}</span>
+                 <span className="truncate max-w-[150px] italic font-normal text-gray-400">{message.replyTo.content}</span>
+              </span>
+          </div>
+      )}
+
+      <div className="flex-1 min-w-0 w-full">
         <div className="inline-block align-top leading-6">
             
             {/* 1. Platform Icon */}

@@ -16,6 +16,12 @@ export interface User {
   color?: string;
 }
 
+export interface ReplyInfo {
+  id: string;
+  username: string;
+  content: string;
+}
+
 export interface ChatMessage {
   id: string;
   platform: Platform;
@@ -23,6 +29,7 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   emotes?: Record<string, string[]>;
+  replyTo?: ReplyInfo;
 }
 
 export interface StreamStats {

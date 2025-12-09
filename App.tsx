@@ -152,9 +152,6 @@ export default function App() {
         }
     } catch (e) { console.warn("Kick stats fail"); }
 
-    // If we have creds, use Helix. If not, we can't easily get Twitch Viewers without a key.
-    // For anonymous mode, we might just show 0 or skip it, OR use a public proxy if available.
-    // Here we stick to Helix if available.
     if (twitchCreds.accessToken && twitchCreds.clientId) {
         try {
             const res = await fetch(`https://api.twitch.tv/helix/streams?user_login=${TWITCH_USER_LOGIN}`, {
@@ -433,62 +430,58 @@ export default function App() {
           {/* Input Area with Safe Area support */}
           <div className="bg-black border-t border-white/5 pb-[env(safe-area-inset-bottom)]">
              <div className="p-3">
-                {/* Auth Warning Banner */}
+                
+                {/* 1. DISCONNECTED STATE: Show Connect Button only */}
                 {!authState.twitch && (
-                    <div className="mb-3 px-3 py-2 rounded-xl bg-gradient-to-r from-twitch/10 to-transparent border border-twitch/20 flex items-center justify-between group">
-                        <div className="flex items-center gap-2">
-                            <span className="text-twitch text-lg">🔒</span>
-                            <div className="flex flex-col">
-                                <span className="text-[11px] font-bold text-white">Modo Espectador</span>
-                                <span className="text-[10px] text-gray-400">Leitura ativa.</span>
-                            </div>
-                        </div>
-                        <button 
-                           onClick={() => setIsSettingsOpen(true)}
-                           className="text-[10px] font-bold text-twitch hover:text-white bg-twitch/10 hover:bg-twitch px-3 py-1.5 rounded-lg transition-all"
-                        >
-                            Conectar
-                        </button>
-                    </div>
+                    <button 
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="w-full py-4 rounded-2xl border border-dashed border-white/10 hover:border-twitch/50 hover:bg-twitch/5 text-gray-400 hover:text-white transition-all flex flex-col items-center justify-center gap-1 group"
+                    >
+                        <span className="font-bold text-sm group-hover:text-twitch transition-colors">Conectar conta para participar</span>
+                        <span className="text-[10px] opacity-50">Clique para configurar o token</span>
+                    </button>
                 )}
 
-                <div className={`relative flex items-center bg-white/5 rounded-2xl border transition-all duration-300 ease-out-expo ${commentPlatform === 'twitch' ? 'border-twitch/30 focus-within:border-twitch/80 shadow-[0_0_20px_rgba(145,70,255,0.05)]' : 'border-kick/30 focus-within:border-kick/80 shadow-[0_0_20px_rgba(83,252,24,0.05)]'}`}>
-                      
-                      {/* Platform Selector */}
-                      <div className="pl-1.5 pr-1 py-1">
-                          <button 
-                            onClick={() => setCommentPlatform(prev => prev === 'twitch' ? 'kick' : 'twitch')}
-                            className={`p-2 rounded-xl transition-all duration-300 ${commentPlatform === 'twitch' ? 'bg-twitch/10 text-twitch hover:bg-twitch/20' : 'bg-kick/10 text-kick hover:bg-kick/20'}`}
-                          >
-                              {commentPlatform === 'twitch' ? <TwitchLogo className="w-4 h-4" /> : <KickLogo className="w-4 h-4" />}
-                          </button>
-                      </div>
+                {/* 2. CONNECTED STATE: Show Input */}
+                {authState.twitch && (
+                    <>
+                        <div className={`relative flex items-center bg-white/5 rounded-2xl border transition-all duration-300 ease-out-expo ${commentPlatform === 'twitch' ? 'border-twitch/30 focus-within:border-twitch/80 shadow-[0_0_20px_rgba(145,70,255,0.05)]' : 'border-kick/30 focus-within:border-kick/80 shadow-[0_0_20px_rgba(83,252,24,0.05)]'}`}>
+                            {/* Platform Selector */}
+                            <div className="pl-1.5 pr-1 py-1">
+                                <button 
+                                    onClick={() => setCommentPlatform(prev => prev === 'twitch' ? 'kick' : 'twitch')}
+                                    className={`p-2 rounded-xl transition-all duration-300 ${commentPlatform === 'twitch' ? 'bg-twitch/10 text-twitch hover:bg-twitch/20' : 'bg-kick/10 text-kick hover:bg-kick/20'}`}
+                                >
+                                    {commentPlatform === 'twitch' ? <TwitchLogo className="w-4 h-4" /> : <KickLogo className="w-4 h-4" />}
+                                </button>
+                            </div>
 
-                      <input 
-                        type="text" 
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder={!authState.twitch && commentPlatform === 'twitch' ? 'Conecte para falar...' : `Enviar...`}
-                        disabled={!authState.twitch && commentPlatform === 'twitch'}
-                        className={`w-full bg-transparent text-white px-2 py-3 text-sm focus:outline-none placeholder-white/20 ${!authState.twitch && commentPlatform === 'twitch' ? 'cursor-not-allowed opacity-50' : ''}`} 
-                      />
-                      
-                      <button 
-                        onClick={handleSendMessage}
-                        disabled={!chatInput.trim() || (!authState.twitch && commentPlatform === 'twitch')}
-                        className={`p-2 mr-1 rounded-xl transition-all duration-300 ${chatInput.trim() ? (commentPlatform === 'twitch' ? 'text-twitch hover:bg-twitch/10' : 'text-kick hover:bg-kick/10') : 'text-white/20 cursor-not-allowed'}`}
-                      >
-                          <SendIcon className="w-5 h-5" />
-                      </button>
-                 </div>
-                 
-                 {/* Info/Warning footer */}
-                 {commentPlatform === 'kick' && (
-                     <div className="text-[10px] text-yellow-500/60 mt-2 px-1 text-center font-medium tracking-wide">
-                         Leitura apenas (Modo Espectador)
-                     </div>
-                 )}
+                            <input 
+                                type="text" 
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Enviar mensagem..."
+                                className="w-full bg-transparent text-white px-2 py-3 text-sm focus:outline-none placeholder-white/20"
+                            />
+                            
+                            <button 
+                                onClick={handleSendMessage}
+                                disabled={!chatInput.trim()}
+                                className={`p-2 mr-1 rounded-xl transition-all duration-300 ${chatInput.trim() ? (commentPlatform === 'twitch' ? 'text-twitch hover:bg-twitch/10' : 'text-kick hover:bg-kick/10') : 'text-white/20 cursor-not-allowed'}`}
+                            >
+                                <SendIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        
+                         {/* Info/Warning footer */}
+                        {commentPlatform === 'kick' && (
+                            <div className="text-[10px] text-yellow-500/60 mt-2 px-1 text-center font-medium tracking-wide">
+                                Leitura apenas (Modo Espectador)
+                            </div>
+                        )}
+                    </>
+                )}
              </div>
           </div>
         </div>

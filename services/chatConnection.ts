@@ -1,4 +1,4 @@
-import { ChatMessage, Platform, Badge } from "../types";
+import { ChatMessage, Platform, Badge, ReplyInfo } from "../types";
 
 type MessageCallback = (msg: ChatMessage) => void;
 
@@ -95,7 +95,7 @@ export class TwitchConnection {
       
       rawTags.split(';').forEach(t => {
         const [key, val] = t.split('=');
-        tags[key] = val;
+        tags[key] = val; // Note: values might be escaped
       });
     }
 
@@ -122,6 +122,16 @@ export class TwitchConnection {
       });
     }
 
+    // Parse Reply Info
+    let replyTo: ReplyInfo | undefined = undefined;
+    if (tags['reply-parent-msg-id']) {
+        replyTo = {
+            id: tags['reply-parent-msg-id'],
+            username: tags['reply-parent-display-name'] || 'User',
+            content: tags['reply-parent-msg-body']?.replace(/\\s/g, ' ') || '...' // Unescape spaces
+        };
+    }
+
     // Parse Emotes
     // format: emotes=25:0-4,12-16/1902:6-10
     let emotes: Record<string, string[]> | undefined = undefined;
@@ -139,7 +149,8 @@ export class TwitchConnection {
       user: { username, color, badges },
       content,
       timestamp: Number(tags['tmi-sent-ts']) || Date.now(),
-      emotes
+      emotes,
+      replyTo
     };
 
     this.onMessage(msg);
@@ -200,9 +211,9 @@ export class KickConnection {
       };
       this.ws?.send(JSON.stringify(subscribePayload));
       
-      // Keep Alive logic (Pusher expects pings, though native WS handles some, explicit logic helps)
+      // Keep Alive logic
       this.pingInterval = window.setInterval(() => {
-          // Pusher uses a specific ping event usually, but standard keep-alive is often handled by browser
+          // Standard WS keep-alive
       }, 30000);
     };
 
@@ -236,6 +247,16 @@ export class KickConnection {
         });
     }
 
+    // Check for Reply
+    let replyTo: ReplyInfo | undefined = undefined;
+    if (data.reply_to) {
+        replyTo = {
+            id: data.reply_to.id,
+            username: data.reply_to.sender?.username || 'User',
+            content: data.reply_to.content || '...'
+        };
+    }
+
     const msg: ChatMessage = {
       id: data.id,
       platform: Platform.KICK,
@@ -245,7 +266,8 @@ export class KickConnection {
         badges: badges
       },
       content: data.content,
-      timestamp: new Date(data.created_at).getTime()
+      timestamp: new Date(data.created_at).getTime(),
+      replyTo
     };
     
     this.onMessage(msg);
