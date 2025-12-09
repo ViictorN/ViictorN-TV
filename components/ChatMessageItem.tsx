@@ -333,24 +333,65 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
 
   const initial = message.user.username.charAt(0).toUpperCase();
 
+  const AvatarComponent = (
+       <div className="flex-shrink-0 mt-0.5 cursor-pointer hover:opacity-80 active:scale-95 transition-all" onClick={handleAvatarClick}>
+            {displayAvatar ? (
+                <img src={displayAvatar} alt={message.user.username} className="w-[28px] h-[28px] rounded-full object-cover bg-gray-800" loading="lazy" />
+            ) : (
+                <div 
+                className="w-[28px] h-[28px] rounded-full flex items-center justify-center text-[10px] font-bold text-white text-shadow-sm shadow-inner" 
+                style={{ backgroundColor: usernameColor }}
+                >
+                    {initial}
+                </div>
+            )}
+        </div>
+  );
+
+  // --- SPECIAL RENDER FOR SUBSCRIPTIONS ---
+  if (message.isSubscription) {
+      const isTwitch = message.platform === Platform.TWITCH;
+      const subStyle = isTwitch 
+        ? "bg-[#9146FF]/10 border-[#9146FF]" 
+        : "bg-[#53FC18]/10 border-[#53FC18]";
+
+      return (
+        <div className={`group flex items-start gap-3 py-3 px-3 mx-1 my-2 rounded-lg border-l-4 relative transition-all animate-fade-in ${subStyle}`}>
+             {/* Left: Avatar */}
+             {!settings.hideAvatars && AvatarComponent}
+
+             {/* Right: Content */}
+             <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xl leading-none">🎉</span>
+                      <span className="font-bold text-white text-sm">
+                          {message.user.username}
+                          <span className={`opacity-80 font-medium ml-2 text-xs uppercase tracking-wide px-1.5 py-0.5 rounded ${isTwitch ? 'bg-[#9146FF]/30 text-[#d8b4fe]' : 'bg-[#53FC18]/30 text-[#a3f78a]'}`}>
+                                {message.subMonths ? `Sub x${message.subMonths}` : 'Novo Sub'}
+                          </span>
+                      </span>
+                  </div>
+                  
+                  {/* Badge Row (Optional for Subs, but nice to see roles) */}
+                  <div className="mb-1 opacity-70 scale-90 origin-left">
+                      {renderBadges()}
+                  </div>
+
+                  {/* Message Body */}
+                  <div className={`text-white/90 break-words leading-snug font-medium text-sm`}>
+                       {renderContent}
+                  </div>
+             </div>
+        </div>
+      );
+  }
+
+  // --- STANDARD RENDER ---
   return (
     <div className={`group flex items-start gap-2 py-1 px-2 transition-colors relative ${zebraClass} ${hoverClass} ${mentionClass} ${deletedClass}`}>
       
-      {/* 1. LEFT: AVATAR (NEW) */}
-      {!settings.hideAvatars && (
-          <div className="flex-shrink-0 mt-0.5 cursor-pointer hover:opacity-80 active:scale-95 transition-all" onClick={handleAvatarClick}>
-               {displayAvatar ? (
-                   <img src={displayAvatar} alt={message.user.username} className="w-[28px] h-[28px] rounded-full object-cover bg-gray-800" loading="lazy" />
-               ) : (
-                   <div 
-                    className="w-[28px] h-[28px] rounded-full flex items-center justify-center text-[10px] font-bold text-white text-shadow-sm shadow-inner" 
-                    style={{ backgroundColor: usernameColor }}
-                   >
-                       {initial}
-                   </div>
-               )}
-          </div>
-      )}
+      {/* 1. LEFT: AVATAR */}
+      {!settings.hideAvatars && AvatarComponent}
 
       {/* 2. RIGHT: CONTENT */}
       <div className="flex-1 min-w-0 overflow-hidden">
@@ -392,7 +433,7 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
           </div>
           
           {/* Message Content */}
-          <div className={`text-white/90 break-words leading-snug mt-0.5 ${textSizeClass} ${fontClass} ${message.isSubscription ? 'text-yellow-300 font-bold' : ''}`}>
+          <div className={`text-white/90 break-words leading-snug mt-0.5 ${textSizeClass} ${fontClass}`}>
                {renderContent}
           </div>
       </div>

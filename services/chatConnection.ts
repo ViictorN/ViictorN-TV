@@ -239,7 +239,7 @@ export class KickConnection {
   private onMessage: MessageCallback;
   private onDelete: DeleteCallback;
   private chatroomId: number | null = null;
-  private channelId: number | null = null; // Needed for sub events
+  private channelId: number | null = null; 
   private pingInterval: number | null = null;
   private accessToken: string | null = null;
 
@@ -253,63 +253,74 @@ export class KickConnection {
     this.accessToken = accessToken || null;
   }
 
+  // Robust Fetcher with Fallbacks
+  private async fetchWithFallbacks(url: string): Promise<any> {
+      // 1. Try CORS Proxy IO
+      try {
+          const res = await fetch(`https://corsproxy.io/?${url}`);
+          if (res.ok) return await res.json();
+      } catch (e) { console.warn(`[Kick] Proxy 1 failed for ${url}`, e); }
+
+      // 2. Try AllOrigins
+      try {
+          const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+          if (res.ok) return await res.json();
+      } catch (e) { console.warn(`[Kick] Proxy 2 failed for ${url}`, e); }
+
+      // 3. Try Direct (Will fail if CORS not enabled, but worth a shot for some endpoints)
+      try {
+          const res = await fetch(url);
+          if (res.ok) return await res.json();
+      } catch (e) { console.warn(`[Kick] Direct fetch failed for ${url}`, e); }
+
+      return null;
+  }
+
   async connect() {
-    // 1. HARDCODED OPTIMIZATION (Bypass API blocks for known channel)
-    if (this.channelSlug.toLowerCase() === 'gabepeixe') {
-        console.log('[Kick] Using optimized connection for Gabepeixe');
-        this.chatroomId = 9766487;
-        this.channelId = 9766487;
-        this.connectWs();
-        this.fetchHistory().catch(e => console.warn("[Kick] History fetch skipped", e));
+    console.log(`[Kick] Connecting to ${this.channelSlug}...`);
+    
+    // Step 1: Get Channel Data (need chatroom_id)
+    const channelData = await this.fetchWithFallbacks(`https://kick.com/api/v1/channels/${this.channelSlug}`);
+    
+    if (!channelData) {
+        console.error('[Kick] Failed to retrieve channel metadata. Connection aborted.');
+        // If we can't get metadata, we can't connect to WS.
         return;
     }
 
-    try {
-      let data = null;
-      try {
-        const res = await fetch(`https://corsproxy.io/?https://kick.com/api/v1/channels/${this.channelSlug}`);
-        if (res.ok) {
-            data = await res.json();
-            console.log('[Kick] Metadata retrieved via Internal API');
-        }
-      } catch (e) { console.warn("[Kick] Internal API failed, trying fallback...", e); }
+    if (channelData.chatroom) {
+        this.chatroomId = channelData.chatroom.id;
+        console.log(`[Kick] Found Chatroom ID: ${this.chatroomId}`);
+    }
 
-      if (!data) {
-         try {
-            const res = await fetch(`https://corsproxy.io/?https://api.kick.com/public/v1/channels/${this.channelSlug}`);
-            if (res.ok) {
-                data = await res.json();
-                console.log('[Kick] Metadata retrieved via Public API');
-            }
-         } catch (e) { console.warn("[Kick] Public API failed", e); }
-      }
+    if (channelData.id) {
+        this.channelId = channelData.id;
+    }
 
-      if (data) {
-        if (data.chatroom) this.chatroomId = data.chatroom.id;
-        if (data.id) this.channelId = data.id;
-
+    if (this.chatroomId) {
         this.connectWs();
-        this.fetchHistory().catch(e => console.warn("[Kick] History fetch failed, but realtime should work.", e));
-      } else {
-          console.error('[Kick] Could not find channel metadata. Chat will not connect.');
-      }
-    } catch (e) {
-      console.error('[Kick] Connect Fatal Error:', e);
+        this.fetchHistory();
+    } else {
+        console.error('[Kick] Chatroom ID not found in metadata.');
     }
   }
 
   private async fetchHistory() {
       if (!this.chatroomId) return;
-      try {
-          const res = await fetch(`https://corsproxy.io/?https://api.kick.com/public/v1/chatrooms/${this.chatroomId}/messages`);
-          if (res.ok) {
-              const json = await res.json();
-              if (json.data && Array.isArray(json.data)) {
-                  const history = json.data.reverse();
-                  history.forEach((msgData: any) => this.processMessage(msgData));
-              }
-          }
-      } catch (e) {}
+      
+      console.log('[Kick] Fetching history...');
+      const endpoint = `https://api.kick.com/public/v1/chatrooms/${this.chatroomId}/messages`;
+      
+      // Use fallback fetcher for history too
+      const data = await this.fetchWithFallbacks(endpoint);
+
+      if (data && data.data && Array.isArray(data.data)) {
+          const history = data.data.reverse();
+          history.forEach((msgData: any) => this.processMessage(msgData));
+          console.log(`[Kick] Loaded ${history.length} messages.`);
+      } else {
+          console.warn('[Kick] Failed to load history.');
+      }
   }
 
   private connectWs() {
@@ -335,7 +346,10 @@ export class KickConnection {
       }
       
       this.pingInterval = window.setInterval(() => {
-          // Keep alive
+          if (this.ws?.readyState === WebSocket.OPEN) {
+             // Basic keep-alive if needed, but Pusher usually handles pings via protocol
+             // Just keeping the interval to match structure
+          }
       }, 30000);
     };
 
@@ -394,8 +408,10 @@ export class KickConnection {
   }
 
   private processMessage(data: any) {
+    if (!data || !data.sender) return;
+
     const badges: Badge[] = [];
-    if (data.sender && data.sender.identity && data.sender.identity.badges) {
+    if (data.sender.identity && data.sender.identity.badges) {
         data.sender.identity.badges.forEach((b: any) => {
             badges.push({ type: b.type, version: b.count ? String(b.count) : '1' });
         });
@@ -423,7 +439,7 @@ export class KickConnection {
       content: data.content,
       timestamp: new Date(data.created_at).getTime(),
       replyTo,
-      isFirstMessage: false // Kick API does not support native First Message tag in current public events
+      isFirstMessage: false 
     };
     
     this.onMessage(msg);
