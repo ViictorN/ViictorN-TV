@@ -567,7 +567,11 @@ export default function App() {
 
   const getParentDomain = () => {
       const hostname = window.location.hostname;
-      if (hostname === 'localhost' || hostname === '127.0.0.1') return '';
+      // FIX: Twitch explicitly requires parent=localhost for local dev
+      // Also handles the Brave browser issue where localhost might be strict.
+      if (hostname === 'localhost' || hostname === '127.0.0.1') return '&parent=localhost';
+      
+      // For any other domain (including deployed Vercel, Netlify, or AI Studio preview)
       return `&parent=${hostname}`;
   };
 
@@ -615,15 +619,27 @@ export default function App() {
             }`}
         >
             {activePlayer === 'twitch' && (
-              <iframe
-                  key={`twitch-${playerKey}`}
-                  src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=false&autoplay=true`}
-                  className="w-full h-full border-none"
-                  allowFullScreen
-                  scrolling="no"
-                  allow="autoplay; fullscreen; picture-in-picture"
-                  title="Twitch Player"
-              ></iframe>
+              <div className="relative w-full h-full group">
+                  <iframe
+                      key={`twitch-${playerKey}`}
+                      src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=false&autoplay=true`}
+                      className="w-full h-full border-none"
+                      allowFullScreen
+                      scrolling="no"
+                      allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-write"
+                      referrerPolicy="origin"
+                      title="Twitch Player"
+                  ></iframe>
+                  
+                  {/* Brave Warning Tooltip (Only visible on hover in top-right corner) */}
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                      <div className="bg-black/80 backdrop-blur-md text-white text-[10px] p-2 rounded-lg border border-white/10 max-w-[200px]">
+                          <p>
+                             <span className="text-orange-400 font-bold">⚠️ Usuários Brave:</span> Se o player não carregar, desative o "Shields" (Leão) na barra de endereços para este site. O Twitch requer cookies de terceiros para o player.
+                          </p>
+                      </div>
+                  </div>
+              </div>
             )}
 
             {activePlayer === 'kick' && (
@@ -633,7 +649,7 @@ export default function App() {
                     className="w-full h-full border-none"
                     allowFullScreen
                     scrolling="no"
-                    allow="autoplay; fullscreen; picture-in-picture"
+                    allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
                     title="Kick Player"
                 ></iframe>
             )}
