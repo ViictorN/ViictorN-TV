@@ -238,7 +238,6 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
           if (split.length === 1) return [segment];
 
           const res: (string | React.ReactNode)[] = [];
-          let match;
           
           for (let i = 0; i < split.length; i++) {
               const part = split[i];
@@ -268,30 +267,39 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
       }
 
       // --- PASS 3: 7TV EMOTES (Word replacement) ---
-      // We only split STRINGS by space. Existing Nodes (images) are left alone.
       const process7TV = (segment: string | React.ReactNode): (string | React.ReactNode)[] => {
           if (typeof segment !== 'string') return [segment];
           
+          // If 7TV emotes aren't loaded yet, return string
+          if (!sevenTVEmotes || Object.keys(sevenTVEmotes).length === 0) return [segment];
+
           const words = segment.split(' ');
-          return words.map((word, i) => {
-              const emoteUrl = sevenTVEmotes?.[word];
+          const result: (string | React.ReactNode)[] = [];
+          
+          words.forEach((word, i) => {
+              const emoteUrl = sevenTVEmotes[word];
               if (emoteUrl) {
-                  const sizeClass = settings.largeEmotes ? "h-8" : "h-5";
-                  // Add a space after if it's not the last word, to maintain spacing
-                  return (
-                      <React.Fragment key={`7tv-${i}`}>
-                        <img 
-                            src={emoteUrl} 
-                            alt={word} 
-                            title={word}
-                            className={`inline-block mx-0.5 align-middle hover:scale-110 transition-transform ${sizeClass}`} 
-                        />
-                        {i < words.length - 1 ? ' ' : ''}
-                      </React.Fragment>
-                  );
+                   const sizeClass = settings.largeEmotes ? "h-8" : "h-5";
+                   result.push(
+                       <img 
+                           key={`7tv-${i}-${word}`}
+                           src={emoteUrl} 
+                           alt={word} 
+                           title={word}
+                           className={`inline-block mx-0.5 align-middle hover:scale-110 transition-transform ${sizeClass}`} 
+                       />
+                   );
+                   // Add a space after if it wasn't the last word
+                   if (i < words.length - 1) result.push(' ');
+              } else {
+                   // It's a regular word.
+                   // If the previous element was also a string, we could append to it, but pushing is safer for React arrays
+                   // We add the space after this word if it's not the last one
+                   result.push(word + (i < words.length - 1 ? ' ' : ''));
               }
-              return i < words.length - 1 ? word + ' ' : word;
           });
+          
+          return result;
       };
 
       return parts.flatMap(process7TV);
@@ -439,8 +447,8 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
                   {message.user.username}
               </button>
 
-              {/* First Message Badge - TEXT TAG */}
-              {message.isFirstMessage && (
+              {/* First Message Badge - DISABLED FOR KICK */}
+              {message.isFirstMessage && message.platform !== Platform.KICK && (
                    <span className="bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 text-[9px] px-1.5 rounded-sm uppercase font-bold tracking-wider ml-2 inline-block align-middle select-none whitespace-nowrap">
                      Primeira interação
                    </span>

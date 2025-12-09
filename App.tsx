@@ -704,15 +704,18 @@ export default function App() {
     finally { setIsAnalyzing(false); }
   };
 
+  // Robust parent detection for Twitch Embeds in Brave/Modern Browsers
   const getParentDomain = () => {
-      // Robust parent detection
       const currentHost = window.location.hostname;
+      // Use Set to avoid duplicates
       const parents = new Set<string>();
       
       if (currentHost) parents.add(currentHost);
-      // Fallbacks for specific environments if hostname detection fails or differs
+      
+      // Fallback domains for dev environments where hostname might differ internally
+      // or to ensure localhost works
       if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
-          parents.add('localhost'); // Always allow local dev to work if code is copied
+          parents.add('localhost'); 
       }
       
       return Array.from(parents).map(domain => `&parent=${domain}`).join('');
@@ -812,15 +815,12 @@ export default function App() {
                     <div className="relative w-full h-full group">
                         <iframe
                             key={`twitch-${playerKey}`}
-                            // FIX: muted=true helps bypass browser autoplay policies
                             src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=true&autoplay=true`}
                             className="w-full h-full border-none"
                             allowFullScreen
                             scrolling="no"
-                            // FIX: Detailed allow attributes
-                            allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-                            // FIX: Standard referrer policy
-                            referrerPolicy="strict-origin-when-cross-origin"
+                            referrerPolicy="origin-when-cross-origin"
+                            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write"
                             title="Twitch Player"
                         ></iframe>
                         
