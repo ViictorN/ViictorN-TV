@@ -22,9 +22,8 @@ export const SettingsModal: React.FC<Props> = ({
   const [clientId, setClientId] = useState(currentCreds.clientId || '');
   const [accessToken, setAccessToken] = useState(currentCreds.accessToken || '');
   const [localKickUser, setLocalKickUser] = useState(kickUsername || '');
-  const [authMethod, setAuthMethod] = useState<'auto' | 'manual'>('manual'); // Default to manual for ease of use
+  const [authMethod, setAuthMethod] = useState<'auto' | 'manual'>('manual');
 
-  // Update local state when props change
   useEffect(() => {
     setClientId(currentCreds.clientId);
     setAccessToken(currentCreds.accessToken);
@@ -40,8 +39,6 @@ export const SettingsModal: React.FC<Props> = ({
         alert("Por favor, insira um Client ID primeiro.");
         return;
     }
-    // Implicit Grant Flow via POPUP
-    // Added chat:edit to scope
     const redirectUri = window.location.origin; 
     const scope = 'chat:read chat:edit user:read:email';
     const authUrl = `https://id.twitch.tv/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}`;
@@ -82,7 +79,6 @@ export const SettingsModal: React.FC<Props> = ({
                     </div>
                 </div>
 
-                {/* TABS */}
                 <div className="flex p-1 bg-black/50 rounded-lg border border-white/5 mb-4">
                     <button
                         onClick={() => setAuthMethod('manual')}
@@ -99,12 +95,10 @@ export const SettingsModal: React.FC<Props> = ({
                 </div>
 
                 <div className="bg-twitch/5 p-5 rounded-xl border border-twitch/10">
-                    
-                    {/* MANUAL METHOD (GENERATOR) */}
                     {authMethod === 'manual' && (
                         <div className="animate-slide-in">
                             <p className="text-xs text-gray-400 mb-4 leading-relaxed">
-                                Use o site <strong>TwitchTokenGenerator</strong> para criar suas credenciais rapidamente sem precisar configurar um app.
+                                Use o site <strong>TwitchTokenGenerator</strong> para criar suas credenciais.
                             </p>
                             
                             <a 
@@ -118,38 +112,36 @@ export const SettingsModal: React.FC<Props> = ({
 
                             <div className="space-y-3">
                                 <div>
-                                    <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider font-bold">Client ID Gerado</label>
+                                    <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider font-bold">Client ID</label>
                                     <input 
                                         type="text" 
                                         value={clientId}
                                         onChange={e => setClientId(e.target.value)}
                                         className="w-full bg-black/50 border border-glass-border rounded-lg p-2.5 text-sm focus:border-twitch outline-none transition-colors"
-                                        placeholder="Cole o Client ID aqui"
+                                        placeholder="Cole o Client ID"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider font-bold">Access Token Gerado</label>
+                                    <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider font-bold">Access Token</label>
                                     <input 
                                         type="password" 
                                         value={accessToken}
                                         onChange={e => setAccessToken(e.target.value)}
                                         className="w-full bg-black/50 border border-glass-border rounded-lg p-2.5 text-sm focus:border-twitch outline-none transition-colors"
-                                        placeholder="Cole o Access Token aqui"
+                                        placeholder="Cole o Access Token"
                                     />
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* AUTO METHOD (OWN APP) */}
                     {authMethod === 'auto' && (
                         <div className="animate-slide-in">
-                            <div className="mb-4 p-3 bg-black/30 rounded border border-white/5">
+                             <div className="mb-4 p-3 bg-black/30 rounded border border-white/5">
                                 <label className="block text-[10px] font-mono text-gray-400 mb-1 uppercase tracking-wider font-bold">Redirect URL Obrigatória</label>
                                 <div className="flex items-center gap-2">
                                     <code className="text-[10px] text-green-400 font-mono break-all select-all">{currentUrl}</code>
                                 </div>
-                                <a href="https://dev.twitch.tv/console/apps" target="_blank" className="text-[10px] text-twitch hover:underline mt-1 block">Ir para Console Dev</a>
                             </div>
 
                             <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase tracking-wider font-bold">Seu Client ID</label>
@@ -158,7 +150,7 @@ export const SettingsModal: React.FC<Props> = ({
                                 value={clientId}
                                 onChange={e => setClientId(e.target.value)}
                                 className="w-full bg-black/50 border border-glass-border rounded-lg p-3 text-sm focus:border-twitch outline-none transition-colors mb-4"
-                                placeholder="Client ID do seu App"
+                                placeholder="Client ID do App"
                             />
                             
                             {!accessToken && (
@@ -172,16 +164,6 @@ export const SettingsModal: React.FC<Props> = ({
                             )}
                         </div>
                     )}
-
-                    {/* SUCCESS STATE (SHARED) */}
-                    {accessToken && (
-                         <div className="mt-4 flex items-center justify-between bg-green-500/10 border border-green-500/20 p-3 rounded-lg animate-slide-in">
-                            <div className="flex items-center gap-2 text-green-400 text-sm font-bold">
-                                <span>✓ Token Salvo</span>
-                            </div>
-                            <button onClick={() => setAccessToken('')} className="text-xs text-gray-400 hover:text-white underline">Remover</button>
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -193,7 +175,14 @@ export const SettingsModal: React.FC<Props> = ({
                 </div>
                 
                 <div className="bg-kick/5 p-5 rounded-xl border border-kick/10">
-                    <label className="block text-xs font-mono text-gray-500 mb-2 uppercase tracking-wider font-bold">Seu Username na Kick</label>
+                    <div className="mb-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                        <p className="text-[11px] text-yellow-200 font-medium">
+                            ⚠️ <strong>Aviso Importante:</strong> A Kick não possui login público (OAuth). 
+                            O chat funcionará em modo <strong>Apenas Leitura</strong> aqui no site.
+                        </p>
+                    </div>
+
+                    <label className="block text-xs font-mono text-gray-500 mb-2 uppercase tracking-wider font-bold">Seu Nick (Apenas para salvar preferências)</label>
                     <input 
                         type="text" 
                         value={localKickUser}

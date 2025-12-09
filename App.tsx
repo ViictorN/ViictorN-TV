@@ -301,7 +301,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-dark text-white font-sans">
+    <div className="flex flex-col h-[100dvh] overflow-hidden bg-dark text-white font-sans">
       <SettingsModal 
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)} 
@@ -325,8 +325,8 @@ export default function App() {
       {/* Main Layout */}
       <div className="flex flex-1 flex-col lg:flex-row overflow-hidden relative z-20">
         
-        {/* Player Area */}
-        <div className={`w-full lg:flex-1 bg-black relative shrink-0 transition-all duration-300 ${activePlayer === 'none' ? 'hidden lg:block lg:flex-[0.01] lg:opacity-0' : 'h-[35vh] lg:h-auto'}`}>
+        {/* Player Area - Mobile: Auto height based on ratio, Desktop: Flex 1 */}
+        <div className={`w-full lg:flex-1 bg-black relative shrink-0 transition-all duration-300 ${activePlayer === 'none' ? 'hidden lg:block lg:flex-[0.01] lg:opacity-0' : 'aspect-video lg:aspect-auto lg:h-auto'}`}>
             
             {activePlayer === 'twitch' && (
               <iframe
@@ -366,8 +366,8 @@ export default function App() {
           )}
         </div>
 
-        {/* Chat Area */}
-        <div className={`w-full ${activePlayer === 'none' ? 'lg:w-full' : 'lg:w-[380px] xl:w-[420px]'} flex-1 lg:flex-none lg:h-auto bg-[#09090b] border-t lg:border-t-0 lg:border-l border-glass-border flex flex-col z-10 shadow-2xl transition-all duration-300`}>
+        {/* Chat Area - Mobile: Fills remaining vertical space */}
+        <div className={`w-full ${activePlayer === 'none' ? 'lg:w-full' : 'lg:w-[380px] xl:w-[420px]'} flex-1 lg:flex-none lg:h-auto bg-[#09090b] border-t lg:border-t-0 lg:border-l border-glass-border flex flex-col z-10 shadow-2xl transition-all duration-300 min-h-0`}>
           
           {/* Messages */}
           <div className="flex-1 overflow-y-auto custom-scrollbar relative px-1 pt-2" ref={chatContainerRef}>
@@ -392,7 +392,7 @@ export default function App() {
           </div>
 
           {/* Input Area */}
-          <div className="p-3 bg-[#09090b] border-t border-glass-border">
+          <div className="p-3 bg-[#09090b] border-t border-glass-border safe-area-bottom">
              <div className={`relative flex items-center bg-[#121214] rounded-lg border transition-all duration-300 ${commentPlatform === 'twitch' ? 'border-twitch/40 focus-within:border-twitch shadow-[0_0_10px_rgba(145,70,255,0.05)]' : 'border-kick/40 focus-within:border-kick shadow-[0_0_10px_rgba(83,252,24,0.05)]'}`}>
                   
                   {/* Platform Selector */}
@@ -427,7 +427,7 @@ export default function App() {
              {/* Info/Warning footer */}
              {commentPlatform === 'kick' && (
                  <div className="text-[10px] text-yellow-500/80 mt-1.5 px-1 text-center font-mono">
-                     ⚠️ Envio para Kick limitado via web
+                     ⚠️ Leitura apenas (API Restrita)
                  </div>
              )}
           </div>
