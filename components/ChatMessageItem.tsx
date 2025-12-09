@@ -20,19 +20,8 @@ interface Props {
   onRequestAvatar: (platform: Platform, user: User) => void;
 }
 
-// Improved Badge Styling: Larger size (18px), consistent spacing.
-// Removed Drop Shadow/Neon for Kick Badges as requested.
+// Improved Badge Styling: Clean, no shadow, consistent size
 const BADGE_CLASS = "h-[18px] w-auto min-w-[18px] mr-1 inline-block align-middle select-none object-contain hover:scale-110 transition-transform duration-200 ease-out-expo";
-
-// Official Kick Badge URLs (from Kick Database / Common Overlays)
-const KICK_BADGE_URLS: Record<string, string> = {
-    'broadcaster': 'https://raw.githubusercontent.com/BotRixW/kick-badges/main/broadcaster.png',
-    'moderator': 'https://raw.githubusercontent.com/BotRixW/kick-badges/main/moderator.png',
-    'vip': 'https://raw.githubusercontent.com/BotRixW/kick-badges/main/vip.png',
-    'verified': 'https://raw.githubusercontent.com/BotRixW/kick-badges/main/verified.png',
-    'founder': 'https://raw.githubusercontent.com/BotRixW/kick-badges/main/og.png',
-    'sub_gifter': 'https://raw.githubusercontent.com/BotRixW/kick-badges/main/sub-gifter.png'
-};
 
 // Fallback Twitch badges
 const FALLBACK_TWITCH_BADGES: Record<string, string> = {
@@ -42,6 +31,71 @@ const FALLBACK_TWITCH_BADGES: Record<string, string> = {
   'subscriber': 'https://static-cdn.jtvnw.net/badges/v1/5d9f2208-5dd8-11e7-8513-2ff4adfae661/2',
   'premium': 'https://static-cdn.jtvnw.net/badges/v1/bbbe0db0-a598-423e-86d0-f9fb98ca1933/2',
   'turbo': 'https://static-cdn.jtvnw.net/badges/v1/bd444ec6-8f34-4bf9-91f4-af1e3428d80f/2',
+};
+
+// --- KICK OFFICIAL SVG BADGES ---
+// Re-created as SVGs to ensure they never break and look crisp.
+const KickBadgeSVG: React.FC<{ type: string }> = ({ type }) => {
+    switch(type) {
+        case 'broadcaster': // Host / Anchor
+            return (
+                <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <title>Broadcaster</title>
+                    <rect width="20" height="20" rx="4" fill="#53FC18"/>
+                    <path d="M10 5V15M7 8L10 5L13 8" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+            );
+        case 'moderator': // Green Shield with Swords
+             return (
+                <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                     <title>Moderator</title>
+                     <path d="M10 2L3 5V11C3 15.5 6 18.5 10 19.5C14 18.5 17 15.5 17 11V5L10 2Z" fill="#00E572"/>
+                     <path d="M10 6V14M7 9L13 9" stroke="black" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+             );
+        case 'vip': // Pink Diamond
+            return (
+                <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <title>VIP</title>
+                    <path d="M10 2L18 8L10 18L2 8L10 2Z" fill="#FF4081"/>
+                    <path d="M10 2L10 18M2 8L18 8" stroke="white" strokeWidth="0.5" strokeOpacity="0.5"/>
+                </svg>
+            );
+        case 'verified': // Green Check
+            return (
+                <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                     <title>Verified</title>
+                     <path d="M10 2L12.4 4.6L16 5.2L15.6 8.8L18 11.5L15.6 14.2L16 17.8L12.4 18.4L10 21L7.6 18.4L4 17.8L4.4 14.2L2 11.5L4.4 8.8L4 5.2L7.6 4.6L10 2Z" fill="#53FC18"/>
+                     <path d="M7 11L9 13L13 8" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+            );
+        case 'founder': // OG Badge
+             return (
+                <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <title>Founder</title>
+                    <rect width="20" height="20" rx="4" fill="#F5C400"/>
+                    <path d="M5 10C5 7.23858 7.23858 5 10 5C12.7614 5 15 7.23858 15 10C15 12.7614 12.7614 15 10 15C7.23858 15 5 12.7614 5 10ZM10 7C8.34315 7 7 8.34315 7 10C7 11.6569 8.34315 13 10 13C11.6569 13 13 11.6569 13 10C13 8.34315 11.6569 7 10 7Z" fill="black"/>
+                </svg>
+            );
+        case 'subscriber': // Subscriber Star
+            return (
+                 <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <title>Subscriber</title>
+                    <rect width="20" height="20" rx="4" fill="#53FC18" fillOpacity="0.2"/>
+                    <path d="M10 2L12.5 7L18 8L14 12L15 17L10 14.5L5 17L6 12L2 8L7.5 7L10 2Z" fill="#53FC18"/>
+                </svg>
+            );
+        case 'sub_gifter':
+            return (
+                <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                     <title>Gifter</title>
+                     <rect width="20" height="20" rx="4" fill="#9146FF"/>
+                     <path d="M10 5V15M5 10H15" stroke="white" strokeWidth="2"/>
+                </svg>
+            );
+        default:
+            return null;
+    }
 };
 
 export const ChatMessageItem: React.FC<Props> = React.memo(({ 
@@ -66,10 +120,12 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   let displayAvatar = message.user.avatarUrl || avatarCache[avatarKey];
 
   // FIX FOR KICK AVATARS:
-  // Kick direct URLs (files.kick.com) often block CORS.
-  // We use wsrv.nl (a reliable image proxy) to serve the image, resizing it to 64px for performance.
+  // We use wsrv.nl proxy to bypass CORS on files.kick.com.
+  // We check if it is already proxied to avoid double-wrapping.
   if (message.platform === Platform.KICK && displayAvatar && !displayAvatar.includes('wsrv.nl')) {
-      displayAvatar = `https://wsrv.nl/?url=${encodeURIComponent(displayAvatar)}&w=64&h=64&fit=cover&output=webp`;
+      // Decode potential double encoding
+      const cleanUrl = decodeURIComponent(displayAvatar);
+      displayAvatar = `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&w=64&h=64&fit=cover&output=webp`;
   }
 
   // Effect: Fetch Avatar if missing and not hidden
@@ -108,21 +164,21 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
           if (message.platform === Platform.KICK) {
              const key = `${message.id}-kbadge-${idx}`;
              
-             // Use Official Image URLs
-             if (KICK_BADGE_URLS[badge.type]) {
-                 return <img key={key} src={KICK_BADGE_URLS[badge.type]} className={BADGE_CLASS} alt={badge.type} title={badge.type} />;
+             // Check if we have an official SVG for this badge type
+             if (['broadcaster', 'moderator', 'vip', 'verified', 'founder', 'sub_gifter'].includes(badge.type)) {
+                 return <KickBadgeSVG key={key} type={badge.type} />;
              }
              
-             // Subscriber Badge (Dynamic from API)
-             if (badge.type === 'subscriber' && kickBadges?.['subscriber']) {
-                 const url = kickBadges['subscriber'][badge.version || '1'];
-                 if (url) return <img key={key} src={url} className={BADGE_CLASS} alt="sub" />;
-             }
-             
-             // Fallback for sub
+             // Subscriber Badge (Try dynamic image first, then fallback to SVG)
              if (badge.type === 'subscriber') {
-                  return <span key={key} className="bg-kick/20 text-kick border border-kick/30 text-[9px] px-1.5 rounded mr-1 font-bold inline-block align-middle h-4 leading-4 select-none">SUB</span>;
+                 if (kickBadges?.['subscriber'] && kickBadges['subscriber'][badge.version || '1']) {
+                     const url = kickBadges['subscriber'][badge.version || '1'];
+                     return <img key={key} src={url} className={BADGE_CLASS} alt="sub" />;
+                 }
+                 // Fallback SVG if image fails or not loaded
+                 return <KickBadgeSVG key={key} type="subscriber" />;
              }
+             
              return null;
           }
           

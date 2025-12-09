@@ -26,11 +26,8 @@ export const TwitchLogo = ({ className }: { className?: string }) => (
 
 export const KickLogo = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Background: Black/Dark Rounded Square */}
     <rect width="24" height="24" rx="4" fill="#000000"/>
-    
-    {/* K Shape: Kick Green */}
-    <path fillRule="evenodd" clipRule="evenodd" d="M8 6H10.5L13.5 10.5L17 6H20L15.5 12L20 18H17L13 13L10.5 15.5V18H8V6Z" fill="#53FC18"/>
+    <path fillRule="evenodd" clipRule="evenodd" d="M9 7H11L14 11.5L17.5 7H20.5L16 13L20.5 19H17.5L13.5 14L11 16.5V19H9V7Z" fill="#53FC18"/>
   </svg>
 );
 
@@ -84,7 +81,7 @@ export const PlatformIcon: React.FC<PlatformIconProps> = ({ platform, className 
         if (platform === 'kick') finalClass += ` ${kickColor}`;
     } else if (variant === 'glow') {
         if (platform === 'twitch') finalClass += ` ${twitchColor} ${twitchGlow}`;
-        if (platform === 'kick') finalClass += ` ${kickColor} ${kickGlow}`;
+        if (platform === 'kick') finalClass += ` ${kickColor}`;
     } else if (variant === 'white') {
         finalClass += ' text-white';
     } else if (variant === 'subdued') {
