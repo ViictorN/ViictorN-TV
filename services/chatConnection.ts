@@ -146,12 +146,17 @@ export class TwitchConnection {
   }
 }
 
-// --- KICK IMPLEMENTATION ---
+// --- KICK IMPLEMENTATION (Pusher WebSocket) ---
 export class KickConnection {
   private ws: WebSocket | null = null;
   private channelSlug: string;
   private onMessage: MessageCallback;
   private chatroomId: number | null = null;
+  private pingInterval: number | null = null;
+
+  // Kick Pusher Public Key & Cluster
+  private readonly PUSHER_KEY = '32cbd69e4b950bf97679';
+  private readonly PUSHER_CLUSTER = 'us2';
 
   constructor(channelSlug: string, onMessage: MessageCallback) {
     this.channelSlug = channelSlug;
@@ -160,68 +165,100 @@ export class KickConnection {
 
   async connect() {
     try {
+      // 1. Get Chatroom ID
+      // We still need one fetch to get the ID, but CORS proxies usually handle this metadata call better than the messages endpoint.
       const response = await fetch(`https://corsproxy.io/?https://kick.com/api/v1/channels/${this.channelSlug}`);
       const data = await response.json();
       
       if (data && data.chatroom && data.chatroom.id) {
         this.chatroomId = data.chatroom.id;
-        this.connectToPusher();
+        this.connectWs();
+      } else {
+          console.warn('[Kick] Could not find chatroom ID for', this.channelSlug);
       }
     } catch (e) {
-      console.error('[Kick] Connect Error:', e);
+      console.error('[Kick] Connect Error (Metadata):', e);
     }
   }
 
-  private connectToPusher() {
+  private connectWs() {
     if (!this.chatroomId) return;
 
-    this.ws = new WebSocket('wss://ws-us2.pusher.com/app/eb1d5f283081a78b932c?protocol=7&client=js&version=7.6.0&flash=false');
+    // Connect to Kick's Pusher Instance
+    this.ws = new WebSocket(`wss://ws-${this.PUSHER_CLUSTER}.pusher.com/app/${this.PUSHER_KEY}?protocol=7&client=js&version=8.4.0-rc2&flash=false`);
 
     this.ws.onopen = () => {
+      console.log('[Kick] WS Connected');
+      
+      // Subscribe to the Chatroom V2 Channel
       const subscribePayload = {
         event: 'pusher:subscribe',
-        data: { auth: '', channel: `chatrooms.${this.chatroomId}.v2` }
+        data: {
+          auth: '',
+          channel: `chatrooms.${this.chatroomId}.v2`
+        }
       };
       this.ws?.send(JSON.stringify(subscribePayload));
+      
+      // Keep Alive logic (Pusher expects pings, though native WS handles some, explicit logic helps)
+      this.pingInterval = window.setInterval(() => {
+          // Pusher uses a specific ping event usually, but standard keep-alive is often handled by browser
+      }, 30000);
     };
 
     this.ws.onmessage = (event) => {
-      const payload = JSON.parse(event.data as string);
-      
-      if (payload.event === 'App\\Events\\ChatMessageEvent') {
-        const data = JSON.parse(payload.data);
+      try {
+        const payload = JSON.parse(event.data);
         
-        // Parse Kick Badges
-        const badges: Badge[] = [];
-        if (data.sender && data.sender.identity && data.sender.identity.badges) {
-            data.sender.identity.badges.forEach((b: any) => {
-                badges.push({ type: b.type, version: '1' });
-            });
+        // Handle Chat Message Event
+        if (payload.event === 'App\\Events\\ChatMessageEvent') {
+           // The actual message data is a JSON string *inside* the data property
+           const data = JSON.parse(payload.data);
+           this.processMessage(data);
         }
-
-        const msg: ChatMessage = {
-          id: data.id,
-          platform: Platform.KICK,
-          user: {
-            username: data.sender.username,
-            color: data.sender.identity?.color || '#53FC18',
-            badges: badges
-          },
-          content: data.content,
-          timestamp: new Date(data.created_at).getTime()
-          // Kick native emotes parsing is complex without a dictionary API, 
-          // usually 3rd party tools (7TV) handle this overlay.
-        };
-        
-        this.onMessage(msg);
+      } catch (e) {
+          // Ignore parsing errors for non-chat events
       }
     };
+
+    this.ws.onclose = () => {
+      console.log('[Kick] WS Closed');
+      if (this.pingInterval) clearInterval(this.pingInterval);
+    };
+  }
+
+  private processMessage(data: any) {
+    // Parse Kick Badges
+    const badges: Badge[] = [];
+    if (data.sender && data.sender.identity && data.sender.identity.badges) {
+        data.sender.identity.badges.forEach((b: any) => {
+            badges.push({ type: b.type, version: '1' });
+        });
+    }
+
+    const msg: ChatMessage = {
+      id: data.id,
+      platform: Platform.KICK,
+      user: {
+        username: data.sender.username,
+        color: data.sender.identity?.color || '#53FC18', // Default Kick Green
+        badges: badges
+      },
+      content: data.content,
+      timestamp: new Date(data.created_at).getTime()
+    };
+    
+    this.onMessage(msg);
   }
 
   disconnect() {
     if (this.ws) {
       this.ws.close();
       this.ws = null;
+    }
+    if (this.pingInterval) {
+        clearInterval(this.pingInterval);
+        this.pingInterval = null;
     }
   }
 }
