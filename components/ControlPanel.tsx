@@ -55,20 +55,20 @@ export const ControlPanel: React.FC<Props> = ({
       {/* 2. CENTER: Player Selection (Neon Pill) - Mobile Optimized */}
       <div className="flex-1 md:flex-none flex justify-center max-w-[280px] md:max-w-none mx-auto gap-2">
         {/* PLAYER SELECTOR */}
-        <div className="flex p-0.5 md:p-1 bg-black rounded-full border border-white/5 w-auto shadow-inner shadow-white/5">
+        <div className="flex p-0.5 md:p-1 bg-black rounded-full border border-white/10 w-auto shadow-inner shadow-white/5">
             <button
                 onClick={() => onSetPlayer('twitch')}
                 className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-5 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold transition-all duration-500 ease-out-expo ${activePlayer === 'twitch' ? 'bg-[#9146FF] text-white shadow-[0_0_20px_rgba(145,70,255,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}
                 title="Assistir Twitch"
             >
-                <TwitchLogo className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                <TwitchLogo className="w-3 h-3 md:w-4 md:h-4" />
             </button>
             <button
                 onClick={() => onSetPlayer('kick')}
                 className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-5 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold transition-all duration-500 ease-out-expo ${activePlayer === 'kick' ? 'bg-[#53FC18] text-black shadow-[0_0_20px_rgba(83,252,24,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}
                 title="Assistir Kick"
             >
-                <KickLogo className="w-3 h-3 md:w-3.5 md:h-3.5" />
+                <KickLogo className="w-3 h-3 md:w-4 md:h-4" />
             </button>
             <button
                 onClick={() => onSetPlayer('none')}
@@ -79,25 +79,25 @@ export const ControlPanel: React.FC<Props> = ({
             </button>
         </div>
 
-        {/* CHAT FILTER (VISIBLE ALWAYS) */}
-        <div className="hidden sm:flex p-0.5 md:p-1 bg-black rounded-full border border-white/5 w-auto ml-2">
+        {/* CHAT FILTER (VISIBLE ALWAYS on Desktop) */}
+        <div className="hidden sm:flex p-0.5 md:p-1 bg-black rounded-full border border-white/10 w-auto ml-2">
              <button 
                 onClick={() => onSetChatFilter('all')} 
-                className={`px-3 py-1.5 rounded-full text-[10px] font-bold ${chatFilter === 'all' ? 'bg-white/20 text-white' : 'text-gray-500'}`}
+                className={`px-3 py-1.5 rounded-full text-[10px] font-bold ${chatFilter === 'all' ? 'bg-white/20 text-white' : 'text-gray-500 hover:text-gray-400'}`}
              >
                  All
              </button>
              <button 
                 onClick={() => onSetChatFilter('twitch')} 
-                className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'twitch' ? 'text-twitch bg-twitch/10' : 'text-gray-600'}`}
+                className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'twitch' ? 'text-twitch bg-twitch/10' : 'text-gray-600 hover:text-gray-400'}`}
              >
-                 <TwitchLogo className="w-3 h-3" />
+                 <TwitchLogo className="w-3.5 h-3.5" />
              </button>
              <button 
                 onClick={() => onSetChatFilter('kick')} 
-                className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'kick' ? 'text-kick bg-kick/10' : 'text-gray-600'}`}
+                className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'kick' ? 'text-kick bg-kick/10' : 'text-gray-600 hover:text-gray-400'}`}
              >
-                 <KickLogo className="w-3 h-3" />
+                 <KickLogo className="w-3.5 h-3.5" />
              </button>
         </div>
       </div>
@@ -108,7 +108,7 @@ export const ControlPanel: React.FC<Props> = ({
         {/* Mobile Settings Trigger */}
          <button
             onClick={onOpenSettings}
-            className="md:hidden w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 active:scale-95 transition-transform"
+            className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 active:scale-95 transition-transform border border-white/5"
         >
             <SettingsIcon className="w-4 h-4" />
         </button>
@@ -116,18 +116,18 @@ export const ControlPanel: React.FC<Props> = ({
         {/* Desktop Stats & Tools */}
         <div className="hidden md:flex items-center gap-4">
             {/* Stats Pill */}
-            <div className="flex items-center gap-3 bg-black px-4 py-2 rounded-2xl border border-white/5">
+            <div className="flex items-center gap-3 bg-black px-4 py-2 rounded-2xl border border-white/10 shadow-lg">
                 <div className="flex flex-col items-center min-w-[30px]">
                     <span className="text-[9px] font-bold text-gray-500 mb-0.5">TOT</span>
                     <span className="text-xs font-mono font-bold text-white text-shadow-sm">{formatViewers(totalViewers)}</span>
                 </div>
                 <div className="w-px h-5 bg-white/10"></div>
                 <div className="flex items-center gap-1.5 opacity-80">
-                    <TwitchLogo className={`w-3 h-3 ${streamStats.isLiveTwitch ? 'text-twitch' : 'text-gray-700'}`} />
+                    <TwitchLogo className={`w-3.5 h-3.5 ${streamStats.isLiveTwitch ? 'text-twitch' : 'text-gray-700'}`} />
                     <span className="text-[10px] font-mono font-medium text-gray-400">{formatViewers(streamStats.twitchViewers)}</span>
                 </div>
                 <div className="flex items-center gap-1.5 opacity-80">
-                    <KickLogo className={`w-3 h-3 ${streamStats.isLiveKick ? 'text-kick' : 'text-gray-700'}`} />
+                    <KickLogo className={`w-3.5 h-3.5 ${streamStats.isLiveKick ? 'text-kick' : 'text-gray-700'}`} />
                     <span className="text-[10px] font-mono font-medium text-gray-400">{formatViewers(streamStats.kickViewers)}</span>
                 </div>
             </div>
@@ -140,7 +140,7 @@ export const ControlPanel: React.FC<Props> = ({
                 <button
                 onClick={onAnalyze}
                 disabled={isAnalyzing}
-                className="w-10 h-10 rounded-full flex items-center justify-center bg-black hover:bg-white/5 text-gray-400 hover:text-white transition-all duration-300 border border-white/5 hover:border-white/10 active:scale-90"
+                className="w-10 h-10 rounded-full flex items-center justify-center bg-black hover:bg-white/5 text-gray-400 hover:text-white transition-all duration-300 border border-white/10 hover:border-white/20 active:scale-90 shadow-lg"
                 title="AI Analysis"
                 >
                     {isAnalyzing ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : '✨'}
@@ -148,7 +148,7 @@ export const ControlPanel: React.FC<Props> = ({
 
                 <button
                 onClick={onOpenSettings}
-                className="w-10 h-10 rounded-full flex items-center justify-center bg-black hover:bg-white/5 text-gray-400 hover:text-white transition-all duration-300 border border-white/5 hover:border-white/10 active:scale-90"
+                className="w-10 h-10 rounded-full flex items-center justify-center bg-black hover:bg-white/5 text-gray-400 hover:text-white transition-all duration-300 border border-white/10 hover:border-white/20 active:scale-90 shadow-lg"
                 title="Settings"
                 >
                     <SettingsIcon className="w-5 h-5" />

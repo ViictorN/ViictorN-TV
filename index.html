@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
@@ -16,16 +16,17 @@
             fontFamily: {
               sans: ['SF Pro Display', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
               display: ['SF Pro Display', 'Inter', 'sans-serif'],
+              mono: ['JetBrains Mono', 'monospace'],
             },
             colors: {
               twitch: '#9146FF',
               kick: '#53FC18',
               dark: '#000000',
               glass: 'rgba(255, 255, 255, 0.03)',
-              'glass-border': 'rgba(255, 255, 255, 0.08)',
+              'glass-border': 'rgba(255, 255, 255, 0.12)',
             },
             transitionTimingFunction: {
-              'out-expo': 'cubic-bezier(0.16, 1, 0.3, 1)', // Apple/Framer style spring
+              'out-expo': 'cubic-bezier(0.16, 1, 0.3, 1)',
             },
             animation: {
               'slide-up': 'slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -47,29 +48,30 @@
     </script>
     <style>
       body {
-        background-color: #000000;
+        background-color: #050505;
         color: white;
         overflow: hidden;
       }
       
-      /* Liquid Glass Amoled Utility 2.0 */
+      /* Liquid Glass 3.0 - Clearer, Sharper */
       .liquid-glass {
-        background: rgba(18, 18, 18, 0.65);
-        backdrop-filter: blur(40px) saturate(180%);
-        -webkit-backdrop-filter: blur(40px) saturate(180%);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        background: rgba(10, 10, 10, 0.75); /* Darker base, less opaque */
+        backdrop-filter: blur(16px) saturate(180%);
+        -webkit-backdrop-filter: blur(16px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-top: 1px solid rgba(255, 255, 255, 0.2); /* Edge highlight */
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
       }
 
       .liquid-glass-strong {
-        background: rgba(5, 5, 5, 0.85);
-        backdrop-filter: blur(50px) saturate(180%);
-        -webkit-backdrop-filter: blur(50px) saturate(180%);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
       }
       
       .liquid-glass-border {
-         border: 1px solid rgba(255, 255, 255, 0.08);
+         border: 1px solid rgba(255, 255, 255, 0.1);
       }
 
       /* Scrollbar */

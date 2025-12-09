@@ -39,6 +39,11 @@ export interface ChatSettings {
   fontSize: 'small' | 'medium' | 'large';
   hideSystemMessages: boolean;
   deletedMessageBehavior: 'hide' | 'strikethrough';
+  // New BTTV/7TV Style features
+  alternatingBackground: boolean; // Zebra striping
+  highlightMentions: boolean; // Highlight your name
+  fontFamily: 'sans' | 'mono';
+  showSeparator: boolean; // Line between messages
 }
 
 export interface StreamStats {

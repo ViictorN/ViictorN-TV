@@ -4,10 +4,15 @@ import { KickLogo, TwitchLogo } from './Icons';
 
 interface Props {
   message: ChatMessage;
+  index: number;
   globalBadges?: BadgeMap;
   channelBadges?: BadgeMap;
   sevenTVEmotes?: EmoteMap;
   settings: ChatSettings;
+  currentUser: {
+      twitch?: string;
+      kick?: string;
+  };
 }
 
 // Fallback Twitch badges (if API not connected)
@@ -172,7 +177,7 @@ const ParsedContent: React.FC<{ message: ChatMessage; sevenTVEmotes?: EmoteMap; 
   return <span className={`${fontSize} text-gray-200 font-medium break-words inline leading-6 ${message.isDeleted ? 'line-through text-gray-500' : ''}`}>{parsedElements}</span>;
 };
 
-export const ChatMessageItem = React.memo<Props>(({ message, globalBadges, channelBadges, sevenTVEmotes, settings }) => {
+export const ChatMessageItem = React.memo<Props>(({ message, index, globalBadges, channelBadges, sevenTVEmotes, settings, currentUser }) => {
   const isTwitch = message.platform === Platform.TWITCH;
   const isSystem = message.platform === Platform.SYSTEM;
 
@@ -200,8 +205,33 @@ export const ChatMessageItem = React.memo<Props>(({ message, globalBadges, chann
       large: 'text-[15px]'
   }[settings.fontSize];
 
+  // BACKGROUND STRIPING (Zebra)
+  const bgClass = settings.alternatingBackground && index % 2 !== 0 
+    ? 'bg-white/[0.03]' 
+    : 'bg-transparent';
+
+  // HIGHLIGHT MENTIONS
+  const isMentioned = useMemo(() => {
+      if (!settings.highlightMentions) return false;
+      const contentLower = message.content.toLowerCase();
+      // Check for current user mentions
+      if (isTwitch && currentUser.twitch && contentLower.includes(currentUser.twitch.toLowerCase())) return true;
+      if (!isTwitch && currentUser.kick && contentLower.includes(currentUser.kick.toLowerCase())) return true;
+      return false;
+  }, [message.content, settings.highlightMentions, currentUser]);
+
+  const highlightClass = isMentioned 
+    ? (isTwitch ? 'bg-twitch/20 border-l-2 border-twitch pl-1' : 'bg-kick/20 border-l-2 border-kick pl-1') 
+    : '';
+
+  // FONT FAMILY
+  const fontClass = settings.fontFamily === 'mono' ? 'font-mono tracking-tight' : 'font-sans';
+  
+  // SEPARATOR
+  const separatorClass = settings.showSeparator ? 'border-b border-white/5 pb-1 mb-1' : 'mb-0.5';
+
   return (
-    <div className={`group relative py-1 px-2 mb-0.5 rounded hover:bg-white/5 transition-colors duration-200 flex flex-col items-start ${message.isDeleted ? 'opacity-50' : ''}`}>
+    <div className={`group relative py-1 px-2 rounded transition-colors duration-200 flex flex-col items-start ${bgClass} ${highlightClass} ${separatorClass} ${message.isDeleted ? 'opacity-50' : ''} hover:bg-white/10`}>
       
       {/* --- REPLY HEADER --- */}
       {message.replyTo && (
@@ -214,7 +244,7 @@ export const ChatMessageItem = React.memo<Props>(({ message, globalBadges, chann
           </div>
       )}
 
-      <div className="flex-1 min-w-0 w-full">
+      <div className={`flex-1 min-w-0 w-full ${fontClass}`}>
         <div className="inline-block align-top leading-6">
             
             {/* 0. Timestamp (New) */}
@@ -224,11 +254,10 @@ export const ChatMessageItem = React.memo<Props>(({ message, globalBadges, chann
                 </span>
             )}
 
-            {/* 1. Platform Icon (Hide if avatars are hidden to save space? No, keep generic icon) */}
-            {/* If hideAvatars is TRUE, we might want to be even cleaner, but keeping platform icon helps context */}
+            {/* 1. Platform Icon */}
             <PlatformBadge platform={message.platform} />
             
-            {/* 2. Badges (Subs, Mods, etc) - Hide in Clean Mode */}
+            {/* 2. Badges */}
             {!settings.hideAvatars && message.user.badges.map((badge, idx) => (
                 <BadgeIcon 
                     key={`${badge.type}-${idx}`} 
@@ -262,4 +291,9 @@ export const ChatMessageItem = React.memo<Props>(({ message, globalBadges, chann
       </div>
     </div>
   );
-}, (prev, next) => prev.message.id === next.message.id && prev.message.isDeleted === next.message.isDeleted && prev.settings === next.settings);
+}, (prev, next) => 
+    prev.message.id === next.message.id && 
+    prev.message.isDeleted === next.message.isDeleted && 
+    prev.settings === next.settings &&
+    prev.index === next.index // Important for zebra striping updates if list shifts
+);

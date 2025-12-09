@@ -23,13 +23,17 @@ export default function App() {
     kickUsername: ''
   });
 
-  // Settings State
+  // Settings State - Default Settings Updated
   const [chatSettings, setChatSettings] = useState<ChatSettings>({
       showTimestamps: false,
       hideAvatars: false,
       fontSize: 'medium',
       hideSystemMessages: false,
-      deletedMessageBehavior: 'strikethrough'
+      deletedMessageBehavior: 'strikethrough',
+      alternatingBackground: false,
+      highlightMentions: true,
+      fontFamily: 'sans',
+      showSeparator: false
   });
 
   // UI State
@@ -372,17 +376,15 @@ export default function App() {
       />
 
       {/* Main Layout */}
-      {/* Changed lg:flex-row to md:flex-row to allow tablets/landscape phones to have side-by-side layout */}
       <div className="flex flex-1 flex-col md:flex-row overflow-hidden relative z-0">
         
-        {/* Player Area - Collapses width to 0 when 'none' is active */}
+        {/* Player Area */}
         <div className={`bg-black relative shrink-0 transition-all duration-500 ease-out-expo overflow-hidden
             ${activePlayer === 'none' 
               ? 'md:w-0 w-full h-0 md:h-auto opacity-0' 
               : 'w-full md:flex-1 aspect-video md:aspect-auto md:h-auto opacity-100'
             }`}
         >
-            
             {activePlayer === 'twitch' && (
               <iframe
                   src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=false&autoplay=true`}
@@ -405,7 +407,6 @@ export default function App() {
                 ></iframe>
             )}
 
-            {/* Placeholder only shows during transition if needed, usually hidden by w-0 */}
             {activePlayer === 'none' && (
                 <div className="w-full h-full bg-black"></div>
             )}
@@ -424,7 +425,7 @@ export default function App() {
           )}
         </div>
 
-        {/* Chat Area - Expands to fill space */}
+        {/* Chat Area */}
         <div className={`
             ${activePlayer === 'none' ? 'w-full flex-1' : 'md:w-[380px] xl:w-[420px] w-full'}
             bg-[#000000] border-t md:border-t-0 
@@ -432,7 +433,7 @@ export default function App() {
             flex flex-col z-10 transition-all duration-500 ease-out-expo min-h-0 relative
         `}>
           
-           {/* Mobile Chat Filter - Only show if in Chat Only mode for easier access */}
+           {/* Mobile Chat Filter */}
            <div className={`md:hidden flex justify-center py-2 bg-black border-b border-white/5 ${activePlayer !== 'none' ? 'hidden' : ''}`}>
                <div className="flex p-1 bg-white/5 rounded-full border border-white/5">
                    <button onClick={() => setChatFilter('all')} className={`px-4 py-1 rounded-full text-xs ${chatFilter === 'all' ? 'bg-white/20' : 'text-gray-500'}`}>All</button>
@@ -457,21 +458,26 @@ export default function App() {
                         if (chatFilter === 'kick') return msg.platform === Platform.KICK;
                         return true;
                     })
-                    .map((msg) => (
+                    .map((msg, idx) => (
                     <ChatMessageItem 
                         key={msg.id} 
                         message={msg} 
+                        index={idx}
                         globalBadges={globalBadges}
                         channelBadges={channelBadges}
                         sevenTVEmotes={sevenTVEmotes}
                         settings={chatSettings}
+                        currentUser={{
+                            twitch: authState.twitchUsername,
+                            kick: authState.kickUsername
+                        }}
                     />
                 ))
                 )}
             </div>
           </div>
 
-          {/* Input Area - ONLY RENDERED IF AUTHENTICATED */}
+          {/* Input Area */}
           {authState.twitch && (
               <div className="bg-black border-t border-white/5 pb-[env(safe-area-inset-bottom)]">
                  <div className="p-3">
@@ -504,7 +510,6 @@ export default function App() {
                         </button>
                     </div>
                     
-                     {/* Info/Warning footer */}
                     {commentPlatform === 'kick' && (
                         <div className="text-[10px] text-yellow-500/60 mt-2 px-1 text-center font-medium tracking-wide">
                             Leitura apenas (Modo Espectador)
