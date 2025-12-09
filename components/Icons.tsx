@@ -49,3 +49,45 @@ export const UsersIcon = ({ className }: { className?: string }) => (
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
     </svg>
 );
+
+// --- REUSABLE PLATFORM COMPONENT ---
+
+type PlatformType = 'twitch' | 'kick' | 'none';
+type Variant = 'default' | 'glow' | 'subdued' | 'white';
+
+interface PlatformIconProps {
+    platform: PlatformType;
+    className?: string;
+    variant?: Variant;
+}
+
+export const PlatformIcon: React.FC<PlatformIconProps> = ({ platform, className = '', variant = 'default' }) => {
+    
+    // Base Colors
+    const twitchColor = 'text-[#9146FF]';
+    const kickColor = 'text-[#53FC18]';
+    
+    // Shadows
+    const twitchGlow = 'drop-shadow-[0_0_8px_rgba(145,70,255,0.6)]';
+    const kickGlow = 'drop-shadow-[0_0_8px_rgba(83,252,24,0.6)]';
+
+    let finalClass = className;
+
+    // Apply Variant Styling
+    if (variant === 'default') {
+        if (platform === 'twitch') finalClass += ` ${twitchColor}`;
+        if (platform === 'kick') finalClass += ` ${kickColor}`;
+    } else if (variant === 'glow') {
+        if (platform === 'twitch') finalClass += ` ${twitchColor} ${twitchGlow}`;
+        if (platform === 'kick') finalClass += ` ${kickColor} ${kickGlow}`;
+    } else if (variant === 'white') {
+        finalClass += ' text-white';
+    } else if (variant === 'subdued') {
+        finalClass += ' text-gray-400';
+    }
+
+    if (platform === 'twitch') return <TwitchLogo className={finalClass} />;
+    if (platform === 'kick') return <KickLogo className={finalClass} />;
+    
+    return null;
+};

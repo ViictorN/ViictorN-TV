@@ -1,3 +1,4 @@
+
 export enum Platform {
   TWITCH = 'Twitch',
   KICK = 'Kick',
@@ -31,6 +32,11 @@ export interface ChatMessage {
   emotes?: Record<string, string[]>;
   replyTo?: ReplyInfo;
   isDeleted?: boolean;
+  
+  // New flags
+  isFirstMessage?: boolean; // Highlight first time chatters in session
+  isSubscription?: boolean; // Highlight sub/resub events
+  subMonths?: number; // Context for subs
 }
 
 export interface ChatSettings {
@@ -39,14 +45,26 @@ export interface ChatSettings {
   fontSize: 'small' | 'medium' | 'large';
   hideSystemMessages: boolean;
   deletedMessageBehavior: 'hide' | 'strikethrough';
-  // New BTTV/7TV Style features
+  
+  // BTTV/7TV Style features
   alternatingBackground: boolean; // Zebra striping
   highlightMentions: boolean; // Highlight your name
   fontFamily: 'sans' | 'mono';
   showSeparator: boolean; // Line between messages
   rainbowUsernames: boolean; // Animated gradient usernames
   
-  // New Moderation & Visual features
+  // New Features
+  smoothScroll: boolean; // Toggle smooth vs instant scroll
+  pauseOnHover: boolean; // (Optional logic)
+  
+  // Badge Filters
+  showBadgeBroadcaster: boolean;
+  showBadgeMod: boolean;
+  showBadgeVip: boolean;
+  showBadgeSub: boolean;
+  showBadgeFounder: boolean;
+  
+  // Moderation & Visual features
   largeEmotes: boolean;
   ignoredUsers: string[];
   ignoredKeywords: string[];

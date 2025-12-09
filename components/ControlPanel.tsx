@@ -1,6 +1,6 @@
 import React from 'react';
 import { AuthState, StreamStats } from '../types';
-import { KickLogo, TwitchLogo, SettingsIcon, ViictorNLogo, UsersIcon } from './Icons';
+import { SettingsIcon, ViictorNLogo, PlatformIcon } from './Icons';
 
 interface Props {
   authState: AuthState;
@@ -13,6 +13,7 @@ interface Props {
   onSetPlayer: (player: 'twitch' | 'kick' | 'none') => void;
   chatFilter: 'all' | 'twitch' | 'kick';
   onSetChatFilter: (filter: 'all' | 'twitch' | 'kick') => void;
+  onSync: () => void;
 }
 
 export const ControlPanel: React.FC<Props> = ({ 
@@ -25,7 +26,8 @@ export const ControlPanel: React.FC<Props> = ({
     activePlayer,
     onSetPlayer,
     chatFilter,
-    onSetChatFilter
+    onSetChatFilter,
+    onSync
 }) => {
   
   const totalViewers = (streamStats.kickViewers || 0) + (streamStats.twitchViewers || 0);
@@ -61,14 +63,14 @@ export const ControlPanel: React.FC<Props> = ({
                 className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-5 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold transition-all duration-500 ease-out-expo ${activePlayer === 'twitch' ? 'bg-[#9146FF] text-white shadow-[0_0_20px_rgba(145,70,255,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}
                 title="Assistir Twitch"
             >
-                <TwitchLogo className="w-3 h-3 md:w-4 md:h-4" />
+                <PlatformIcon platform="twitch" variant={activePlayer === 'twitch' ? 'white' : 'default'} className="w-3 h-3 md:w-4 md:h-4" />
             </button>
             <button
                 onClick={() => onSetPlayer('kick')}
                 className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-5 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold transition-all duration-500 ease-out-expo ${activePlayer === 'kick' ? 'bg-[#53FC18] text-black shadow-[0_0_20px_rgba(83,252,24,0.4)]' : 'text-gray-500 hover:text-gray-300'}`}
                 title="Assistir Kick"
             >
-                <KickLogo className="w-3 h-3 md:w-4 md:h-4" />
+                <PlatformIcon platform="kick" variant={activePlayer === 'kick' ? 'default' : 'default'} className="w-3 h-3 md:w-4 md:h-4 text-inherit" />
             </button>
             <button
                 onClick={() => onSetPlayer('none')}
@@ -89,15 +91,15 @@ export const ControlPanel: React.FC<Props> = ({
              </button>
              <button 
                 onClick={() => onSetChatFilter('twitch')} 
-                className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'twitch' ? 'text-twitch bg-twitch/10' : 'text-gray-600 hover:text-gray-400'}`}
+                className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'twitch' ? 'bg-twitch/10' : 'hover:text-gray-400'}`}
              >
-                 <TwitchLogo className="w-3.5 h-3.5" />
+                 <PlatformIcon platform="twitch" variant={chatFilter === 'twitch' ? 'default' : 'subdued'} className="w-3.5 h-3.5" />
              </button>
              <button 
                 onClick={() => onSetChatFilter('kick')} 
-                className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'kick' ? 'text-kick bg-kick/10' : 'text-gray-600 hover:text-gray-400'}`}
+                className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'kick' ? 'bg-kick/10' : 'hover:text-gray-400'}`}
              >
-                 <KickLogo className="w-3.5 h-3.5" />
+                 <PlatformIcon platform="kick" variant={chatFilter === 'kick' ? 'default' : 'subdued'} className="w-3.5 h-3.5" />
              </button>
         </div>
       </div>
@@ -115,6 +117,19 @@ export const ControlPanel: React.FC<Props> = ({
 
         {/* Desktop Stats & Tools */}
         <div className="hidden md:flex items-center gap-4">
+            
+            {/* Sync Button (New) */}
+            {activePlayer !== 'none' && (
+                <button
+                    onClick={onSync}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg border border-red-500/20 hover:border-red-500/40 transition-all active:scale-95"
+                    title="Sincronizar Player (Remove Delay)"
+                >
+                    <span className="text-sm">⚡</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Sync</span>
+                </button>
+            )}
+
             {/* Stats Pill */}
             <div className="flex items-center gap-3 bg-black px-4 py-2 rounded-2xl border border-white/10 shadow-lg">
                 <div className="flex flex-col items-center min-w-[30px]">
@@ -123,11 +138,11 @@ export const ControlPanel: React.FC<Props> = ({
                 </div>
                 <div className="w-px h-5 bg-white/10"></div>
                 <div className="flex items-center gap-1.5 opacity-80">
-                    <TwitchLogo className={`w-3.5 h-3.5 ${streamStats.isLiveTwitch ? 'text-twitch' : 'text-gray-700'}`} />
+                    <PlatformIcon platform="twitch" variant={streamStats.isLiveTwitch ? 'default' : 'subdued'} className="w-3.5 h-3.5" />
                     <span className="text-[10px] font-mono font-medium text-gray-400">{formatViewers(streamStats.twitchViewers)}</span>
                 </div>
                 <div className="flex items-center gap-1.5 opacity-80">
-                    <KickLogo className={`w-3.5 h-3.5 ${streamStats.isLiveKick ? 'text-kick' : 'text-gray-700'}`} />
+                    <PlatformIcon platform="kick" variant={streamStats.isLiveKick ? 'default' : 'subdued'} className="w-3.5 h-3.5" />
                     <span className="text-[10px] font-mono font-medium text-gray-400">{formatViewers(streamStats.kickViewers)}</span>
                 </div>
             </div>

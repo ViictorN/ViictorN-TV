@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { ChatMessage, Platform, Badge, BadgeMap, EmoteMap, ChatSettings } from '../types';
-import { KickLogo, TwitchLogo } from './Icons';
+import { PlatformIcon } from './Icons';
 
 interface Props {
   message: ChatMessage;
@@ -34,42 +34,48 @@ const KickBadgeSVG: React.FC<{ type: string }> = ({ type }) => {
     case 'broadcaster':
       // Host Icon (Crown/Mic style)
       return (
-         <svg className={className} viewBox="0 0 24 24" fill="#53FC18" xmlns="http://www.w3.org/2000/svg" title="Broadcaster">
+         <svg className={className} viewBox="0 0 24 24" fill="#53FC18" xmlns="http://www.w3.org/2000/svg">
+             <title>Broadcaster</title>
              <path d="M12 2L15 8H9L12 2ZM18 8H22V14H18V8ZM2 8H6V14H2V8ZM9 10H15V16H9V10ZM12 22C14.2091 22 16 20.2091 16 18H8C8 20.2091 9.79086 22 12 22Z" />
          </svg>
       );
     case 'moderator':
       // Green Shield with Swords
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="#00D26A" xmlns="http://www.w3.org/2000/svg" title="Moderator">
+        <svg className={className} viewBox="0 0 24 24" fill="#00D26A" xmlns="http://www.w3.org/2000/svg">
+           <title>Moderator</title>
            <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1ZM12 11.99H7V10.01H12V7.48L15.41 11L12 14.52V11.99Z" />
         </svg>
       ); 
     case 'vip':
       // Diamond
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" title="VIP">
+        <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+             <title>VIP</title>
              <path d="M12 2L2 9L12 22L22 9L12 2Z" fill="#F06292" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
         </svg>
       );
     case 'verified':
       // Verified Check
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="#53FC18" xmlns="http://www.w3.org/2000/svg" title="Verified">
+        <svg className={className} viewBox="0 0 24 24" fill="#53FC18" xmlns="http://www.w3.org/2000/svg">
+            <title>Verified</title>
             <path d="M23 12L20.56 9.21L20.9 5.52L17.29 4.7L15.4 1.5L12 2.96L8.6 1.5L6.71 4.69L3.1 5.5L3.44 9.2L1 12L3.44 14.79L3.1 18.49L6.71 19.31L8.6 22.5L12 21.03L15.4 22.49L17.29 19.3L20.9 18.48L20.56 14.79L23 12ZM10.09 16.72L6.29 12.91L7.7 11.5L10.09 13.88L16.29 7.69L17.7 9.1L10.09 16.72Z" />
         </svg>
       );
     case 'founder':
       // Founder (Red Badge)
       return (
-        <svg className={className} viewBox="0 0 24 24" fill="#FF5252" xmlns="http://www.w3.org/2000/svg" title="Founder">
+        <svg className={className} viewBox="0 0 24 24" fill="#FF5252" xmlns="http://www.w3.org/2000/svg">
+            <title>Founder</title>
             <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="white" strokeWidth="1" />
         </svg>
       );
     case 'og':
         // OG Badge
         return (
-             <svg className={className} viewBox="0 0 24 24" fill="#FF9800" xmlns="http://www.w3.org/2000/svg" title="OG">
+             <svg className={className} viewBox="0 0 24 24" fill="#FF9800" xmlns="http://www.w3.org/2000/svg">
+                 <title>OG</title>
                  <rect x="2" y="4" width="20" height="16" rx="4" fill="#FF9800" stroke="white" strokeWidth="1"/>
                  <path d="M12 12C12 13.66 10.66 15 9 15C7.34 15 6 13.66 6 12C6 10.34 7.34 9 9 9C10.66 9 12 10.34 12 12ZM18 15V13H14V15H18ZM18 11V9H14V11H18Z" fill="white"/>
              </svg>
@@ -151,14 +157,14 @@ const PlatformBadge: React.FC<{ platform: Platform }> = ({ platform }) => {
   if (platform === Platform.TWITCH) {
     return (
       <div className="inline-flex items-center justify-center w-5 h-5 mr-1.5 align-middle select-none" title="Twitch User">
-        <TwitchLogo className="w-3.5 h-3.5 text-twitch drop-shadow-[0_0_8px_rgba(145,70,255,0.6)]" />
+        <PlatformIcon platform="twitch" variant="glow" className="w-3.5 h-3.5" />
       </div>
     );
   }
   if (platform === Platform.KICK) {
      return (
       <div className="inline-flex items-center justify-center w-5 h-5 mr-1.5 align-middle select-none" title="Kick User">
-        <KickLogo className="w-3.5 h-3.5 text-kick drop-shadow-[0_0_8px_rgba(83,252,24,0.6)]" />
+        <PlatformIcon platform="kick" variant="glow" className="w-3.5 h-3.5" />
       </div>
     );
   }
@@ -316,6 +322,24 @@ export const ChatMessageItem = React.memo<Props>(({ message, index, globalBadges
   if (message.isDeleted && settings.deletedMessageBehavior === 'hide') {
       return null;
   }
+  
+  // SUBSCRIPTION MESSAGES (GOLD HIGHLIGHT)
+  if (message.isSubscription) {
+      return (
+          <div className="my-2 mx-1 p-3 rounded-xl bg-gradient-to-r from-yellow-900/40 to-transparent border-l-4 border-yellow-500 flex items-start gap-3 animate-slide-in">
+              <div className="mt-1">
+                  <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center text-xl">🎉</div>
+              </div>
+              <div className="flex-1">
+                 <div className="flex items-center gap-2 mb-1">
+                     <span className="font-bold text-yellow-400">{message.user.username}</span>
+                     {message.platform === Platform.TWITCH ? <PlatformIcon platform="twitch" variant="default" className="w-3 h-3" /> : <PlatformIcon platform="kick" variant="default" className="w-3 h-3" />}
+                 </div>
+                 <div className="text-sm text-yellow-100/90 font-medium">{message.content}</div>
+              </div>
+          </div>
+      );
+  }
 
   // FONT SIZE MAP
   const fontSizeClass = {
@@ -349,9 +373,34 @@ export const ChatMessageItem = React.memo<Props>(({ message, index, globalBadges
   // SEPARATOR
   const separatorClass = settings.showSeparator ? 'border-b border-white/5 pb-1 mb-1' : 'mb-0.5';
 
-  return (
-    <div className={`group relative py-1 px-2 rounded transition-colors duration-200 flex flex-col items-start ${bgClass} ${highlightClass} ${separatorClass} ${message.isDeleted ? 'opacity-50' : ''} hover:bg-white/5`}>
+  // FIRST MESSAGE HIGHLIGHT
+  const firstMessageClass = message.isFirstMessage 
+    ? 'border border-l-4 border-white/20 border-l-white bg-white/[0.02] pl-1 relative overflow-hidden' 
+    : '';
+    
+  // --- BADGE FILTERING LOGIC ---
+  const filteredBadges = message.user.badges.filter(badge => {
+      const type = badge.type;
       
+      if (type === 'broadcaster' && !settings.showBadgeBroadcaster) return false;
+      if (type === 'moderator' && !settings.showBadgeMod) return false;
+      if (type === 'vip' && !settings.showBadgeVip) return false;
+      if (type === 'subscriber' && !settings.showBadgeSub) return false;
+      if ((type === 'founder' || type === 'og') && !settings.showBadgeFounder) return false;
+
+      return true;
+  });
+
+  return (
+    <div className={`group relative py-1 px-2 rounded transition-colors duration-200 flex flex-col items-start ${bgClass} ${highlightClass} ${firstMessageClass} ${separatorClass} ${message.isDeleted ? 'opacity-50' : ''} hover:bg-white/5`}>
+      
+      {/* First Message Sparkle */}
+      {message.isFirstMessage && (
+          <div className="absolute top-0 right-0 p-1 opacity-30 group-hover:opacity-100 transition-opacity">
+              <span className="text-[10px]" title="Primeira mensagem na sessão">✨</span>
+          </div>
+      )}
+
       {/* --- REPLY HEADER --- */}
       {message.replyTo && (
           <div className="flex items-center gap-1.5 ml-8 mb-0.5 opacity-60">
@@ -376,8 +425,8 @@ export const ChatMessageItem = React.memo<Props>(({ message, index, globalBadges
             {/* 1. Platform Icon (Fully Opaque Now) */}
             <PlatformBadge platform={message.platform} />
             
-            {/* 2. Badges */}
-            {!settings.hideAvatars && message.user.badges.map((badge, idx) => (
+            {/* 2. Badges (Filtered) */}
+            {!settings.hideAvatars && filteredBadges.map((badge, idx) => (
                 <BadgeIcon 
                     key={`${badge.type}-${idx}`} 
                     badge={badge} 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TwitchCreds, ChatSettings } from '../types';
-import { TwitchLogo, KickLogo } from './Icons';
+import { PlatformIcon } from './Icons';
 
 interface Props {
   isOpen: boolean;
@@ -74,11 +74,11 @@ export const SettingsModal: React.FC<Props> = ({
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-xl transition-opacity duration-500 ease-out-expo" onClick={onClose}></div>
       
-      {/* Modal Container */}
-      <div className="liquid-glass w-full max-w-5xl p-0 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-white/5 relative z-10 animate-slide-in max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col bg-[#080808]">
+      {/* Modal Container - Using New Liquid Modal Class without opaque background override */}
+      <div className="liquid-modal w-full max-w-5xl p-0 rounded-3xl relative z-10 animate-slide-in max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col">
         
-        {/* Header */}
-        <div className="sticky top-0 bg-[#080808]/90 backdrop-blur-xl border-b border-white/5 p-6 z-20 flex justify-between items-center shrink-0">
+        {/* Header - Semi-transparent */}
+        <div className="sticky top-0 bg-black/40 backdrop-blur-md border-b border-white/5 p-6 z-20 flex justify-between items-center shrink-0">
              <div>
                 <h2 className="text-2xl font-display font-bold text-white tracking-tight">
                     Painel de Controle
@@ -134,6 +134,11 @@ export const SettingsModal: React.FC<Props> = ({
                         <span className="text-sm text-gray-300">Emotes Grandes</span>
                         <input type="checkbox" checked={settings.largeEmotes} onChange={() => toggleSetting('largeEmotes')} className="accent-twitch w-4 h-4" />
                      </label>
+                     
+                      <label className="flex items-center justify-between p-3 bg-black/40 rounded-xl cursor-pointer hover:bg-black/60 transition-colors border border-white/5">
+                        <span className="text-sm text-gray-300">Smooth Scroll (Suave)</span>
+                        <input type="checkbox" checked={settings.smoothScroll} onChange={() => toggleSetting('smoothScroll')} className="accent-twitch w-4 h-4" />
+                     </label>
 
                      <label className="flex items-center justify-between p-3 bg-black/40 rounded-xl cursor-pointer hover:bg-black/60 transition-colors border border-white/5">
                         <span className="text-sm text-gray-300">Ocultar Msgs Sistema</span>
@@ -180,6 +185,39 @@ export const SettingsModal: React.FC<Props> = ({
                  </div>
             </div>
 
+            {/* --- SECTION 1.5: FILTRO DE BADGES (NOVO) --- */}
+            <div className="border border-white/5 bg-white/5 rounded-2xl p-6">
+                 <h3 className="font-bold text-lg text-white mb-4 flex items-center gap-2">
+                    <span>🎖️</span> Visibilidade de Badges
+                 </h3>
+                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                     <label className="flex flex-col items-center justify-center p-3 bg-black/40 rounded-xl cursor-pointer hover:bg-black/60 transition-colors border border-white/5 gap-2">
+                        <span className="text-xs font-bold text-gray-300">Broadcaster</span>
+                        <input type="checkbox" checked={settings.showBadgeBroadcaster} onChange={() => toggleSetting('showBadgeBroadcaster')} className="accent-twitch w-4 h-4" />
+                     </label>
+                     
+                     <label className="flex flex-col items-center justify-center p-3 bg-black/40 rounded-xl cursor-pointer hover:bg-black/60 transition-colors border border-white/5 gap-2">
+                        <span className="text-xs font-bold text-gray-300">Mods</span>
+                        <input type="checkbox" checked={settings.showBadgeMod} onChange={() => toggleSetting('showBadgeMod')} className="accent-twitch w-4 h-4" />
+                     </label>
+
+                     <label className="flex flex-col items-center justify-center p-3 bg-black/40 rounded-xl cursor-pointer hover:bg-black/60 transition-colors border border-white/5 gap-2">
+                        <span className="text-xs font-bold text-gray-300">VIPs</span>
+                        <input type="checkbox" checked={settings.showBadgeVip} onChange={() => toggleSetting('showBadgeVip')} className="accent-twitch w-4 h-4" />
+                     </label>
+
+                     <label className="flex flex-col items-center justify-center p-3 bg-black/40 rounded-xl cursor-pointer hover:bg-black/60 transition-colors border border-white/5 gap-2">
+                        <span className="text-xs font-bold text-gray-300">Subs</span>
+                        <input type="checkbox" checked={settings.showBadgeSub} onChange={() => toggleSetting('showBadgeSub')} className="accent-twitch w-4 h-4" />
+                     </label>
+
+                     <label className="flex flex-col items-center justify-center p-3 bg-black/40 rounded-xl cursor-pointer hover:bg-black/60 transition-colors border border-white/5 gap-2">
+                        <span className="text-xs font-bold text-gray-300">Founders/OG</span>
+                        <input type="checkbox" checked={settings.showBadgeFounder} onChange={() => toggleSetting('showBadgeFounder')} className="accent-twitch w-4 h-4" />
+                     </label>
+                 </div>
+            </div>
+
             {/* --- SECTION 2: MODERAÇÃO / BLOCKLIST --- */}
             <div className="border border-white/5 bg-white/5 rounded-2xl p-6">
                  <h3 className="font-bold text-lg text-white mb-4 flex items-center gap-2">
@@ -215,8 +253,8 @@ export const SettingsModal: React.FC<Props> = ({
                 {/* --- LEFT: KICK SECTION --- */}
                 <div className="space-y-6">
                     <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/5">
-                        <div className="w-12 h-12 rounded-2xl bg-kick/10 flex items-center justify-center text-kick shadow-[0_0_20px_rgba(83,252,24,0.1)]">
-                            <KickLogo className="w-7 h-7" />
+                        <div className="w-12 h-12 rounded-2xl bg-kick/10 flex items-center justify-center shadow-[0_0_20px_rgba(83,252,24,0.1)]">
+                            <PlatformIcon platform="kick" variant="default" className="w-7 h-7" />
                         </div>
                         <div>
                              <h3 className="font-bold text-xl text-white">Kick</h3>
@@ -269,8 +307,8 @@ export const SettingsModal: React.FC<Props> = ({
                 {/* --- RIGHT: TWITCH SECTION --- */}
                 <div className="space-y-6">
                     <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/5">
-                        <div className="w-12 h-12 rounded-2xl bg-twitch/10 flex items-center justify-center text-twitch shadow-[0_0_20px_rgba(145,70,255,0.1)]">
-                            <TwitchLogo className="w-7 h-7" />
+                        <div className="w-12 h-12 rounded-2xl bg-twitch/10 flex items-center justify-center shadow-[0_0_20px_rgba(145,70,255,0.1)]">
+                            <PlatformIcon platform="twitch" variant="default" className="w-7 h-7" />
                         </div>
                         <div>
                             <h3 className="font-bold text-xl text-white">Twitch</h3>
@@ -332,7 +370,7 @@ export const SettingsModal: React.FC<Props> = ({
             </div>
         </div>
 
-        <div className="p-6 border-t border-white/5 bg-[#0a0a0a] mt-auto shrink-0 sticky bottom-0 z-30">
+        <div className="p-6 border-t border-white/5 bg-black/40 backdrop-blur-md mt-auto shrink-0 sticky bottom-0 z-30">
             <button 
                 type="button"
                 onClick={handleSave}

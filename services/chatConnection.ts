@@ -59,6 +59,8 @@ export class TwitchConnection {
 
         if (line.includes('PRIVMSG')) {
           this.parseMessage(line);
+        } else if (line.includes('USERNOTICE')) {
+          this.parseUserNotice(line);
         } else if (line.includes('CLEARMSG')) {
           this.handleClearMsg(line);
         }
@@ -87,7 +89,6 @@ export class TwitchConnection {
   }
 
   private handleClearMsg(raw: string) {
-      // @login=...;target-msg-id=UUID ... CLEARMSG ...
       const tagsStart = raw.indexOf('@');
       if (tagsStart === -1) return;
       
@@ -105,13 +106,65 @@ export class TwitchConnection {
       }
   }
 
+  private parseUserNotice(raw: string) {
+      // Handle Subs, Resubs, Gifts
+      let tags: Record<string, string> = {};
+      let remaining = raw;
+      
+      if (raw.startsWith('@')) {
+        const endIdx = raw.indexOf(' ');
+        const rawTags = raw.substring(1, endIdx);
+        remaining = raw.substring(endIdx + 1);
+        rawTags.split(';').forEach(t => {
+          const [key, val] = t.split('=');
+          tags[key] = val; 
+        });
+      }
+
+      // Check if it is a sub/resub
+      const msgId = tags['msg-id'];
+      if (msgId === 'sub' || msgId === 'resub' || msgId === 'subgift' || msgId === 'announcement') {
+          
+          let systemMsg = tags['system-msg'] || 'Subscription Event';
+          systemMsg = systemMsg.replace(/\\s/g, ' '); // Unescape spaces
+
+          // Extract optional user message if exists
+          let userMessage = '';
+          const channelEnd = remaining.indexOf(' :', remaining.indexOf('USERNOTICE'));
+          if (channelEnd !== -1) {
+              userMessage = remaining.substring(channelEnd + 2).trim();
+          }
+
+          const username = tags['display-name'] || tags['login'] || 'Twitch';
+          const color = tags['color'];
+          const subMonths = tags['msg-param-cumulative-months'] ? parseInt(tags['msg-param-cumulative-months']) : 1;
+
+           // Parse Badges
+            const badges: Badge[] = [];
+            if (tags['badges']) {
+            tags['badges'].split(',').forEach(pair => {
+                const [type, version] = pair.split('/');
+                badges.push({ type, version });
+            });
+            }
+
+          const msg: ChatMessage = {
+              id: tags['id'] || crypto.randomUUID(),
+              platform: Platform.TWITCH,
+              user: { username, color, badges },
+              content: userMessage ? `${systemMsg}: ${userMessage}` : systemMsg,
+              timestamp: Number(tags['tmi-sent-ts']) || Date.now(),
+              isSubscription: true,
+              subMonths
+          };
+          this.onMessage(msg);
+      }
+  }
+
   private parseMessage(raw: string) {
-    // Robust IRC v3 Parser
-    
     let tags: Record<string, string> = {};
     let remaining = raw;
     
-    // 1. Extract Tags
     if (raw.startsWith('@')) {
       const endIdx = raw.indexOf(' ');
       const rawTags = raw.substring(1, endIdx);
@@ -119,25 +172,20 @@ export class TwitchConnection {
       
       rawTags.split(';').forEach(t => {
         const [key, val] = t.split('=');
-        tags[key] = val; // Note: values might be escaped
+        tags[key] = val;
       });
     }
 
-    // 2. Find PRIVMSG
     const privMsgIdx = remaining.indexOf('PRIVMSG');
     if (privMsgIdx === -1) return;
 
-    // 3. Extract Content
     const channelEnd = remaining.indexOf(' :', privMsgIdx);
     if (channelEnd === -1) return;
 
     const content = remaining.substring(channelEnd + 2).trim();
-
-    // 4. Process Metadata
     const username = tags['display-name'] || 'Unknown';
     const color = tags['color'];
     
-    // Parse Badges
     const badges: Badge[] = [];
     if (tags['badges']) {
       tags['badges'].split(',').forEach(pair => {
@@ -146,18 +194,15 @@ export class TwitchConnection {
       });
     }
 
-    // Parse Reply Info
     let replyTo: ReplyInfo | undefined = undefined;
     if (tags['reply-parent-msg-id']) {
         replyTo = {
             id: tags['reply-parent-msg-id'],
             username: tags['reply-parent-display-name'] || 'User',
-            content: tags['reply-parent-msg-body']?.replace(/\\s/g, ' ') || '...' // Unescape spaces
+            content: tags['reply-parent-msg-body']?.replace(/\\s/g, ' ') || '...' 
         };
     }
 
-    // Parse Emotes
-    // format: emotes=25:0-4,12-16/1902:6-10
     let emotes: Record<string, string[]> | undefined = undefined;
     if (tags['emotes']) {
       emotes = {};
@@ -167,6 +212,9 @@ export class TwitchConnection {
       });
     }
 
+    // NATIVE TWITCH FIRST MESSAGE
+    const isFirstMessage = tags['first-msg'] === '1';
+
     const msg: ChatMessage = {
       id: tags['id'] || crypto.randomUUID(),
       platform: Platform.TWITCH,
@@ -174,24 +222,25 @@ export class TwitchConnection {
       content,
       timestamp: Number(tags['tmi-sent-ts']) || Date.now(),
       emotes,
-      replyTo
+      replyTo,
+      isFirstMessage // Set based on native tag
     };
 
     this.onMessage(msg);
   }
 }
 
-// --- KICK IMPLEMENTATION (Hybrid: Internal/Public API + Pusher) ---
+// --- KICK IMPLEMENTATION ---
 export class KickConnection {
   private ws: WebSocket | null = null;
   private channelSlug: string;
   private onMessage: MessageCallback;
   private onDelete: DeleteCallback;
   private chatroomId: number | null = null;
+  private channelId: number | null = null; // Needed for sub events
   private pingInterval: number | null = null;
   private accessToken: string | null = null;
 
-  // Kick Pusher Public Key & Cluster
   private readonly PUSHER_KEY = '32cbd69e4b950bf97679';
   private readonly PUSHER_CLUSTER = 'us2';
 
@@ -205,9 +254,6 @@ export class KickConnection {
   async connect() {
     try {
       let data = null;
-      
-      // Strategy 1: Internal API via Proxy (Often works better for read-only metadata)
-      // This was the method that worked in the initial version.
       try {
         const res = await fetch(`https://corsproxy.io/?https://kick.com/api/v1/channels/${this.channelSlug}`);
         if (res.ok) {
@@ -216,7 +262,6 @@ export class KickConnection {
         }
       } catch (e) { console.warn("[Kick] Internal API failed, trying fallback...", e); }
 
-      // Strategy 2: Public API via Proxy (Fallback if internal fails)
       if (!data) {
          try {
             const res = await fetch(`https://corsproxy.io/?https://api.kick.com/public/v1/channels/${this.channelSlug}`);
@@ -227,16 +272,14 @@ export class KickConnection {
          } catch (e) { console.warn("[Kick] Public API failed", e); }
       }
 
-      if (data && data.chatroom && data.chatroom.id) {
-        this.chatroomId = data.chatroom.id;
-        
-        // 1. Connect WebSocket (Priority: High)
+      if (data) {
+        if (data.chatroom) this.chatroomId = data.chatroom.id;
+        if (data.id) this.channelId = data.id;
+
         this.connectWs();
-        
-        // 2. Fetch Chat History (Priority: Low - Don't block if fails)
         this.fetchHistory().catch(e => console.warn("[Kick] History fetch failed, but realtime should work.", e));
       } else {
-          console.error('[Kick] Could not find chatroom ID. Both APIs might be blocked by CORS/Cloudflare.');
+          console.error('[Kick] Could not find channel metadata.');
       }
     } catch (e) {
       console.error('[Kick] Connect Fatal Error:', e);
@@ -245,45 +288,42 @@ export class KickConnection {
 
   private async fetchHistory() {
       if (!this.chatroomId) return;
-      
-      // We try the Public API endpoint for messages as it's cleaner, but wrap in try/catch
       try {
           const res = await fetch(`https://corsproxy.io/?https://api.kick.com/public/v1/chatrooms/${this.chatroomId}/messages`);
           if (res.ok) {
               const json = await res.json();
               if (json.data && Array.isArray(json.data)) {
-                  // API returns newest first, reverse for display
                   const history = json.data.reverse();
                   history.forEach((msgData: any) => this.processMessage(msgData));
               }
-          } else {
-              throw new Error("API responded with error");
           }
-      } catch (e) {
-          throw e; 
-      }
+      } catch (e) {}
   }
 
   private connectWs() {
     if (!this.chatroomId) return;
 
-    // Connect to Kick's Pusher Instance
     this.ws = new WebSocket(`wss://ws-${this.PUSHER_CLUSTER}.pusher.com/app/${this.PUSHER_KEY}?protocol=7&client=js&version=8.4.0-rc2&flash=false`);
 
     this.ws.onopen = () => {
       console.log('[Kick] WS Connected');
       
-      const subscribePayload = {
+      // Subscribe to Chatroom
+      this.ws?.send(JSON.stringify({
         event: 'pusher:subscribe',
-        data: {
-          auth: '',
-          channel: `chatrooms.${this.chatroomId}.v2`
-        }
-      };
-      this.ws?.send(JSON.stringify(subscribePayload));
+        data: { auth: '', channel: `chatrooms.${this.chatroomId}.v2` }
+      }));
+
+      // Subscribe to Channel Events (for Subs) if channelId is known
+      if (this.channelId) {
+          this.ws?.send(JSON.stringify({
+            event: 'pusher:subscribe',
+            data: { auth: '', channel: `channel.${this.channelId}` }
+          }));
+      }
       
       this.pingInterval = window.setInterval(() => {
-          // Standard WS keep-alive if needed
+          // Keep alive
       }, 30000);
     };
 
@@ -291,23 +331,52 @@ export class KickConnection {
       try {
         const payload = JSON.parse(event.data);
         
+        // Chat Message
         if (payload.event === 'App\\Events\\ChatMessageEvent') {
            const data = JSON.parse(payload.data);
            this.processMessage(data);
         }
+        // Deletion
         else if (payload.event === 'App\\Events\\MessageDeletedEvent') {
             const data = JSON.parse(payload.data);
             if (data && data.message && data.message.id) {
                 this.onDelete(data.message.id);
             }
         }
-      } catch (e) {
-          // Ignore parsing errors
-      }
+        // Subscriptions
+        else if (payload.event === 'App\\Events\\SubscriptionEvent') {
+            const data = JSON.parse(payload.data);
+            const username = data.username || 'Someone';
+            const months = data.months || 1;
+            this.onMessage({
+                id: crypto.randomUUID(),
+                platform: Platform.KICK,
+                user: { username, badges: [], color: '#53FC18' },
+                content: `${username} se inscreveu! (${months} meses)`,
+                timestamp: Date.now(),
+                isSubscription: true,
+                subMonths: months
+            });
+        }
+         // Gifted Subs
+        else if (payload.event === 'App\\Events\\GiftedSubscriptionsEvent') {
+            const data = JSON.parse(payload.data);
+            const gifter = data.gifter_username || 'Anonymous';
+            const count = data.gifted_usernames?.length || 1;
+             this.onMessage({
+                id: crypto.randomUUID(),
+                platform: Platform.KICK,
+                user: { username: gifter, badges: [], color: '#53FC18' },
+                content: `${gifter} presenteou ${count} inscrições!`,
+                timestamp: Date.now(),
+                isSubscription: true
+            });
+        }
+
+      } catch (e) {}
     };
 
     this.ws.onclose = () => {
-      console.log('[Kick] WS Closed');
       if (this.pingInterval) clearInterval(this.pingInterval);
     };
   }
@@ -316,7 +385,6 @@ export class KickConnection {
     const badges: Badge[] = [];
     if (data.sender && data.sender.identity && data.sender.identity.badges) {
         data.sender.identity.badges.forEach((b: any) => {
-            // Kick sends 'count' for subscriber months, map this to version
             badges.push({ type: b.type, version: b.count ? String(b.count) : '1' });
         });
     }
@@ -340,19 +408,18 @@ export class KickConnection {
       },
       content: data.content,
       timestamp: new Date(data.created_at).getTime(),
-      replyTo
+      replyTo,
+      isFirstMessage: false // Kick API does not support native First Message tag in current public events
     };
     
     this.onMessage(msg);
   }
 
-  // SEND MESSAGE IMPLEMENTATION (Official Public API)
   async sendMessage(content: string) {
       if (!this.chatroomId || !this.accessToken) {
           throw new Error("Missing Chatroom ID or Access Token");
       }
 
-      // We use corsproxy to attempt to bypass browser CORS checks.
       const endpoint = `https://corsproxy.io/?https://api.kick.com/public/v1/chatrooms/${this.chatroomId}/messages`;
 
       const res = await fetch(endpoint, {
@@ -369,14 +436,7 @@ export class KickConnection {
       });
 
       if (!res.ok) {
-          let errorMsg = 'Unknown Error';
-          try {
-              const errData = await res.json();
-              errorMsg = errData.message || JSON.stringify(errData);
-          } catch {
-              errorMsg = await res.text();
-          }
-          throw new Error(`Kick API Error: ${errorMsg}`);
+          throw new Error(`Kick API Error`);
       }
   }
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ControlPanel } from './components/ControlPanel';
 import { ChatMessageItem } from './components/ChatMessageItem';
 import { SettingsModal } from './components/SettingsModal';
-import { SendIcon, TwitchLogo, KickLogo } from './components/Icons';
+import { SendIcon, PlatformIcon } from './components/Icons';
 import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, EmoteMap, ChatSettings } from './types';
 import { TwitchConnection, KickConnection } from './services/chatConnection';
 import { analyzeChatVibe } from './services/geminiService';
@@ -26,7 +26,16 @@ const DEFAULT_SETTINGS: ChatSettings = {
     rainbowUsernames: false,
     largeEmotes: false,
     ignoredUsers: [],
-    ignoredKeywords: []
+    ignoredKeywords: [],
+    
+    // New Defaults
+    smoothScroll: true,
+    pauseOnHover: false,
+    showBadgeBroadcaster: true,
+    showBadgeMod: true,
+    showBadgeVip: true,
+    showBadgeSub: true,
+    showBadgeFounder: true
 };
 
 export default function App() {
@@ -59,9 +68,20 @@ export default function App() {
       return (localStorage.getItem('chat_filter') as any) || 'all';
   });
   
+  // Player Refresh Key (for Sync)
+  const [playerKey, setPlayerKey] = useState(0);
+
   const [commentPlatform, setCommentPlatform] = useState<'twitch' | 'kick'>('twitch');
   const [chatInput, setChatInput] = useState('');
   
+  // Chat History (Arrow Keys)
+  const [inputHistory, setInputHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // Scroll / Pause State
+  const [isPaused, setIsPaused] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   
@@ -101,7 +121,7 @@ export default function App() {
   const twitchRef = useRef<TwitchConnection | null>(null);
   const kickRef = useRef<KickConnection | null>(null);
   const messageQueue = useRef<ChatMessage[]>([]);
-
+  
   // Init logic
   useEffect(() => {
     // --- POPUP HANDLER (CHILD) ---
@@ -132,6 +152,9 @@ export default function App() {
     // Initial Data
     fetchStats();
     fetch7TVEmotes().then(map => setSevenTVEmotes(map));
+    
+    // Always try to load Public badges first (fastest)
+    fetchTwitchBadgesNoAuth(); 
 
     const poll = setInterval(fetchStats, 30000);
     const buffer = setInterval(flushBuffer, 300);
@@ -156,18 +179,17 @@ export default function App() {
     localStorage.setItem('chat_filter', chatFilter);
   }, [chatFilter]);
 
-  // Sync Auth State & Fetch Data ONLY if creds exist
+  // Sync Auth State & Fetch Authenticated Data
   useEffect(() => {
     localStorage.setItem('twitch_creds', JSON.stringify(twitchCreds));
     
     const isTwitchReady = !!(twitchCreds.accessToken && twitchCreds.clientId);
     setAuthState(prev => ({ ...prev, twitch: isTwitchReady }));
 
+    // If we have credentials, use the Official API to overwrite/improve badges
     if (isTwitchReady) {
-        fetchTwitchData();
+        fetchTwitchDataAuthenticated();
     }
-    // Always fetch stats regardless of auth
-    fetchStats();
   }, [twitchCreds]);
 
   useEffect(() => {
@@ -186,11 +208,56 @@ export default function App() {
   const flushBuffer = () => {
     if (messageQueue.current.length > 0) {
       setMessages(prev => {
-        const combined = [...prev, ...messageQueue.current];
+        const newMsgs = [...prev, ...messageQueue.current].slice(-MAX_MESSAGES);
+        
+        // Handle Unread Count if Paused
+        if (isPaused) {
+            setUnreadCount(c => c + messageQueue.current.length);
+        }
+
         messageQueue.current = [];
-        return combined.slice(-MAX_MESSAGES);
+        return newMsgs;
       });
     }
+  };
+
+  // --- SCROLL HANDLER (Chat Freeze) ---
+  const handleScroll = () => {
+      if (!chatContainerRef.current) return;
+      
+      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // If user scrolls up more than 50px, pause chat
+      if (distanceFromBottom > 50) {
+          if (!isPaused) setIsPaused(true);
+      } else {
+          // If user is at bottom, resume
+          if (isPaused) {
+              setIsPaused(false);
+              setUnreadCount(0);
+          }
+      }
+  };
+
+  // Auto-scroll Effect
+  useEffect(() => {
+    if (chatContainerRef.current && !isPaused) {
+        const { scrollHeight, clientHeight } = chatContainerRef.current;
+        chatContainerRef.current.scrollTo({
+            top: scrollHeight - clientHeight,
+            behavior: chatSettings.smoothScroll ? 'smooth' : 'auto'
+        });
+    }
+  }, [messages, isPaused, chatSettings.smoothScroll]);
+
+  const scrollToBottom = () => {
+      if (chatContainerRef.current) {
+          const { scrollHeight, clientHeight } = chatContainerRef.current;
+          chatContainerRef.current.scrollTop = scrollHeight - clientHeight;
+          setIsPaused(false);
+          setUnreadCount(0);
+      }
   };
 
   // --- API ---
@@ -232,32 +299,45 @@ export default function App() {
     }
   };
 
-  const fetchTwitchData = async () => {
+  // --- AUTHENTICATED TWITCH DATA FETCH (Official API) ---
+  const fetchTwitchDataAuthenticated = async () => {
     if (!twitchCreds.accessToken) return;
     try {
         const headers = { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` };
         
-        const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${TWITCH_USER_LOGIN}`, { headers });
-        const userData = await userRes.json();
-        const userId = userData.data?.[0]?.id;
-
+        // 1. Get Logged In User
         const myUserRes = await fetch(`https://api.twitch.tv/helix/users`, { headers });
         const myData = await myUserRes.json();
         if (myData.data && myData.data.length > 0) {
             setAuthState(prev => ({ ...prev, twitchUsername: myData.data[0].display_name }));
         }
 
-        if (userId) {
-             const cbData = await (await fetch(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${userId}`, { headers })).json();
-             setChannelBadges(parseBadgeSet(cbData.data));
-        }
-        const gbData = await (await fetch(`https://api.twitch.tv/helix/chat/badges/global`, { headers })).json();
-        setGlobalBadges(parseBadgeSet(gbData.data));
+        // 2. Get Broadcaster ID (Gabepeixe) for Channel Badges
+        // IMPORTANT: We need Gabepeixe's ID to get HIS badges, not the logged in user's badges
+        const streamerRes = await fetch(`https://api.twitch.tv/helix/users?login=${TWITCH_USER_LOGIN}`, { headers });
+        const streamerData = await streamerRes.json();
+        const streamerId = streamerData.data?.[0]?.id;
 
-    } catch (e) { console.error("Twitch Data Error", e); }
+        // 3. Fetch Channel Badges (Official Helix)
+        if (streamerId) {
+             const cbRes = await fetch(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${streamerId}`, { headers });
+             const cbData = await cbRes.json();
+             if (cbData.data) {
+                setChannelBadges(parseHelixBadges(cbData.data));
+             }
+        }
+
+        // 4. Fetch Global Badges (Official Helix)
+        const gbRes = await fetch(`https://api.twitch.tv/helix/chat/badges/global`, { headers });
+        const gbData = await gbRes.json();
+        if (gbData.data) {
+            setGlobalBadges(parseHelixBadges(gbData.data));
+        }
+
+    } catch (e) { console.error("Twitch Authenticated Data Error", e); }
   };
 
-  const parseBadgeSet = (data: any[]): BadgeMap => {
+  const parseHelixBadges = (data: any[]): BadgeMap => {
      const map: BadgeMap = {};
      if (!data) return map;
      data.forEach((set: any) => {
@@ -268,31 +348,64 @@ export default function App() {
      return map;
   };
 
-  // --- HANDLERS ---
+  // --- PUBLIC TWITCH DATA FETCH (IVR Fallback) ---
+  const fetchTwitchBadgesNoAuth = async () => {
+      try {
+          // 1. Global Badges
+          const globalRes = await fetch('https://api.ivr.fi/v2/twitch/badges/global');
+          if (globalRes.ok) {
+              const data = await globalRes.json();
+              setGlobalBadges(prev => Object.keys(prev).length === 0 ? parseIvrBadges(data) : prev);
+          }
 
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-      // If user is near bottom (< 400px), auto-scroll
-      if (scrollHeight - scrollTop - clientHeight < 400) {
-        chatContainerRef.current.scrollTop = scrollHeight;
+          // 2. Channel Badges (Gabepeixe)
+          const channelRes = await fetch(`https://api.ivr.fi/v2/twitch/badges/channel/${TWITCH_USER_LOGIN}`);
+           if (channelRes.ok) {
+              const data = await channelRes.json();
+              setChannelBadges(prev => Object.keys(prev).length === 0 ? parseIvrBadges(data) : prev);
+          }
+      } catch (e) {
+          console.error("IVR Badge Fetch Error", e);
       }
-    }
-  }, [messages]);
+  };
+
+  const parseIvrBadges = (data: any[]): BadgeMap => {
+      const map: BadgeMap = {};
+      if (!data) return map;
+      data.forEach((set: any) => {
+          const versions: Record<string, string> = {};
+          set.versions.forEach((v: any) => {
+              // IVR returns 'image_url_2x' or 'image_url_1x'
+              versions[v.id] = v.image_url_2x || v.image_url_1x; 
+          });
+          map[set.set_id] = versions;
+      });
+      return map;
+  };
+
+  // --- HANDLERS ---
 
   const handleNewMessage = (msg: ChatMessage) => {
     messageQueue.current.push(msg);
   };
   
   const handleDeleteMessage = (msgId: string) => {
-      // Direct state update for deletion
       setMessages(prev => prev.map(m => 
           m.id === msgId ? { ...m, isDeleted: true } : m
       ));
   };
   
   const handleReply = (username: string) => {
-      setChatInput(prev => `${prev}@${username} `);
+      // Append if input exists, otherwise set
+      setChatInput(prev => {
+          if (prev.endsWith(' ')) return `${prev}@${username} `;
+          if (prev.length > 0) return `${prev} @${username} `;
+          return `@${username} `;
+      });
+  };
+
+  const handleSyncPlayer = () => {
+    setPlayerKey(prev => prev + 1);
   };
 
   // Twitch Connection Logic
@@ -337,7 +450,6 @@ export default function App() {
       kickRef.current.connect();
       addSystemMsg('Kick', true);
     } else {
-        // Just reconnect if needed, or simple ref replacement (cleaner to replace)
          kickRef.current.disconnect();
          kickRef.current = new KickConnection(STREAMER_SLUG, handleNewMessage, handleDeleteMessage, kickAccessToken);
          kickRef.current.connect();
@@ -349,7 +461,7 @@ export default function App() {
             kickRef.current = null;
         }
     };
-  }, [kickAccessToken]); // Re-run when token changes
+  }, [kickAccessToken]);
 
   const addSystemMsg = (platform: string, connected: boolean) => {
     handleNewMessage({
@@ -363,6 +475,10 @@ export default function App() {
 
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
+
+    // Add to History
+    setInputHistory(prev => [chatInput, ...prev.filter(i => i !== chatInput)].slice(0, 50));
+    setHistoryIndex(-1);
 
     if (commentPlatform === 'twitch') {
         if (!twitchRef.current || !authState.twitch) {
@@ -412,7 +528,31 @@ export default function App() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') handleSendMessage();
+      if (e.key === 'Enter') {
+          e.preventDefault();
+          handleSendMessage();
+      }
+      
+      // Input History Logic
+      if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (historyIndex < inputHistory.length - 1) {
+              const newIndex = historyIndex + 1;
+              setHistoryIndex(newIndex);
+              setChatInput(inputHistory[newIndex]);
+          }
+      }
+      if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (historyIndex > 0) {
+              const newIndex = historyIndex - 1;
+              setHistoryIndex(newIndex);
+              setChatInput(inputHistory[newIndex]);
+          } else if (historyIndex === 0) {
+              setHistoryIndex(-1);
+              setChatInput('');
+          }
+      }
   };
 
   const handleAnalyze = async () => {
@@ -461,6 +601,7 @@ export default function App() {
         onSetPlayer={setActivePlayer}
         chatFilter={chatFilter}
         onSetChatFilter={setChatFilter}
+        onSync={handleSyncPlayer}
       />
 
       {/* Main Layout */}
@@ -475,6 +616,7 @@ export default function App() {
         >
             {activePlayer === 'twitch' && (
               <iframe
+                  key={`twitch-${playerKey}`}
                   src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=false&autoplay=true`}
                   className="w-full h-full border-none"
                   allowFullScreen
@@ -486,6 +628,7 @@ export default function App() {
 
             {activePlayer === 'kick' && (
                 <iframe
+                    key={`kick-${playerKey}`}
                     src={`https://player.kick.com/${STREAMER_SLUG}?autoplay=true&muted=false`}
                     className="w-full h-full border-none"
                     allowFullScreen
@@ -531,7 +674,11 @@ export default function App() {
            </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-2" ref={chatContainerRef}>
+          <div 
+            className="flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-2 scroll-smooth" 
+            ref={chatContainerRef}
+            onScroll={handleScroll}
+            >
             <div className="min-h-full flex flex-col justify-end pb-2">
                 {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-white/20 space-y-2">
@@ -576,6 +723,25 @@ export default function App() {
                 )}
             </div>
           </div>
+          
+          {/* PAUSE / UNREAD INDICATOR */}
+          {isPaused && (
+              <div className="absolute bottom-20 left-0 right-0 flex justify-center z-20 pointer-events-none">
+                  <button 
+                    onClick={scrollToBottom}
+                    className="pointer-events-auto bg-twitch text-white px-4 py-2 rounded-full shadow-xl text-xs font-bold flex items-center gap-2 animate-slide-up hover:bg-twitch/90 active:scale-95 transition-all"
+                  >
+                      {unreadCount > 0 ? (
+                        <>
+                            <span>Ver {unreadCount} novas mensagens</span>
+                            <span className="text-white/60">⬇</span>
+                        </>
+                      ) : (
+                        <span>Chat Pausado</span>
+                      )}
+                  </button>
+              </div>
+          )}
 
           {/* Input Area */}
           {(authState.twitch || authState.kickAccessToken) && (
@@ -588,7 +754,7 @@ export default function App() {
                                 onClick={() => setCommentPlatform(prev => prev === 'twitch' ? 'kick' : 'twitch')}
                                 className={`p-2 rounded-xl transition-all duration-300 ${commentPlatform === 'twitch' ? 'bg-twitch/10 text-twitch hover:bg-twitch/20' : 'bg-kick/10 text-kick hover:bg-kick/20'}`}
                             >
-                                {commentPlatform === 'twitch' ? <TwitchLogo className="w-4 h-4" /> : <KickLogo className="w-4 h-4" />}
+                                <PlatformIcon platform={commentPlatform} variant={commentPlatform === 'twitch' ? 'white' : 'default'} className="w-4 h-4" />
                             </button>
                         </div>
 
