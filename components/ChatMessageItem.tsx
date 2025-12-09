@@ -395,46 +395,63 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
 
       {/* 2. RIGHT: CONTENT */}
       <div className="flex-1 min-w-0 overflow-hidden">
-          
-          {/* Metadata Line */}
-          <div className="flex items-center flex-wrap gap-x-1 leading-snug">
-              
-              {/* Timestamp */}
-              {settings.showTimestamps && (
-                  <span className="text-[10px] text-gray-500 font-mono mr-1">
-                      {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+          {/* Reply Context Block - MOVED TO TOP */}
+          {message.replyTo && (
+              <div className="flex items-center gap-1.5 text-[10px] text-gray-400 mb-0.5 pl-1 opacity-90 border-l-2 border-white/20">
+                  <span className="transform rotate-180 -scale-y-100 inline-block text-white/40 text-xs ml-1">➥</span>
+                  <span className="flex-1 truncate">
+                       Em resposta a <span className="font-bold text-gray-300 hover:underline cursor-pointer">@{message.replyTo.username}</span>: 
+                       <span className="italic text-gray-500 ml-1">"{message.replyTo.content}"</span>
                   </span>
-              )}
-
-              {/* Platform Icon (Small indicator) */}
-              <div className="opacity-50 group-hover:opacity-100 transition-opacity">
-                  <PlatformIcon platform={platformIcon} className="w-3 h-3 inline-block mr-1 align-middle" />
               </div>
+          )}
+          
+          {/* Main Message Line - INLINE FLOW */}
+          <div className={`break-words leading-snug ${textSizeClass} ${fontClass}`}>
+              
+              {/* Metadata Wrapper */}
+              <span className="inline-block mr-1 select-none align-middle">
+                  {/* Timestamp */}
+                  {settings.showTimestamps && (
+                      <span className="text-[10px] text-gray-500 font-mono mr-1">
+                          {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                  )}
 
-              {/* Badges */}
-              <span className="inline-flex items-center align-middle">{renderBadges()}</span>
+                  {/* Platform Icon */}
+                  <span className="opacity-50 group-hover:opacity-100 transition-opacity inline-block mr-1">
+                      <PlatformIcon platform={platformIcon} className="w-3 h-3" />
+                  </span>
+
+                  {/* Badges */}
+                  {renderBadges()}
+              </span>
               
               {/* Username */}
               <button 
                   onClick={() => onReply(message.user.username)}
-                  className={`font-bold hover:underline cursor-pointer align-middle mr-1 ${settings.rainbowUsernames ? 'rainbow-text' : ''}`}
+                  className={`font-bold hover:underline cursor-pointer align-middle ${settings.rainbowUsernames ? 'rainbow-text' : ''}`}
                   style={{ color: settings.rainbowUsernames ? undefined : usernameColor }}
               >
                   {message.user.username}
               </button>
-              
-              {/* Reply Indicator (if exists) */}
-              {message.replyTo && (
-                  <span className="text-[10px] text-gray-500 bg-white/5 px-1 rounded flex items-center gap-1 align-middle">
-                      <span>↪</span>
-                      <span>{message.replyTo.username}</span>
-                  </span>
+
+              {/* First Message Badge */}
+              {message.isFirstMessage && (
+                   <span className="bg-yellow-500/20 text-yellow-200 text-[9px] px-1.5 py-0.5 rounded border border-yellow-500/30 uppercase font-bold tracking-wider ml-1 inline-flex items-center gap-1 select-none align-middle">
+                     <span>✨</span>
+                     <span className="hidden sm:inline">Primeira vez</span>
+                   </span>
               )}
-          </div>
-          
-          {/* Message Content */}
-          <div className={`text-white/90 break-words leading-snug mt-0.5 ${textSizeClass} ${fontClass}`}>
-               {renderContent}
+
+              {/* Separator */}
+              <span className="mr-1 text-white/50 font-normal align-middle">:</span>
+
+              {/* Message Content */}
+              <span className="text-white/90">
+                   {renderContent}
+              </span>
           </div>
       </div>
 

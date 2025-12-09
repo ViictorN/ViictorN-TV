@@ -426,6 +426,11 @@ export class KickConnection {
         };
     }
 
+    // Ensure we handle missing profile pics gracefully
+    const profilePic = data.sender.profile_pic;
+    // Kick sometimes sends a string "null" or actual null
+    const isValidAvatar = profilePic && !profilePic.includes('null');
+
     const msg: ChatMessage = {
       id: data.id,
       platform: Platform.KICK,
@@ -433,7 +438,7 @@ export class KickConnection {
         username: data.sender.username,
         color: data.sender.identity?.color || '#53FC18',
         badges: badges,
-        avatarUrl: data.sender.profile_pic, // Captura o Avatar da Kick
+        avatarUrl: isValidAvatar ? profilePic : undefined,
         id: String(data.sender.id)
       },
       content: data.content,

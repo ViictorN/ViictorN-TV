@@ -130,6 +130,9 @@ export default function App() {
   const [avatarCache, setAvatarCache] = useState<Record<string, string>>({});
   const pendingAvatars = useRef<Set<string>>(new Set());
 
+  // Session Tracking for First Interactions
+  const seenUsers = useRef<Set<string>>(new Set());
+
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const twitchRef = useRef<TwitchConnection | null>(null);
   const kickRef = useRef<KickConnection | null>(null);
@@ -240,50 +243,74 @@ export default function App() {
       
       // Prevent redundant fetches
       if (avatarCache[key] || pendingAvatars.current.has(key)) return;
-      if (user.avatarUrl) return; // Already has native avatar
+      // If user object already has a valid URL, skip
+      if (user.avatarUrl && !user.avatarUrl.includes('null')) return;
 
       pendingAvatars.current.add(key);
 
       try {
           let url: string | null = null;
           
-          // 1. Try 7TV API (Works for both if ID is present)
-          // Twitch/Kick IDs are usually available in our connection logic
-          if (user.id) {
-              const p = platform === Platform.TWITCH ? 'twitch' : 'kick';
-              try {
-                  const res = await fetch(`https://7tv.io/v3/users/${p}/${user.id}`);
-                  if (res.ok) {
-                      const data = await res.json();
-                      if (data.user?.avatar_url) {
-                          url = data.user.avatar_url.startsWith('//') 
-                            ? `https:${data.user.avatar_url}` 
-                            : data.user.avatar_url;
-                      }
-                  }
-              } catch (e) {}
+          // Helper to check if an image url is valid (loads)
+          const checkImage = (src: string): Promise<boolean> => {
+              return new Promise((resolve) => {
+                  const img = new Image();
+                  img.onload = () => resolve(true);
+                  img.onerror = () => resolve(false);
+                  img.src = src;
+              });
+          };
+
+          // --- KICK AVATAR STRATEGY ---
+          if (platform === Platform.KICK && user.id) {
+               // Strategy 1: Direct Kick CDN (Most reliable, bypasses API)
+               // Kick uses a predictable pattern: files.kick.com/images/user_profile_pics/{id}/image.webp
+               const cdnCandidate = `https://files.kick.com/images/user_profile_pics/${user.id}/image.webp`;
+               const exists = await checkImage(cdnCandidate);
+               
+               if (exists) {
+                   url = cdnCandidate;
+               } else {
+                   // Strategy 2: 7TV API (Indexed Kick users)
+                   try {
+                       const res = await fetch(`https://7tv.io/v3/users/kick/${user.id}`);
+                       if (res.ok) {
+                           const data = await res.json();
+                           if (data.user?.avatar_url) {
+                               url = data.user.avatar_url.startsWith('//') 
+                                 ? `https:${data.user.avatar_url}` 
+                                 : data.user.avatar_url;
+                           }
+                       }
+                   } catch (e) {}
+               }
           }
 
-          // 2. Fallbacks
-          if (!url) {
-              if (platform === Platform.TWITCH) {
-                  // IVR API (Username based)
+          // --- TWITCH AVATAR STRATEGY ---
+          else if (platform === Platform.TWITCH) {
+              // 1. 7TV (Cross-check)
+              if (user.id) {
+                  try {
+                      const res = await fetch(`https://7tv.io/v3/users/twitch/${user.id}`);
+                      if (res.ok) {
+                          const data = await res.json();
+                          if (data.user?.avatar_url) {
+                               url = data.user.avatar_url.startsWith('//') 
+                                 ? `https:${data.user.avatar_url}` 
+                                 : data.user.avatar_url;
+                          }
+                      }
+                  } catch (e) {}
+              }
+
+              // 2. IVR API (Username based, reliable public API)
+              if (!url) {
                   try {
                     const res = await fetch(`https://api.ivr.fi/v2/twitch/user?login=${user.username}`);
                     if (res.ok) {
                         const data = await res.json();
                         if (data && data[0] && data[0].logo) url = data[0].logo;
                     }
-                  } catch(e) {}
-              } 
-              else if (platform === Platform.KICK) {
-                  // Kick Public API (via Proxy)
-                  try {
-                      const res = await fetch(`https://corsproxy.io/?https://kick.com/api/v1/users/${user.username}`);
-                      if (res.ok) {
-                          const data = await res.json();
-                          if (data && data.profile_pic) url = data.profile_pic;
-                      }
                   } catch(e) {}
               }
           }
@@ -467,6 +494,24 @@ export default function App() {
   // --- HANDLERS ---
 
   const handleNewMessage = (msg: ChatMessage) => {
+    // Logic for "First Message" Tracking (Session based for Kick/Fallbacks)
+    // Create a unique key for the user per platform
+    const userKey = `${msg.platform}-${msg.user.username}`;
+    
+    // If not seen in this session
+    if (!seenUsers.current.has(userKey)) {
+        // If Twitch sends the flag, respect it. 
+        // If Kick (or flag missing), assume session-first is "First Interaction"
+        if (msg.platform === Platform.KICK || msg.isFirstMessage === undefined) {
+             msg.isFirstMessage = true;
+        }
+        seenUsers.current.add(userKey);
+    } else {
+        // If seen, ensure flag is false (unless platform insists otherwise, but usually sequential)
+        // Twitch might send isFirstMessage=true only once, so we don't overwrite if true
+        if (!msg.isFirstMessage) msg.isFirstMessage = false;
+    }
+
     messageQueue.current.push(msg);
   };
   
