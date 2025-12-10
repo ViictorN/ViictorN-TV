@@ -923,9 +923,9 @@ export default function App() {
           )}
         </div>
 
-        {/* Chat Area */}
+        {/* Chat Area - FIXED: Added flex-1 on mobile so it grows to fill height */}
         <div className={`
-            ${activePlayer === 'none' ? 'w-full flex-1' : 'md:w-[380px] xl:w-[420px] w-full'}
+            ${activePlayer === 'none' ? 'w-full flex-1' : 'md:w-[380px] xl:w-[420px] w-full flex-1 md:flex-none'}
             bg-[#000000] border-t md:border-t-0 
             ${activePlayer !== 'none' ? 'md:border-l border-white/5' : ''}
             flex flex-col z-10 transition-all duration-500 ease-out-expo min-h-0 relative
