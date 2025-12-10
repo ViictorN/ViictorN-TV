@@ -5,8 +5,9 @@ import { SettingsModal } from './components/SettingsModal';
 import { OfflineScreen } from './components/OfflineScreen';
 import { UserCard } from './components/UserCard';
 import { BookmarksModal } from './components/BookmarksModal'; // New Import
-import { SendIcon, PlatformIcon } from './components/Icons';
-import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, EmoteMap, ChatSettings, User } from './types';
+import { EmotePicker } from './components/EmotePicker'; // New Import
+import { SendIcon, PlatformIcon, SmileyIcon } from './components/Icons';
+import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, EmoteMap, ChatSettings, User, TwitchEmote } from './types';
 import { TwitchConnection, KickConnection } from './services/chatConnection';
 import { analyzeChatVibe } from './services/geminiService';
 import { fetch7TVEmotes } from './services/sevenTVService';
@@ -113,6 +114,7 @@ export default function App() {
   
   // New: Bookmarks Modal State
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
+  const [isEmotePickerOpen, setIsEmotePickerOpen] = useState(false); // New State
   
   const [twitchCreds, setTwitchCreds] = useState<TwitchCreds>(() => {
     if (typeof window !== 'undefined') {
@@ -135,6 +137,7 @@ export default function App() {
   const [channelBadges, setChannelBadges] = useState<BadgeMap>({});
   const [kickBadges, setKickBadges] = useState<BadgeMap>({});
   const [sevenTVEmotes, setSevenTVEmotes] = useState<EmoteMap>({});
+  const [twitchEmotes, setTwitchEmotes] = useState<TwitchEmote[]>([]); // New State
   
   // Avatar Cache
   const [avatarCache, setAvatarCache] = useState<Record<string, string>>({});
@@ -622,7 +625,7 @@ export default function App() {
             setAuthState(prev => ({ ...prev, twitchUsername: myData.data[0].display_name }));
         }
 
-        // 2. Get Broadcaster ID (Gabepeixe) for Channel Badges
+        // 2. Get Broadcaster ID (Gabepeixe) for Channel Badges & Emotes
         const streamerRes = await fetch(`https://api.twitch.tv/helix/users?login=${TWITCH_USER_LOGIN}`, { headers });
         const streamerData = await streamerRes.json();
         const streamerId = streamerData.data?.[0]?.id;
@@ -633,6 +636,13 @@ export default function App() {
              const cbData = await cbRes.json();
              if (cbData.data) {
                 setChannelBadges(parseHelixBadges(cbData.data));
+             }
+
+             // --- NEW: Fetch Channel Emotes ---
+             const emotesRes = await fetch(`https://api.twitch.tv/helix/chat/emotes?broadcaster_id=${streamerId}`, { headers });
+             const emotesData = await emotesRes.json();
+             if (emotesData.data) {
+                 setTwitchEmotes(emotesData.data);
              }
         }
 
@@ -729,6 +739,17 @@ export default function App() {
           if (prev.length > 0) return `${prev} @${username} `;
           return `@${username} `;
       });
+  };
+  
+  // Emote Selection Handler
+  const handleEmoteSelect = (emoteCode: string) => {
+      setChatInput(prev => {
+          if (prev.endsWith(' ')) return `${prev}${emoteCode} `;
+          if (prev.length > 0) return `${prev} ${emoteCode} `;
+          return `${emoteCode} `;
+      });
+      // Optionally close picker or keep open for multi-select
+      // setIsEmotePickerOpen(false); 
   };
 
   const handleUserClick = (user: User, platform: Platform) => {
@@ -1182,6 +1203,16 @@ export default function App() {
               <div className="w-full z-30 bg-black/60 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_30px_rgba(0,0,0,0.5)] shrink-0">
                  <div className="p-3">
                     <div className={`relative flex items-center bg-black/40 rounded-2xl border transition-all duration-300 ease-out-expo ${commentPlatform === 'twitch' ? 'border-twitch/30 focus-within:border-twitch/80 shadow-[0_0_20px_rgba(145,70,255,0.05)]' : 'border-kick/30 focus-within:border-kick/80 shadow-[0_0_20px_rgba(83,252,24,0.05)]'}`}>
+                        
+                        {/* EMOTE PICKER (ABSOLUTE) */}
+                        <EmotePicker 
+                            isOpen={isEmotePickerOpen}
+                            onClose={() => setIsEmotePickerOpen(false)}
+                            onSelect={handleEmoteSelect}
+                            sevenTVEmotes={sevenTVEmotes}
+                            twitchEmotes={twitchEmotes}
+                        />
+
                         <div className="pl-1.5 pr-1 py-1">
                             <motion.button 
                                 whileTap={{ scale: 0.9 }}
@@ -1201,6 +1232,16 @@ export default function App() {
                             className="w-full bg-transparent text-white px-2 py-3 text-sm focus:outline-none placeholder-white/20"
                         />
                         
+                        {/* EMOTE BUTTON */}
+                        <motion.button 
+                             whileHover={{ scale: 1.1 }}
+                             whileTap={{ scale: 0.9 }}
+                             onClick={() => setIsEmotePickerOpen(!isEmotePickerOpen)}
+                             className={`p-2 transition-colors ${isEmotePickerOpen ? 'text-yellow-400' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            <SmileyIcon className="w-5 h-5" />
+                        </motion.button>
+
                         <motion.button 
                             whileHover={{ scale: 1.1, rotate: -10 }}
                             whileTap={{ scale: 0.9, rotate: 0 }}

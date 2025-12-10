@@ -95,6 +95,19 @@ export type BadgeMap = Record<string, Record<string, string>>;
 // Map: EmoteName -> ImageURL
 export type EmoteMap = Record<string, string>;
 
+export interface TwitchEmote {
+    id: string;
+    name: string;
+    images: {
+        url_1x: string;
+        url_2x: string;
+        url_4x: string;
+    };
+    format: string[];
+    scale: string[];
+    theme_mode: string[];
+}
+
 export interface TwitchCreds {
   clientId: string;
   accessToken: string;
