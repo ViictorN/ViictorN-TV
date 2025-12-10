@@ -322,8 +322,10 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   );
 
   const zebraClass = settings.alternatingBackground && index % 2 === 0 ? 'bg-white/[0.02]' : '';
-  const hoverClass = 'hover:bg-white/5';
-  const mentionClass = isMention ? 'bg-red-500/20 border-l-2 border-red-500' : 'border-l-2 border-transparent';
+  const hoverClass = 'hover:liquid-glass transition-all duration-300';
+  
+  // Updated Mention Class: Glass effect instead of flat red
+  const mentionClass = isMention ? 'liquid-glass border-l-2 border-red-500 shadow-[inset_0_0_20px_rgba(239,68,68,0.2)]' : 'border-l-2 border-transparent';
   const deletedClass = message.isDeleted && settings.deletedMessageBehavior === 'hide' ? 'hidden' : '';
 
   const usernameColor = message.user.color || (message.platform === Platform.TWITCH ? '#9146FF' : '#53FC18');
@@ -349,7 +351,7 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
                 <img 
                     src={displayAvatar} 
                     alt={message.user.username} 
-                    className="w-[28px] h-[28px] rounded-full object-cover bg-gray-800" 
+                    className="w-[28px] h-[28px] rounded-full object-cover bg-gray-800 shadow-sm" 
                     loading="lazy" 
                     onError={() => setImageError(true)}
                 />
@@ -368,11 +370,11 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   if (message.isSubscription) {
       const isTwitch = message.platform === Platform.TWITCH;
       const subStyle = isTwitch 
-        ? "bg-gradient-to-r from-[#9146FF]/20 via-[#9146FF]/5 to-transparent border-[#9146FF]" 
-        : "bg-gradient-to-r from-[#53FC18]/20 via-[#53FC18]/5 to-transparent border-[#53FC18]";
+        ? "liquid-glass border-l-4 border-l-[#9146FF]" 
+        : "liquid-glass border-l-4 border-l-[#53FC18]";
 
       return (
-        <div className={`group flex items-start gap-3 py-3 px-3 mx-1 my-2 rounded-lg border-l-4 relative transition-all animate-fade-in shadow-sm ${subStyle}`}>
+        <div className={`group flex items-start gap-3 py-3 px-3 mx-1 my-2 rounded-lg relative transition-all animate-fade-in shadow-lg ${subStyle}`}>
              {!settings.hideAvatars && AvatarComponent}
              <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -397,7 +399,7 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
 
   // --- STANDARD RENDER ---
   return (
-    <div className={`group flex items-start gap-2 py-1 px-2 transition-colors relative ${zebraClass} ${hoverClass} ${mentionClass} ${deletedClass}`}>
+    <div className={`group flex items-start gap-2 py-1 px-2 relative border-b border-transparent hover:border-white/5 ${zebraClass} ${hoverClass} ${mentionClass} ${deletedClass}`}>
       
       {!settings.hideAvatars && AvatarComponent}
 
@@ -407,8 +409,8 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
                   {/* Connector Line */}
                   <div className="w-3 h-3 border-l-2 border-t-2 border-gray-500 rounded-tl-lg mt-2"></div>
                   
-                  {/* Reply Bubble - Improved Visibility */}
-                  <div className="flex items-center gap-2 bg-[#2a2a2d] rounded-md pl-1.5 pr-2 py-1 border border-white/10 max-w-full">
+                  {/* Reply Bubble - UPDATED TO LIQUID GLASS */}
+                  <div className="flex items-center gap-2 liquid-glass rounded-md pl-1.5 pr-2 py-1 max-w-full backdrop-blur-md">
                       <div className="flex items-center gap-1 shrink-0">
                           <span className="text-[10px] text-gray-400 select-none">@</span>
                           <span className="text-[10px] font-bold text-white">{message.replyTo.username}</span>

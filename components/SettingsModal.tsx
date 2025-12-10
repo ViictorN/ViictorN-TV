@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TwitchCreds, ChatSettings } from '../types';
 import { PlatformIcon } from './Icons';
+import { motion } from 'framer-motion';
 
 interface Props {
   isOpen: boolean;
@@ -85,9 +86,14 @@ export const SettingsModal: React.FC<Props> = ({
                 </h2>
                 <p className="text-xs text-gray-400 mt-1">Conexões, aparência e ferramentas de chat</p>
              </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70 transition-colors">
+            <motion.button 
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onClose} 
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/70"
+            >
                 ✕
-            </button>
+            </motion.button>
         </div>
         
         <div className="p-6 md:p-8 space-y-8">
@@ -379,14 +385,16 @@ export const SettingsModal: React.FC<Props> = ({
         </div>
 
         <div className="p-6 border-t border-white/5 bg-black/40 backdrop-blur-md mt-auto shrink-0 sticky bottom-0 z-30">
-            <button 
+            <motion.button 
                 type="button"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={handleSave}
-                className="w-full py-4 rounded-2xl text-sm font-bold bg-white text-black hover:bg-gray-200 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)] active:scale-[0.98] flex items-center justify-center gap-2"
+                className="w-full py-4 rounded-2xl text-sm font-bold bg-white text-black transition-colors shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2"
             >
                 <span>Salvar & Aplicar</span>
                 <span className="text-lg">⚡</span>
-            </button>
+            </motion.button>
         </div>
       </div>
     </div>

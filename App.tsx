@@ -9,6 +9,7 @@ import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, E
 import { TwitchConnection, KickConnection } from './services/chatConnection';
 import { analyzeChatVibe } from './services/geminiService';
 import { fetch7TVEmotes } from './services/sevenTVService';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const MAX_MESSAGES = 500;
 const STREAMER_SLUG = 'gabepeixe';
@@ -767,6 +768,9 @@ export default function App() {
       ? messages.slice(-100) 
       : messages;
 
+  // Determine if we show input: Twitch Login OR Kick Token Present
+  const canChat = Boolean(authState.twitch || authState.kickAccessToken);
+
   return (
     <div className="flex flex-col h-[100dvh] w-full overflow-hidden font-sans bg-black relative">
       <SettingsModal 
@@ -783,15 +787,19 @@ export default function App() {
 
       {/* FLOATING BUTTON: Exit Cinema Mode */}
       {chatSettings.cinemaMode && (
-         <button 
+         <motion.button 
+           initial={{ opacity: 0, scale: 0.8 }}
+           animate={{ opacity: 1, scale: 1 }}
+           whileHover={{ scale: 1.1 }}
+           whileTap={{ scale: 0.9 }}
            onClick={toggleCinemaMode}
-           className="fixed top-4 right-4 z-[999] bg-black/60 hover:bg-black/90 text-white/70 hover:text-white p-3 rounded-full backdrop-blur-md transition-all border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] active:scale-95 group animate-fade-in"
+           className="fixed top-4 right-4 z-[999] bg-black/60 hover:bg-black/90 text-white/70 hover:text-white p-3 rounded-full backdrop-blur-md border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] group"
            title="Sair do Modo Cinema (Mostrar Cabeçalho)"
          >
            <div className="group-hover:rotate-180 transition-transform duration-500">
              <span className="text-xl leading-none block">✕</span>
            </div>
-         </button>
+         </motion.button>
       )}
 
       {/* USER CARD POPUP */}
@@ -919,22 +927,29 @@ export default function App() {
             flex flex-col z-10 transition-all duration-500 ease-out-expo min-h-0 relative
         `}>
           
-           {/* Mobile Chat Filter */}
-           <div className={`md:hidden flex justify-center py-2 bg-black border-b border-white/5 ${activePlayer !== 'none' ? 'hidden' : ''}`}>
-               <div className="flex p-1 bg-white/5 rounded-full border border-white/5">
-                   <button onClick={() => setChatFilter('all')} className={`px-4 py-1 rounded-full text-xs ${chatFilter === 'all' ? 'bg-white/20' : 'text-gray-500'}`}>All</button>
-                   <button onClick={() => setChatFilter('twitch')} className={`px-4 py-1 rounded-full text-xs ${chatFilter === 'twitch' ? 'bg-twitch/20 text-twitch' : 'text-gray-500'}`}>Twitch</button>
-                   <button onClick={() => setChatFilter('kick')} className={`px-4 py-1 rounded-full text-xs ${chatFilter === 'kick' ? 'bg-kick/20 text-kick' : 'text-gray-500'}`}>Kick</button>
-               </div>
-           </div>
-
-          {/* Messages */}
+          {/* Messages - ADDED PADDING BOTTOM FOR FLOATING INPUT */}
           <div 
-            className="flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-2 scroll-smooth" 
+            className={`flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-0 scroll-smooth ${canChat ? 'pb-20' : 'pb-4'}`}
             ref={chatContainerRef}
             onScroll={handleScroll}
             >
-            <div className="min-h-full flex flex-col justify-end pb-2">
+            
+            {/* Mobile Chat Filter - STICKY INSIDE SCROLL CONTAINER FOR LIQUID EFFECT */}
+            <div className={`md:hidden sticky top-4 z-50 mx-6 mb-4 animate-fade-in ${activePlayer !== 'none' ? 'hidden' : ''}`}>
+               <div className="liquid-glass rounded-full flex justify-center py-2 px-2 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+                   <div className="flex items-center gap-1">
+                       <button onClick={() => setChatFilter('all')} className={`px-5 py-1.5 rounded-full text-xs font-bold transition-all ${chatFilter === 'all' ? 'bg-white/20 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}>All</button>
+                       <button onClick={() => setChatFilter('twitch')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${chatFilter === 'twitch' ? 'bg-twitch/20 text-twitch shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}>
+                           Twitch
+                       </button>
+                       <button onClick={() => setChatFilter('kick')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${chatFilter === 'kick' ? 'bg-kick/20 text-kick shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}>
+                           Kick
+                       </button>
+                   </div>
+               </div>
+            </div>
+
+            <div className="min-h-full flex flex-col justify-end">
                 {visibleMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-white/20 space-y-2">
                     <div className="text-2xl animate-pulse">⚡</div>
@@ -981,12 +996,18 @@ export default function App() {
                 )}
             </div>
 
-            {/* PAUSE / UNREAD INDICATOR */}
+            {/* PAUSE / UNREAD INDICATOR - ANIMATED */}
+            <AnimatePresence>
             {isPaused && (
                 <div className="sticky bottom-4 flex justify-center w-full z-20 pointer-events-none">
-                    <button 
+                    <motion.button 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={scrollToBottom}
-                        className="pointer-events-auto bg-black/80 hover:bg-black text-white backdrop-blur-md border border-white/20 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 text-xs font-bold transition-all active:scale-95 animate-slide-up group"
+                        className="pointer-events-auto bg-black/80 hover:bg-black text-white backdrop-blur-md border border-white/20 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 text-xs font-bold group"
                     >
                         {unreadCount > 0 ? (
                             <>
@@ -999,24 +1020,26 @@ export default function App() {
                                 <span>Chat Pausado</span>
                             </>
                         )}
-                    </button>
+                    </motion.button>
                 </div>
             )}
+            </AnimatePresence>
           </div>
 
-          {/* Input Area */}
-          {(authState.twitch || authState.kickAccessToken) && (
-              <div className="bg-black border-t border-white/5 pb-[env(safe-area-inset-bottom)]">
+          {/* Input Area - FLOATING LIQUID GLASS STYLE (Manual Fix) */}
+          {canChat && (
+              <div className="absolute bottom-0 left-0 right-0 z-30 bg-black/60 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
                  <div className="p-3">
-                    <div className={`relative flex items-center bg-white/5 rounded-2xl border transition-all duration-300 ease-out-expo ${commentPlatform === 'twitch' ? 'border-twitch/30 focus-within:border-twitch/80 shadow-[0_0_20px_rgba(145,70,255,0.05)]' : 'border-kick/30 focus-within:border-kick/80 shadow-[0_0_20px_rgba(83,252,24,0.05)]'}`}>
+                    <div className={`relative flex items-center bg-black/40 rounded-2xl border transition-all duration-300 ease-out-expo ${commentPlatform === 'twitch' ? 'border-twitch/30 focus-within:border-twitch/80 shadow-[0_0_20px_rgba(145,70,255,0.05)]' : 'border-kick/30 focus-within:border-kick/80 shadow-[0_0_20px_rgba(83,252,24,0.05)]'}`}>
                         {/* Platform Selector */}
                         <div className="pl-1.5 pr-1 py-1">
-                            <button 
+                            <motion.button 
+                                whileTap={{ scale: 0.9 }}
                                 onClick={() => setCommentPlatform(prev => prev === 'twitch' ? 'kick' : 'twitch')}
-                                className={`p-2 rounded-xl transition-all duration-300 ${commentPlatform === 'twitch' ? 'bg-twitch/10 text-twitch hover:bg-twitch/20' : 'bg-kick/10 text-kick hover:bg-kick/20'}`}
+                                className={`p-2 rounded-xl transition-colors ${commentPlatform === 'twitch' ? 'bg-twitch/10 text-twitch hover:bg-twitch/20' : 'bg-kick/10 text-kick hover:bg-kick/20'}`}
                             >
                                 <PlatformIcon platform={commentPlatform} variant={commentPlatform === 'twitch' ? 'white' : 'default'} className="w-4 h-4" />
-                            </button>
+                            </motion.button>
                         </div>
 
                         <input 
@@ -1028,13 +1051,15 @@ export default function App() {
                             className="w-full bg-transparent text-white px-2 py-3 text-sm focus:outline-none placeholder-white/20"
                         />
                         
-                        <button 
+                        <motion.button 
+                            whileHover={{ scale: 1.1, rotate: -10 }}
+                            whileTap={{ scale: 0.9, rotate: 0 }}
                             onClick={handleSendMessage}
                             disabled={!chatInput.trim()}
-                            className={`p-2 mr-1 rounded-xl transition-all duration-300 ${chatInput.trim() ? (commentPlatform === 'twitch' ? 'text-twitch hover:bg-twitch/10' : 'text-kick hover:bg-kick/10') : 'text-white/20 cursor-not-allowed'}`}
+                            className={`p-2 mr-1 rounded-xl transition-colors ${chatInput.trim() ? (commentPlatform === 'twitch' ? 'text-twitch hover:bg-twitch/10' : 'text-kick hover:bg-kick/10') : 'text-white/20 cursor-not-allowed'}`}
                         >
                             <SendIcon className="w-5 h-5" />
-                        </button>
+                        </motion.button>
                     </div>
                     
                     {commentPlatform === 'kick' && !kickAccessToken && (

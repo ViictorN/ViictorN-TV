@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TwitchCreds } from '../types';
 import { PlatformIcon } from './Icons';
+import { motion } from 'framer-motion';
 
 interface Props {
   twitchCreds: TwitchCreds;
@@ -90,12 +91,13 @@ export const OfflineScreen: React.FC<Props> = ({ twitchCreds, streamerSlug, onFo
                      </h3>
                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                          {clips.map(clip => (
-                             <a 
+                             <motion.a 
+                                whileHover={{ scale: 1.05 }}
                                 key={clip.id} 
                                 href={clip.url} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="group relative aspect-video bg-gray-900 rounded-xl overflow-hidden border border-white/10 hover:border-twitch/50 transition-all"
+                                className="group relative aspect-video bg-gray-900 rounded-xl overflow-hidden border border-white/10 transition-colors"
                              >
                                  <img src={clip.thumbnail_url} alt={clip.title} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
                                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent p-3 flex flex-col justify-end">
@@ -105,7 +107,7 @@ export const OfflineScreen: React.FC<Props> = ({ twitchCreds, streamerSlug, onFo
                                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                                  </div>
-                             </a>
+                             </motion.a>
                          ))}
                      </div>
                 </div>
@@ -113,24 +115,28 @@ export const OfflineScreen: React.FC<Props> = ({ twitchCreds, streamerSlug, onFo
 
             {/* Actions */}
             <div className="flex flex-wrap justify-center gap-4">
-                <a 
+                <motion.a 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     href={`https://www.twitch.tv/${streamerSlug}/videos`} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="px-5 py-3 rounded-xl bg-[#9146FF]/10 hover:bg-[#9146FF]/20 text-[#9146FF] border border-[#9146FF]/20 hover:border-[#9146FF]/50 transition-all font-bold text-xs md:text-sm flex items-center gap-2"
+                    className="px-5 py-3 rounded-xl bg-[#9146FF]/10 hover:bg-[#9146FF]/20 text-[#9146FF] border border-[#9146FF]/20 hover:border-[#9146FF]/50 transition-colors font-bold text-xs md:text-sm flex items-center gap-2"
                 >
                     <PlatformIcon platform="twitch" className="w-4 h-4" />
                     VODs Twitch
-                </a>
-                <a 
+                </motion.a>
+                <motion.a 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     href={`https://kick.com/${streamerSlug}/videos`} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="px-5 py-3 rounded-xl bg-[#53FC18]/10 hover:bg-[#53FC18]/20 text-[#53FC18] border border-[#53FC18]/20 hover:border-[#53FC18]/50 transition-all font-bold text-xs md:text-sm flex items-center gap-2"
+                    className="px-5 py-3 rounded-xl bg-[#53FC18]/10 hover:bg-[#53FC18]/20 text-[#53FC18] border border-[#53FC18]/20 hover:border-[#53FC18]/50 transition-colors font-bold text-xs md:text-sm flex items-center gap-2"
                 >
                     <PlatformIcon platform="kick" className="w-4 h-4" />
                     VODs Kick
-                </a>
+                </motion.a>
             </div>
 
             {/* Emergency Play Button */}
