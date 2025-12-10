@@ -933,7 +933,7 @@ export default function App() {
           
           {/* Messages - ADDED PADDING BOTTOM FOR FLOATING INPUT */}
           <div 
-            className={`flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-0 scroll-smooth ${canChat ? 'pb-20' : 'pb-4'}`}
+            className={`flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-0 scroll-smooth ${canChat ? 'pb-2' : 'pb-4'}`}
             ref={chatContainerRef}
             onScroll={handleScroll}
             >
@@ -1030,9 +1030,9 @@ export default function App() {
             </AnimatePresence>
           </div>
 
-          {/* Input Area - FLOATING LIQUID GLASS STYLE (Manual Fix) */}
+          {/* Input Area - Fixed Layout for Mobile Stability */}
           {canChat && (
-              <div className="absolute bottom-0 left-0 right-0 z-30 bg-black/60 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+              <div className="w-full z-30 bg-black/60 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_30px_rgba(0,0,0,0.5)] shrink-0">
                  <div className="p-3">
                     <div className={`relative flex items-center bg-black/40 rounded-2xl border transition-all duration-300 ease-out-expo ${commentPlatform === 'twitch' ? 'border-twitch/30 focus-within:border-twitch/80 shadow-[0_0_20px_rgba(145,70,255,0.05)]' : 'border-kick/30 focus-within:border-kick/80 shadow-[0_0_20px_rgba(83,252,24,0.05)]'}`}>
                         {/* Platform Selector */}
