@@ -99,3 +99,14 @@ export interface TwitchCreds {
   clientId: string;
   accessToken: string;
 }
+
+// Backend Integration Types
+export type AuthMode = 'local' | 'cloud';
+
+export interface UserProfile {
+  id: string;
+  email?: string;
+  twitch_token?: string; // Encrypted or from Provider
+  kick_token?: string;
+  settings?: ChatSettings;
+}

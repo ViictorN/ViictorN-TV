@@ -9,6 +9,8 @@ import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, E
 import { TwitchConnection, KickConnection } from './services/chatConnection';
 import { analyzeChatVibe } from './services/geminiService';
 import { fetch7TVEmotes } from './services/sevenTVService';
+import { handleKickCallback, fetchKickUserProfile } from './services/kickAuthService';
+import { isBackendConfigured, getSession, getUserProfile, updateUserProfile } from './services/supabaseService'; // IMPORTED
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MAX_MESSAGES = 500;
@@ -54,6 +56,9 @@ export default function App() {
     kickUsername: '',
     kickAccessToken: ''
   });
+
+  // Cloud State
+  const [cloudUserId, setCloudUserId] = useState<string | null>(null);
 
   // Settings State (Persisted)
   const [chatSettings, setChatSettings] = useState<ChatSettings>(() => {
@@ -139,6 +144,48 @@ export default function App() {
   const kickRef = useRef<KickConnection | null>(null);
   const messageQueue = useRef<ChatMessage[]>([]);
   
+  // --- CLOUD SYNC INITIALIZATION ---
+  useEffect(() => {
+    const initCloud = async () => {
+        if (isBackendConfigured()) {
+            const session = await getSession();
+            if (session?.user) {
+                console.log("[App] Cloud Session Active:", session.user.id);
+                setCloudUserId(session.user.id);
+                
+                // Fetch Data from Cloud
+                const profile = await getUserProfile(session.user.id);
+                if (profile) {
+                    console.log("[App] Cloud Profile Loaded");
+                    if (profile.settings) setChatSettings(prev => ({ ...prev, ...profile.settings }));
+                    if (profile.twitch_creds) setTwitchCreds(prev => ({ ...prev, ...profile.twitch_creds }));
+                    if (profile.kick_creds) {
+                        setKickUsername(profile.kick_creds.username || '');
+                        setKickAccessToken(profile.kick_creds.token || '');
+                    }
+                }
+            }
+        }
+    };
+    initCloud();
+  }, []);
+
+  // --- CLOUD AUTO-SAVE (Debounced) ---
+  useEffect(() => {
+    if (cloudUserId) {
+        const timeout = setTimeout(() => {
+            console.log("[App] Auto-saving to Cloud...");
+            updateUserProfile(cloudUserId, {
+                settings: chatSettings,
+                twitch_creds: twitchCreds,
+                kick_creds: { username: kickUsername, token: kickAccessToken }
+            });
+        }, 3000); // 3 seconds debounce
+        return () => clearTimeout(timeout);
+    }
+  }, [chatSettings, twitchCreds, kickUsername, kickAccessToken, cloudUserId]);
+
+
   // Init logic
   useEffect(() => {
     // Initialize Seen Users from LOCAL STORAGE
@@ -164,6 +211,46 @@ export default function App() {
         }
         return;
     }
+
+    // --- KICK AUTH CALLBACK HANDLER ---
+    // Detects ?code=... from Kick redirect
+    const urlParams = new URLSearchParams(window.location.search);
+    const kickCode = urlParams.get('code');
+    
+    if (kickCode) {
+        const savedClientId = localStorage.getItem('kick_client_id_temp');
+        if (savedClientId) {
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            // Perform Exchange
+            handleKickCallback(kickCode, savedClientId, window.location.origin)
+                .then(async (data) => {
+                    if (data.access_token) {
+                        const profile = await fetchKickUserProfile(data.access_token);
+                        
+                        // Save Creds
+                        setKickAccessToken(data.access_token);
+                        localStorage.setItem('kick_access_token', data.access_token);
+                        
+                        if (profile) {
+                            setKickUsername(profile.username);
+                            localStorage.setItem('kick_username', profile.username);
+                        }
+                        
+                        setIsSettingsOpen(true);
+                        alert("Kick Login com Sucesso!");
+                    }
+                })
+                .catch(err => {
+                    alert("Erro no Login Kick: " + err.message);
+                })
+                .finally(() => {
+                    localStorage.removeItem('kick_client_id_temp');
+                });
+        }
+    }
+
 
     // --- MAIN APP HANDLER (PARENT) ---
     const handleMessage = (event: MessageEvent) => {
@@ -194,7 +281,7 @@ export default function App() {
     };
   }, []);
 
-  // --- PERSISTENCE EFFECT ---
+  // --- PERSISTENCE EFFECT (LOCAL) ---
   useEffect(() => {
     localStorage.setItem('chat_settings', JSON.stringify(chatSettings));
   }, [chatSettings]);
@@ -787,6 +874,11 @@ export default function App() {
         onSaveKick={saveKickSettings}
         chatSettings={chatSettings}
         onUpdateSettings={setChatSettings}
+        onForceLoadCloud={() => {
+            // Manual re-fetch handler if needed, currently auto-handled by effects
+            // We can refresh the window or force logic here
+            window.location.reload(); 
+        }}
       />
 
       {/* FLOATING BUTTON: Exit Cinema Mode */}
