@@ -1,11 +1,10 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { SavedMessage, UserNote } from '../types';
 
-// Environment variables - Support both Create-React-App and Vite patterns
-// On Vercel + Vite, it uses import.meta.env.VITE_...
-// On Vercel + CRA, it uses process.env.REACT_APP_...
-const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || (import.meta as any).env?.VITE_SUPABASE_URL;
-const SUPABASE_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
+// Environment variables with Hardcoded Fallback for Vercel/Production
+// Isso garante que funcione mesmo sem configurar variáveis de ambiente no painel da Vercel
+const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || (import.meta as any).env?.VITE_SUPABASE_URL || 'https://ewlrbudjojzgrzdmfexa.supabase.co';
+const SUPABASE_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3bHJidWRqb2p6Z3J6ZG1mZXhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzODU5OTcsImV4cCI6MjA4MDk2MTk5N30.joBk-QkP84XMx8o2mDIpI6lR3wQaeZrZQcGHhqWyg7U';
 
 let supabase: SupabaseClient | null = null;
 
@@ -17,8 +16,7 @@ if (SUPABASE_URL && SUPABASE_KEY) {
     console.warn('[Backend] Failed to initialize Supabase client:', e);
   }
 } else {
-    // This often renders in local dev if env vars aren't set, but in Vercel they should be present.
-    console.log('[Backend] Supabase credentials not found. App running in Offline mode (Local Storage only).');
+    console.error('[Backend] CRITICAL: Supabase credentials missing.');
 }
 
 export const isBackendConfigured = (): boolean => {
@@ -28,9 +26,9 @@ export const isBackendConfigured = (): boolean => {
 // --- AUTH METHODS ---
 
 export const signInWithTwitch = async () => {
-    if (!supabase) throw new Error("Backend não configurado.");
+    if (!supabase) throw new Error("Backend não configurado. Verifique as credenciais no código.");
     
-    // Explicitly use window.location.origin to ensure redirects work on whatever domain this is running (Vercel or Localhost)
+    // Explicitly use window.location.origin to ensure redirects work on whatever domain this is running
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'twitch',
         options: {
