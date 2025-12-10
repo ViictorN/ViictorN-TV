@@ -50,11 +50,12 @@ export const ControlPanel: React.FC<Props> = ({
       <div className="flex items-center md:w-auto md:justify-start shrink-0 mr-2 gap-4">
         <div className="flex items-center gap-3 group cursor-default">
             <ViictorNLogo className="w-7 h-7 md:w-10 md:h-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_20px_rgba(145,70,255,0.4)] transition-all duration-500" />
-            <div className="hidden md:flex flex-col justify-center">
+            {/* HIDDEN ON TABLET (md), VISIBLE ON DESKTOP (lg) */}
+            <div className="hidden lg:flex flex-col justify-center">
                 <h1 className="font-display font-bold text-base leading-tight text-white tracking-wide">
-                  ViictorN
+                  ViictorN7
                 </h1>
-                <span className="text-[10px] font-medium text-white/30 uppercase tracking-widest group-hover:text-twitch transition-colors">Multi-Chat</span>
+                <span className="text-[10px] font-medium text-white/30 lowercase tracking-widest group-hover:text-twitch transition-colors">gabepeixe</span>
             </div>
         </div>
       </div>
@@ -92,7 +93,8 @@ export const ControlPanel: React.FC<Props> = ({
             </motion.button>
         </div>
 
-        {/* CHAT FILTER (VISIBLE ALWAYS on Desktop) */}
+        {/* CHAT FILTER (VISIBLE ALWAYS on Desktop/Tablet if space allows, but let's hide on MD if crowded) */}
+        {/* We keep it on SM+ because it's important, but compacted */}
         <div className="hidden sm:flex p-0.5 md:p-1 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 w-auto ml-2">
              <motion.button 
                 whileHover={{ scale: 1.05 }}
@@ -124,7 +126,7 @@ export const ControlPanel: React.FC<Props> = ({
       {/* 3. RIGHT: Stats & Desktop Tools */}
       <div className="flex items-center gap-2 justify-end shrink-0 ml-2">
         
-        {/* Mobile Settings Trigger */}
+        {/* Mobile Settings Trigger (Only on small mobile) */}
          <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={onOpenSettings}
@@ -133,16 +135,16 @@ export const ControlPanel: React.FC<Props> = ({
             <SettingsIcon className="w-4 h-4" />
         </motion.button>
 
-        {/* Desktop Stats & Tools */}
+        {/* Desktop Tools (Visible on Tablet MD+) */}
         <div className="hidden md:flex items-center gap-4">
             
-            {/* Sync Button */}
+            {/* Sync Button - HIDDEN ON TABLET (MD/LG), VISIBLE ON XL */}
             {activePlayer !== 'none' && (
                 <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={onSync}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg border border-red-500/20 hover:border-red-500/40"
+                    className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg border border-red-500/20 hover:border-red-500/40"
                     title="Sincronizar Player (Remove Delay)"
                 >
                     <span className="text-sm">⚡</span>
@@ -150,8 +152,8 @@ export const ControlPanel: React.FC<Props> = ({
                 </motion.button>
             )}
 
-            {/* Stats Pill */}
-            <div className="flex items-center gap-3 bg-black/40 backdrop-blur-sm px-4 py-2 rounded-2xl border border-white/10 shadow-lg cursor-default select-none">
+            {/* Stats Pill - HIDDEN ON TABLET (MD/LG), VISIBLE ON XL */}
+            <div className="hidden xl:flex items-center gap-3 bg-black/40 backdrop-blur-sm px-4 py-2 rounded-2xl border border-white/10 shadow-lg cursor-default select-none">
                 <div className="flex flex-col items-center min-w-[30px]">
                     <span className="text-[9px] font-bold text-gray-500 mb-0.5">TOT</span>
                     <motion.span 
@@ -174,10 +176,10 @@ export const ControlPanel: React.FC<Props> = ({
                 </div>
             </div>
 
-            {/* Separator */}
-            <div className="h-6 w-px bg-white/5"></div>
+            {/* Separator - HIDDEN ON TABLET */}
+            <div className="hidden xl:block h-6 w-px bg-white/5"></div>
 
-            {/* Tools */}
+            {/* Tools - ALWAYS VISIBLE ON MD+ */}
             <div className="flex items-center gap-2">
                 
                 {/* Cinema Mode Toggle */}

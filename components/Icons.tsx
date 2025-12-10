@@ -4,17 +4,32 @@ export const ViictorNLogo = ({ className }: { className?: string }) => (
   <svg className={`${className} animate-logo-float`} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="glassGradient" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stopColor="white" stopOpacity="0.2" />
-        <stop offset="100%" stopColor="white" stopOpacity="0.05" />
+        <stop offset="0%" stopColor="white" stopOpacity="0.15" />
+        <stop offset="100%" stopColor="white" stopOpacity="0.02" />
       </linearGradient>
-       <linearGradient id="accentGradient" x1="10" y1="30" x2="30" y2="10" gradientUnits="userSpaceOnUse">
+       <linearGradient id="accentGradient" x1="8" y1="32" x2="32" y2="8" gradientUnits="userSpaceOnUse">
         <stop offset="0%" stopColor="#9146FF" />
+        <stop offset="50%" stopColor="#ffffff" stopOpacity="0.8" />
         <stop offset="100%" stopColor="#53FC18" />
       </linearGradient>
+      <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="2" result="blur" />
+        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+      </filter>
     </defs>
     
-    <rect x="4" y="4" width="32" height="32" rx="8" fill="url(#glassGradient)" stroke="white" strokeOpacity="0.2" strokeWidth="1.5" />
-    <path d="M14 14L20 28L26 14" stroke="url(#accentGradient)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" filter="drop-shadow(0 0 4px rgba(255,255,255,0.5))" />
+    {/* Background Shape */}
+    <rect x="4" y="4" width="32" height="32" rx="10" fill="url(#glassGradient)" stroke="white" strokeOpacity="0.15" strokeWidth="1" />
+    
+    {/* Stylized V7 Shape */}
+    <path 
+        d="M11 11L19.5 28L29 9" 
+        stroke="url(#accentGradient)" 
+        strokeWidth="3.5" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        filter="url(#glow)"
+    />
   </svg>
 );
 

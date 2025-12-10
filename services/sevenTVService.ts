@@ -2,9 +2,7 @@ import { EmoteMap } from "../types";
 
 const SEVENTV_API_BASE = 'https://7tv.io/v3';
 
-// IDs do Gabepeixe (Hardcoded para performance, mas poderiam ser buscados)
-// Twitch ID do Gabepeixe: 45593883
-// Kick ID do Gabepeixe: 9766487
+// IDs do Gabepeixe
 const GABE_TWITCH_ID = '45593883'; 
 const GABE_KICK_ID = '9766487';
 
@@ -18,35 +16,47 @@ interface SevenTVEmote {
   }
 }
 
+// Helper to fetch with fallback
+const robustFetch = async (url: string) => {
+    // 1. Try Direct
+    try {
+        const res = await fetch(url);
+        if (res.ok) return await res.json();
+    } catch (e) {
+        // Ignore and try proxy
+    }
+
+    // 2. Try Proxy
+    try {
+       const resProxy = await fetch(`https://corsproxy.io/?${url}`);
+       if (resProxy.ok) return await resProxy.json();
+    } catch (e2) {
+       console.warn(`7TV Fetch Failed for ${url}`);
+       return null;
+    }
+    return null;
+};
+
 export const fetch7TVEmotes = async (): Promise<EmoteMap> => {
   const emoteMap: EmoteMap = {};
 
   try {
     // 1. Fetch Global Emotes
-    const globalRes = await fetch(`${SEVENTV_API_BASE}/emote-sets/global`);
-    if (globalRes.ok) {
-        const data = await globalRes.json();
-        processEmoteSet(data.emotes, emoteMap);
+    const globalData = await robustFetch(`${SEVENTV_API_BASE}/emote-sets/global`);
+    if (globalData && globalData.emotes) {
+        processEmoteSet(globalData.emotes, emoteMap);
     }
 
     // 2. Fetch Channel Emotes (Twitch Connection)
-    const twitchRes = await fetch(`${SEVENTV_API_BASE}/users/twitch/${GABE_TWITCH_ID}`);
-    if (twitchRes.ok) {
-        const data = await twitchRes.json();
-        if (data.emote_set?.emotes) {
-            processEmoteSet(data.emote_set.emotes, emoteMap);
-        }
+    const twitchData = await robustFetch(`${SEVENTV_API_BASE}/users/twitch/${GABE_TWITCH_ID}`);
+    if (twitchData && twitchData.emote_set?.emotes) {
+        processEmoteSet(twitchData.emote_set.emotes, emoteMap);
     }
 
     // 3. Fetch Channel Emotes (Kick Connection)
-    // Nota: A API v3 do 7TV unifica usuários, mas as vezes o set da Kick é separado.
-    // Vamos tentar buscar pelo ID user da kick se o da twitch não cobriu tudo.
-    const kickRes = await fetch(`${SEVENTV_API_BASE}/users/kick/${GABE_KICK_ID}`);
-    if (kickRes.ok) {
-        const data = await kickRes.json();
-        if (data.emote_set?.emotes) {
-            processEmoteSet(data.emote_set.emotes, emoteMap);
-        }
+    const kickData = await robustFetch(`${SEVENTV_API_BASE}/users/kick/${GABE_KICK_ID}`);
+    if (kickData && kickData.emote_set?.emotes) {
+        processEmoteSet(kickData.emote_set.emotes, emoteMap);
     }
 
   } catch (e) {
