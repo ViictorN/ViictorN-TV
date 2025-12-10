@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { ChatMessage, Platform, Badge, BadgeMap, EmoteMap, ChatSettings, User } from '../types';
 import { PlatformIcon } from './Icons';
+import { motion } from 'framer-motion';
 
 interface Props {
   message: ChatMessage;
@@ -369,12 +370,18 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   // --- SUBSCRIPTIONS ---
   if (message.isSubscription) {
       const isTwitch = message.platform === Platform.TWITCH;
+      
+      // Gradient Effect Style
       const subStyle = isTwitch 
-        ? "liquid-glass border-l-4 border-l-[#9146FF]" 
-        : "liquid-glass border-l-4 border-l-[#53FC18]";
+        ? "liquid-glass border-l-4 border-l-[#9146FF] bg-gradient-to-r from-[#9146FF]/20 via-[#9146FF]/5 to-transparent shadow-[inset_0_0_20px_rgba(145,70,255,0.1)]" 
+        : "liquid-glass border-l-4 border-l-[#53FC18] bg-gradient-to-r from-[#53FC18]/20 via-[#53FC18]/5 to-transparent shadow-[inset_0_0_20px_rgba(83,252,24,0.1)]";
 
       return (
-        <div className={`group flex items-start gap-3 py-3 px-3 mx-1 my-2 rounded-lg relative transition-all animate-fade-in shadow-lg ${subStyle}`}>
+        <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className={`group flex items-start gap-3 py-3 px-3 mx-1 my-2 rounded-lg relative transition-all shadow-lg ${subStyle}`}
+        >
              {!settings.hideAvatars && AvatarComponent}
              <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -393,7 +400,7 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
                        {renderContent}
                   </div>
              </div>
-        </div>
+        </motion.div>
       );
   }
 
