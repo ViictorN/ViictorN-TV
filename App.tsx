@@ -11,7 +11,7 @@ import { TwitchConnection, KickConnection } from './services/chatConnection';
 import { analyzeChatVibe } from './services/geminiService';
 import { fetch7TVEmotes } from './services/sevenTVService';
 import { handleKickCallback, fetchKickUserProfile } from './services/kickAuthService';
-import { isBackendConfigured, getSession, getUserProfile, updateUserProfile, saveMessage } from './services/supabaseService'; // New Import saveMessage
+import { isBackendConfigured, getSession, getUserProfile, updateUserProfile, saveMessage, getClient } from './services/supabaseService'; // New Import saveMessage
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MAX_MESSAGES = 500;
@@ -152,23 +152,74 @@ export default function App() {
   useEffect(() => {
     const initCloud = async () => {
         if (isBackendConfigured()) {
-            const session = await getSession();
+            const supabase = getClient();
+            if (!supabase) return;
+
+            // 1. Check current session
+            const { data: { session } } = await supabase.auth.getSession();
+            
+            // Helper to integrate Cloud Token into App State
+            const integrateCloudToken = async (sessionData: any) => {
+                if (sessionData?.provider_token) {
+                    console.log("[App] Found Twitch Cloud Token. Validating...");
+                    try {
+                        // We have the token, but we need the Client ID to make API calls work fully.
+                        // We ask Twitch to validate the token, which returns the Client ID.
+                        const res = await fetch('https://id.twitch.tv/oauth2/validate', {
+                            headers: { 'Authorization': `OAuth ${sessionData.provider_token}` }
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.client_id) {
+                                console.log("[App] Cloud Token Validated. Enabling Full Features.");
+                                const newCreds = { 
+                                    clientId: data.client_id, 
+                                    accessToken: sessionData.provider_token 
+                                };
+                                setTwitchCreds(newCreds);
+                                // We also update localStorage so it behaves like manual login
+                                localStorage.setItem('twitch_creds', JSON.stringify(newCreds));
+                            }
+                        }
+                    } catch (e) {
+                        console.warn("[App] Failed to validate cloud token", e);
+                    }
+                }
+            };
+
             if (session?.user) {
                 console.log("[App] Cloud Session Active:", session.user.id);
                 setCloudUserId(session.user.id);
-                
-                // Fetch Data from Cloud
+                integrateCloudToken(session); // Try to upgrade permissions immediately
+
+                // Fetch Data from Cloud DB
                 const profile = await getUserProfile(session.user.id);
                 if (profile) {
-                    console.log("[App] Cloud Profile Loaded");
                     if (profile.settings) setChatSettings(prev => ({ ...prev, ...profile.settings }));
-                    if (profile.twitch_creds) setTwitchCreds(prev => ({ ...prev, ...profile.twitch_creds }));
+                    // Only overwrite if we didn't just get a fresh provider token
+                    if (!session.provider_token && profile.twitch_creds) {
+                         setTwitchCreds(prev => ({ ...prev, ...profile.twitch_creds }));
+                    }
                     if (profile.kick_creds) {
                         setKickUsername(profile.kick_creds.username || '');
                         setKickAccessToken(profile.kick_creds.token || '');
                     }
                 }
             }
+
+            // 2. Listen for Auth Changes (Login/Logout)
+            const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+                if (event === 'SIGNED_IN' && session) {
+                    setCloudUserId(session.user.id);
+                    integrateCloudToken(session);
+                } else if (event === 'SIGNED_OUT') {
+                    setCloudUserId(null);
+                    // Optional: Clear creds on logout? 
+                    // For now, we keep them to act as "local cache" unless user explicitly clears in settings
+                }
+            });
+
+            return () => subscription.unsubscribe();
         }
     };
     initCloud();
@@ -178,7 +229,7 @@ export default function App() {
   useEffect(() => {
     if (cloudUserId) {
         const timeout = setTimeout(() => {
-            console.log("[App] Auto-saving to Cloud...");
+            // Only save if we actually have data to save
             updateUserProfile(cloudUserId, {
                 settings: chatSettings,
                 twitch_creds: twitchCreds,

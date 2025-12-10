@@ -262,6 +262,18 @@ export const SettingsModal: React.FC<Props> = ({
                                                 <div className="text-center">
                                                     <p className="font-bold text-lg">{cloudUser.user_metadata.full_name}</p>
                                                     <p className="text-xs text-gray-500">Conectado e Sincronizando</p>
+                                                    
+                                                    {/* Visual Indicator of Cloud Sync */}
+                                                    {clientId && accessToken ? (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 text-[10px] border border-green-500/20 mt-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                                            Token Ativo (Gerenciado)
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 text-[10px] border border-yellow-500/20 mt-2">
+                                                            Sincronizando Token...
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 
                                                 <div className="flex gap-2 mt-2">
