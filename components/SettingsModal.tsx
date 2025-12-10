@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TwitchCreds, ChatSettings, AuthMode } from '../types';
 import { PlatformIcon, SettingsIcon, UsersIcon } from './Icons';
 import { motion } from 'framer-motion';
-import { isBackendConfigured, signInWithTwitch, signOut, getSession } from '../services/supabaseService';
+import { signInWithTwitch } from '../services/supabaseService';
 import { initiateKickLogin } from '../services/kickAuthService';
 
 interface Props {
@@ -100,6 +100,14 @@ export const SettingsModal: React.FC<Props> = ({
 
   const handleCloudLogin = async () => {
       try { await signInWithTwitch(); } catch (e: any) { alert("Erro: " + e.message); }
+  };
+
+  const handleTwitchPopupLogin = () => {
+      if (!clientId) return alert("Por favor, insira um Client ID válido para usar o login Manual.");
+      const redirect = window.location.origin;
+      // Scopes: reading chat and sending messages
+      const url = `https://id.twitch.tv/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirect}&response_type=token&scope=chat:read+chat:edit`;
+      window.open(url, 'Twitch Auth', 'width=600,height=700');
   };
 
   // AUTOMATIC KICK LOGIN
@@ -229,24 +237,49 @@ export const SettingsModal: React.FC<Props> = ({
                             <div className="bg-white/5 border border-white/5 rounded-2xl p-4 md:p-6">
                                  <div className="flex gap-2 mb-4">
                                     <button onClick={() => setAuthMode('cloud')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${authMode === 'cloud' ? 'bg-twitch/20 text-twitch border border-twitch/30' : 'bg-black/20 text-gray-500 border border-white/5'}`}>
-                                        Cloud
+                                        Cloud (Supabase)
                                     </button>
                                     <button onClick={() => setAuthMode('local')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${authMode === 'local' ? 'bg-white/10 text-white border border-white/20' : 'bg-black/20 text-gray-500 border border-white/5'}`}>
-                                        Manual
+                                        Manual / Popup
                                     </button>
                                 </div>
 
                                 {authMode === 'local' && (
-                                     <div className="space-y-3">
-                                        <input type="text" value={clientId} onChange={e => setClientId(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-xs text-white" placeholder="Client ID" />
-                                        <input type="password" value={accessToken} onChange={e => setAccessToken(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-xs text-white" placeholder="Token" />
+                                     <div className="space-y-4">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Client ID</label>
+                                            <input type="text" value={clientId} onChange={e => setClientId(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-xs text-white" placeholder="Insira seu Client ID..." />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Access Token (Opcional)</label>
+                                            <input type="password" value={accessToken} onChange={e => setAccessToken(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-xs text-white" placeholder="Cole o token ou use o botão abaixo" />
+                                        </div>
+                                        
+                                        <div className="pt-2">
+                                            <button 
+                                                onClick={handleTwitchPopupLogin}
+                                                className="w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 border border-white/10"
+                                            >
+                                                <span>Gerar Token via Popup ↗</span>
+                                            </button>
+                                            <p className="text-[10px] text-gray-500 mt-2 text-center">
+                                                Requer que seu Client ID esteja configurado para permitir redirecionamento para este domínio.
+                                            </p>
+                                        </div>
                                      </div>
                                 )}
                                 {authMode === 'cloud' && (
-                                    <button onClick={handleCloudLogin} className="w-full py-3 bg-[#9146FF] hover:bg-[#7c3aed] text-white rounded-lg font-bold text-xs flex items-center justify-center gap-2">
-                                        <PlatformIcon platform="twitch" variant="white" className="w-4 h-4"/>
-                                        Login com Twitch
-                                    </button>
+                                    <div className="space-y-3">
+                                        <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                                            <p className="text-[11px] text-blue-200 leading-relaxed">
+                                                Usa o servidor do app para autenticar. Pode falhar se você estiver usando um domínio de teste não registrado (como AIStudio). Se falhar, use o modo Manual.
+                                            </p>
+                                        </div>
+                                        <button onClick={handleCloudLogin} className="w-full py-3 bg-[#9146FF] hover:bg-[#7c3aed] text-white rounded-lg font-bold text-xs flex items-center justify-center gap-2">
+                                            <PlatformIcon platform="twitch" variant="white" className="w-4 h-4"/>
+                                            Login com Twitch (Cloud)
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </section>

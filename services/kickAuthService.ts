@@ -1,13 +1,13 @@
-import { exchangeKickToken } from './supabaseService';
-
-// CLIENT ID FIXO (Público)
+// --- CREDENCIAIS DA KICK (FORNECIDAS PELO USUÁRIO) ---
 export const KICK_CLIENT_ID = "01KC09QDGSZ5VKZQED4QJ05KJ8";
+export const KICK_CLIENT_SECRET = "acfb15027646927309d8818800d8500bb88af5a81881e4ea667d00b62d7752e7";
 
 // Scopes necessários
 const SCOPES = "user:read channel:read chat:write events:subscribe";
 
 // Endpoints
 const KICK_AUTH_URL = "https://id.kick.com/oauth/authorize";
+const KICK_TOKEN_URL = "https://id.kick.com/oauth/token";
 const KICK_API_URL = "https://api.kick.com/public/v1";
 
 // Utils PKCE
@@ -32,7 +32,6 @@ async function generateCodeChallenge(codeVerifier: string) {
 
 // 1. INICIAR LOGIN (Browser)
 export const initiateKickLogin = async () => {
-    // Garante que a URI termina com barra se necessário, deve bater EXATAMENTE com o painel da Kick
     let redirectUri = window.location.origin;
     if (!redirectUri.endsWith('/')) redirectUri += '/';
 
@@ -50,39 +49,80 @@ export const initiateKickLogin = async () => {
       code_challenge_method: "S256"
     });
   
-    console.log(`[Kick Auth] Iniciando fluxo para: ${redirectUri}`);
+    console.log(`[Kick Auth] Iniciando login para: ${redirectUri}`);
     window.location.href = `${KICK_AUTH_URL}?${params.toString()}`;
 };
   
-// 2. PROCESSAR TOKEN (Via Supabase Edge Function)
+// 2. PROCESSAR TOKEN (Direto no Frontend com Proxy)
 export const handleKickCallback = async (code: string): Promise<KickTokenResponse> => {
     let redirectUri = window.location.origin;
     if (!redirectUri.endsWith('/')) redirectUri += '/';
 
     const codeVerifier = localStorage.getItem("kick_code_verifier");
-    if (!codeVerifier) throw new Error("Verificador PKCE perdido. Tente logar novamente.");
+    // Se não tiver verifier, tentamos sem ele (fluxo legado) ou geramos erro
+    if (!codeVerifier) console.warn("Verificador PKCE perdido, tentando troca simples...");
   
-    console.log("[Kick Auth] Enviando código para Backend Seguro (Supabase)...");
+    console.log("[Kick Auth] Trocando código por token...");
 
-    try {
-        // Esta função chama o Supabase, que usa o Client Secret protegido para trocar o token
-        const data = await exchangeKickToken(code, codeVerifier, redirectUri);
-        
-        localStorage.removeItem("kick_code_verifier");
-        
-        console.log("[Kick Auth] Sucesso!");
-        return data;
+    const params = new URLSearchParams();
+    params.append("grant_type", "authorization_code");
+    params.append("client_id", KICK_CLIENT_ID);
+    params.append("client_secret", KICK_CLIENT_SECRET);
+    params.append("redirect_uri", redirectUri);
+    params.append("code", code);
+    if (codeVerifier) params.append("code_verifier", codeVerifier);
 
-    } catch (error: any) {
-        console.error("Erro no Auth:", error);
-        throw new Error(`${error.message}`);
+    // Usamos um Proxy CORS porque a API da Kick bloqueia requisições diretas do navegador
+    const proxies = [
+        "https://corsproxy.io/?",
+        "https://api.allorigins.win/raw?url="
+    ];
+
+    let lastError;
+
+    for (const proxy of proxies) {
+        try {
+            const targetUrl = `${proxy}${encodeURIComponent(KICK_TOKEN_URL)}`;
+            console.log(`Tentando proxy: ${proxy}`);
+            
+            const response = await fetch(targetUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Accept": "application/json"
+                },
+                body: params
+            });
+
+            const text = await response.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                throw new Error("Resposta da Kick inválida (não é JSON).");
+            }
+
+            if (!response.ok || data.error) {
+                console.warn(`[Kick Auth] Erro no proxy ${proxy}:`, data);
+                throw new Error(data.error_description || data.error || "Erro desconhecido na troca de token");
+            }
+
+            // Sucesso!
+            localStorage.removeItem("kick_code_verifier");
+            return data;
+
+        } catch (e: any) {
+            console.warn(`[Kick Auth] Falha ao conectar via ${proxy}`, e);
+            lastError = e;
+        }
     }
+
+    throw lastError || new Error("Não foi possível conectar aos servidores de autenticação da Kick.");
 };
   
 // 3. PEGAR PERFIL
 export const fetchKickUserProfile = async (accessToken: string): Promise<KickUserProfile | null> => {
       try {
-          // A API da Kick pode precisar de Proxy se chamada do browser
           const res = await fetch(`https://corsproxy.io/?${KICK_API_URL}/users`, {
               headers: { 
                   "Authorization": `Bearer ${accessToken}`,
@@ -92,8 +132,8 @@ export const fetchKickUserProfile = async (accessToken: string): Promise<KickUse
           
           if (res.ok) {
               const data = await res.json();
-              // Ajuste conforme a resposta real da API v1 da Kick
               const user = data.data || data;
+              
               if (user) {
                   return {
                       id: user.id,

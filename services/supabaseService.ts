@@ -40,31 +40,9 @@ export const signInWithTwitch = async () => {
     return data;
 };
 
-// --- KICK SERVER-SIDE AUTH ---
+// REMOVED BROKEN EDGE FUNCTION CALL
 export const exchangeKickToken = async (code: string, codeVerifier: string, redirectUri: string) => {
-    if (!supabase) throw new Error("Supabase não inicializado.");
-
-    console.log("[Supabase] Invocando Edge Function 'kick-auth'...");
-
-    // Chama a Edge Function que contém o Client Secret seguro
-    const { data, error } = await supabase.functions.invoke('kick-auth', {
-        body: { 
-            code, 
-            code_verifier: codeVerifier, 
-            redirect_uri: redirectUri 
-        }
-    });
-
-    if (error) {
-        console.error("Erro na Edge Function:", error);
-        throw new Error("Falha na comunicação com o servidor de autenticação.");
-    }
-    
-    if (data.error) {
-        throw new Error("Erro retornado pela Kick: " + (data.error_description || data.error));
-    }
-
-    return data;
+    throw new Error("Use client-side exchange instead.");
 };
 
 export const signOut = async () => {
