@@ -277,18 +277,62 @@ export const SettingsModal: React.FC<Props> = ({
                     </motion.div>
                 )}
 
-                {/* OTHER TABS */}
+                {/* APPEARANCE TAB (RESTORED) */}
                 {activeTab === 'appearance' && (
-                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-                        <SectionHeader title="Estilo" />
-                        <ToggleSwitch checked={settings.showTimestamps} onChange={() => toggleSetting('showTimestamps')} label="Timestamps" />
-                        <ToggleSwitch checked={settings.hideAvatars} onChange={() => toggleSetting('hideAvatars')} label="Modo Compacto" />
-                        <ToggleSwitch checked={settings.rainbowUsernames} onChange={() => toggleSetting('rainbowUsernames')} label="Rainbow Users" />
-                        <ToggleSwitch checked={settings.cinemaMode} onChange={() => toggleSetting('cinemaMode')} label="Modo Cinema" />
-                     </motion.div>
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }} className="space-y-8">
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                            <div>
+                                <SectionHeader title="Estilo do Chat" />
+                                <div className="space-y-2">
+                                    <ToggleSwitch checked={settings.showTimestamps} onChange={() => toggleSetting('showTimestamps')} label="Horário (Timestamps)" />
+                                    <ToggleSwitch checked={settings.hideAvatars} onChange={() => toggleSetting('hideAvatars')} label="Modo Compacto" description="Oculta fotos de perfil." />
+                                    <ToggleSwitch checked={settings.alternatingBackground} onChange={() => toggleSetting('alternatingBackground')} label="Fundo Alternado (Zebra)" description="Linhas com cores diferentes." />
+                                    <ToggleSwitch checked={settings.showSeparator} onChange={() => toggleSetting('showSeparator')} label="Linhas de Separação" />
+                                    <ToggleSwitch checked={settings.rainbowUsernames} onChange={() => toggleSetting('rainbowUsernames')} label="Nicks Coloridos (Rainbow)" description="Animação RGB nos nomes." />
+                                </div>
+                            </div>
+                            <div>
+                                <SectionHeader title="Comportamento" />
+                                <div className="space-y-2">
+                                    <ToggleSwitch checked={settings.smoothScroll} onChange={() => toggleSetting('smoothScroll')} label="Rolagem Suave" />
+                                    <ToggleSwitch checked={settings.highlightMentions} onChange={() => toggleSetting('highlightMentions')} label="Destacar Menções (@)" />
+                                    <ToggleSwitch checked={settings.largeEmotes} onChange={() => toggleSetting('largeEmotes')} label="Emotes Grandes" />
+                                    <ToggleSwitch checked={settings.cinemaMode} onChange={() => toggleSetting('cinemaMode')} label="Modo Cinema" description="Esconde o topo inicialmente." />
+                                    <ToggleSwitch checked={settings.performanceMode} onChange={() => toggleSetting('performanceMode')} label="Modo Desempenho" description="Reduz carga no processador." />
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
                 )}
+                
+                 {/* MODERATION TAB (RESTORED) */}
                  {activeTab === 'moderation' && (
-                     <div className="text-center text-gray-500 text-xs py-10">Opções de moderação local.</div>
+                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }} className="space-y-6 max-w-3xl">
+                         <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-4 mb-6">
+                             <h4 className="text-red-400 font-bold text-sm mb-1">Nota Importante</h4>
+                             <p className="text-xs text-gray-400">Esses filtros funcionam localmente no seu navegador.</p>
+                         </div>
+                         <div className="space-y-6">
+                             <div>
+                                 <SectionHeader title="Usuários Bloqueados" />
+                                 <textarea 
+                                     value={blockedUsersStr}
+                                     onChange={(e) => setBlockedUsersStr(e.target.value)}
+                                     placeholder="Separe os nomes por vírgula. Ex: bot1, spammer123"
+                                     className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-xs text-white focus:border-red-500/50 outline-none h-32 resize-none leading-relaxed font-mono"
+                                 />
+                             </div>
+                             <div>
+                                 <SectionHeader title="Palavras Bloqueadas" />
+                                 <textarea 
+                                     value={blockedKeywordsStr}
+                                     onChange={(e) => setBlockedKeywordsStr(e.target.value)}
+                                     placeholder="Separe as palavras por vírgula. Mensagens contendo estas palavras serão ocultadas."
+                                     className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-xs text-white focus:border-red-500/50 outline-none h-32 resize-none leading-relaxed font-mono"
+                                 />
+                             </div>
+                         </div>
+                     </motion.div>
                 )}
             </div>
 
