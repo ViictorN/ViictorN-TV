@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { TwitchCreds, ChatSettings, AuthMode } from '../types';
-import { PlatformIcon, SettingsIcon, UsersIcon } from './Icons';
-import { motion } from 'framer-motion';
-import { signInWithTwitch } from '../services/supabaseService';
+import { PlatformIcon, CloudIcon, DatabaseIcon, SettingsIcon, UsersIcon } from './Icons';
+import { motion, AnimatePresence } from 'framer-motion';
+import { isBackendConfigured, signInWithTwitch, getSession, signOut } from '../services/supabaseService';
 import { initiateKickLogin } from '../services/kickAuthService';
 
 interface Props {
@@ -57,11 +57,19 @@ export const SettingsModal: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('accounts');
   const [authMode, setAuthMode] = useState<AuthMode>('cloud');
-  
+  const [hasBackend, setHasBackend] = useState(false);
+  const [cloudUser, setCloudUser] = useState<any>(null);
+
   // Auth Inputs
   const [clientId, setClientId] = useState(currentCreds.clientId || '');
   const [accessToken, setAccessToken] = useState(currentCreds.accessToken || '');
+  const [localKickUser, setLocalKickUser] = useState(kickUsername || '');
+  const [localKickToken, setLocalKickToken] = useState(kickAccessToken || '');
+  const [kickClientId, setKickClientId] = useState(() => localStorage.getItem('kick_client_id') || '');
   
+  // Kick Help Toggle
+  const [showKickHelp, setShowKickHelp] = useState(false);
+
   // Settings State
   const [settings, setSettings] = useState<ChatSettings>(chatSettings);
   
@@ -69,19 +77,37 @@ export const SettingsModal: React.FC<Props> = ({
   const [blockedUsersStr, setBlockedUsersStr] = useState(chatSettings.ignoredUsers.join(', '));
   const [blockedKeywordsStr, setBlockedKeywordsStr] = useState(chatSettings.ignoredKeywords.join(', '));
 
-  // Sync state when opening
+  // Init Effects
+  useEffect(() => {
+    setHasBackend(isBackendConfigured());
+    const checkSession = async () => {
+        if (isBackendConfigured()) {
+            const session = await getSession();
+            if (session?.user) {
+                setCloudUser(session.user);
+                setAuthMode('cloud');
+            }
+        }
+    };
+    checkSession();
+  }, [currentCreds.accessToken]);
+
   useEffect(() => {
     setClientId(currentCreds.clientId);
     setAccessToken(currentCreds.accessToken);
+    setLocalKickUser(kickUsername);
+    setLocalKickToken(kickAccessToken);
     setSettings(chatSettings);
     setBlockedUsersStr(chatSettings.ignoredUsers.join(', '));
     setBlockedKeywordsStr(chatSettings.ignoredKeywords.join(', '));
-  }, [currentCreds, kickUsername, isOpen, chatSettings]);
+  }, [currentCreds, kickUsername, kickAccessToken, isOpen, chatSettings]);
 
   if (!isOpen) return null;
 
   const handleSave = () => {
       onSaveTwitch({ clientId, accessToken });
+      onSaveKick(localKickUser, localKickToken);
+      localStorage.setItem('kick_client_id', kickClientId);
       
       const usersList = blockedUsersStr.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0);
       const keywordsList = blockedKeywordsStr.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0);
@@ -102,23 +128,15 @@ export const SettingsModal: React.FC<Props> = ({
       try { await signInWithTwitch(); } catch (e: any) { alert("Erro: " + e.message); }
   };
 
-  const handleTwitchPopupLogin = () => {
-      if (!clientId) return alert("Por favor, insira um Client ID válido para usar o login Manual.");
-      const redirect = window.location.origin;
-      // Scopes: reading chat and sending messages
-      const url = `https://id.twitch.tv/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirect}&response_type=token&scope=chat:read+chat:edit`;
-      window.open(url, 'Twitch Auth', 'width=600,height=700');
+  const handleCloudLogout = async () => {
+      await signOut();
+      setCloudUser(null);
   };
 
-  // AUTOMATIC KICK LOGIN
   const handleKickLogin = () => {
-      initiateKickLogin();
-  };
-
-  const handleKickLogout = () => {
-      onSaveKick('', '');
-      localStorage.removeItem('kick_access_token');
-      localStorage.removeItem('kick_username');
+      if (!kickClientId) return alert("Insira o Client ID.");
+      localStorage.setItem('kick_client_id_temp', kickClientId);
+      initiateKickLogin(kickClientId, window.location.origin);
   };
 
   return (
@@ -127,12 +145,13 @@ export const SettingsModal: React.FC<Props> = ({
       
       <div className="liquid-modal w-full sm:max-w-4xl h-full sm:h-[85vh] sm:rounded-3xl relative z-10 animate-slide-in flex flex-col md:flex-row overflow-hidden border-0 sm:border border-white/10 bg-[#09090b]">
         
-        {/* --- SIDEBAR --- */}
+        {/* --- SIDEBAR (Desktop) / TOPBAR (Mobile) --- */}
         <div className="w-full md:w-64 bg-black/40 border-b md:border-b-0 md:border-r border-white/5 flex flex-col shrink-0">
+            
             <div className="p-4 md:p-6 flex items-center justify-between">
                 <div>
                     <h2 className="text-lg md:text-xl font-display font-bold text-white tracking-tight">Ajustes</h2>
-                    <p className="text-[10px] text-gray-500 hidden md:block mt-1">ViictorN TV v2.2</p>
+                    <p className="text-[10px] text-gray-500 hidden md:block mt-1">ViictorN TV v2.1</p>
                 </div>
                 <button onClick={onClose} className="md:hidden p-2 bg-white/5 rounded-full text-white/50 hover:text-white">✕</button>
             </div>
@@ -169,127 +188,165 @@ export const SettingsModal: React.FC<Props> = ({
             </div>
         </div>
 
-        {/* --- CONTENT --- */}
+        {/* --- CONTENT AREA --- */}
         <div className="flex-1 flex flex-col min-h-0 bg-[#09090b]/50 relative">
             <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 pb-32 md:pb-8">
                 
-                {/* 1. ACCOUNTS TAB */}
+                {/* TAB: ACCOUNTS */}
                 {activeTab === 'accounts' && (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }} className="space-y-8 max-w-2xl mx-auto md:mx-0">
                         
-                        {/* KICK SECTION (Automatic) */}
+                         <div className="flex justify-center md:justify-start mb-6">
+                            <div className="p-1 bg-black/40 rounded-xl border border-white/10 flex gap-1">
+                                <button onClick={() => setAuthMode('cloud')} className={`px-6 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${authMode === 'cloud' ? 'bg-twitch/20 text-twitch shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>
+                                    <CloudIcon className="w-3 h-3" /> Cloud (Recomendado)
+                                </button>
+                                <button onClick={() => setAuthMode('local')} className={`px-6 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${authMode === 'local' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}>
+                                    <DatabaseIcon className="w-3 h-3" /> Manual
+                                </button>
+                            </div>
+                         </div>
+
+                        {/* Twitch Section */}
                         <section>
-                            <SectionHeader title="Kick.com" icon={<PlatformIcon platform="kick" className="w-4 h-4" />} />
-                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4 md:p-6 space-y-4">
-                                {kickUsername ? (
-                                    <div className="flex flex-col items-center gap-4 py-4 animate-fade-in bg-black/20 rounded-xl border border-white/5">
-                                         <div className="relative">
-                                             <div className="w-20 h-20 rounded-full bg-[#53FC18] flex items-center justify-center text-black text-2xl font-bold border-4 border-[#53FC18]/20 shadow-[0_0_30px_rgba(83,252,24,0.3)]">
-                                                 {kickUsername.charAt(0).toUpperCase()}
-                                             </div>
-                                             <div className="absolute bottom-0 right-0 bg-black text-white p-1 rounded-full border border-white/10">
-                                                 <PlatformIcon platform="kick" className="w-4 h-4" />
-                                             </div>
+                            <SectionHeader title="Twitch.tv" icon={<PlatformIcon platform="twitch" className="w-4 h-4" />} />
+                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4 md:p-6">
+                                {authMode === 'local' ? (
+                                    <div className="space-y-4 animate-fade-in">
+                                         <div className="p-3 bg-twitch/10 border border-twitch/20 rounded-lg text-xs text-twitch mb-2">
+                                            Use o <a href="https://twitchtokengenerator.com/" target="_blank" className="underline font-bold">Token Generator</a> para pegar os dados.
                                          </div>
-                                         
-                                         <div className="text-center">
-                                             <h3 className="font-bold text-white text-lg">{kickUsername}</h3>
-                                             <div className="flex items-center justify-center gap-2 mt-1">
-                                                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                                                 <p className="text-gray-400 text-xs font-mono">Conectado via App Oficial</p>
-                                             </div>
-                                         </div>
-                                         
-                                         <button 
-                                            onClick={handleKickLogout}
-                                            className="mt-2 px-6 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-xs font-bold hover:bg-red-500/20 transition-colors"
-                                         >
-                                             Desconectar
-                                         </button>
+                                         <div className="space-y-2">
+                                            <label className="text-[10px] uppercase font-bold text-gray-500">Client ID</label>
+                                            <input type="text" value={clientId} onChange={e => setClientId(e.target.value)} 
+                                                className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-twitch/50 outline-none font-mono" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] uppercase font-bold text-gray-500">OAuth Token</label>
+                                            <input type="password" value={accessToken} onChange={e => setAccessToken(e.target.value)} 
+                                                className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-twitch/50 outline-none font-mono" />
+                                        </div>
                                     </div>
                                 ) : (
-                                    <>
-                                        <div className="bg-kick/5 border border-kick/10 rounded-lg p-4 text-xs text-gray-300 flex items-start gap-3">
-                                            <span className="text-xl">🚀</span>
-                                            <div>
-                                                <p className="font-bold text-kick mb-1 text-sm">Login Automático</p>
-                                                <p className="leading-relaxed text-gray-400">
-                                                    Clique no botão abaixo. Uma janela da Kick será aberta pedindo autorização (igual ao Botrix).
-                                                </p>
+                                    <div className="text-center py-4 animate-fade-in">
+                                        {!hasBackend ? (
+                                            <div className="text-gray-500 text-xs">Backend (Supabase) não configurado.</div>
+                                        ) : cloudUser ? (
+                                            <div className="flex flex-col items-center gap-3">
+                                                <img src={cloudUser.user_metadata.avatar_url} className="w-16 h-16 rounded-full border-4 border-twitch shadow-lg"/>
+                                                <div className="text-center">
+                                                    <p className="font-bold text-xl">{cloudUser.user_metadata.full_name}</p>
+                                                    <p className="text-xs text-gray-400">Sincronizado via Nuvem</p>
+                                                    
+                                                    {clientId && accessToken ? (
+                                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-500/10 text-green-400 text-[10px] font-bold border border-green-500/20 mt-3">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                                            Token Ativo
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-400 text-[10px] font-bold border border-yellow-500/20 mt-3">
+                                                            Sincronizando...
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                
+                                                <div className="flex flex-wrap justify-center gap-3 mt-4 w-full">
+                                                    {onForceLoadCloud && (
+                                                        <button 
+                                                            onClick={onForceLoadCloud}
+                                                            className="px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold border border-white/10 flex-1 min-w-[120px]"
+                                                        >
+                                                            Recarregar
+                                                        </button>
+                                                    )}
+                                                    <button onClick={handleCloudLogout} className="px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl text-xs font-bold border border-red-500/20 flex-1 min-w-[100px]">
+                                                        Sair
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
-
-                                        <button 
-                                            onClick={handleKickLogin} 
-                                            className="w-full py-4 bg-[#53FC18] hover:bg-[#42db0f] text-black rounded-xl text-sm font-bold shadow-[0_0_20px_rgba(83,252,24,0.2)] hover:shadow-[0_0_30px_rgba(83,252,24,0.4)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                                        >
-                                            <PlatformIcon platform="kick" variant="default" className="w-6 h-6 text-black" />
-                                            Conectar com Kick
-                                        </button>
-                                    </>
+                                        ) : (
+                                            <div className="py-2">
+                                                <p className="text-gray-400 text-sm mb-4">Faça login para sincronizar suas configurações e conversar sem precisar gerar tokens manuais.</p>
+                                                <button onClick={handleCloudLogin} className="w-full py-4 bg-[#9146FF] hover:bg-[#7c3aed] text-white rounded-xl font-bold text-sm shadow-lg shadow-twitch/20 flex items-center justify-center gap-3 transition-transform active:scale-[0.98]">
+                                                    <PlatformIcon platform="twitch" variant="white" className="w-6 h-6" />
+                                                    Entrar com Twitch
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         </section>
 
-                        {/* TWITCH SECTION */}
+                        {/* Kick Section */}
                         <section>
-                            <SectionHeader title="Twitch.tv" icon={<PlatformIcon platform="twitch" className="w-4 h-4" />} />
-                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4 md:p-6">
-                                 <div className="flex gap-2 mb-4">
-                                    <button onClick={() => setAuthMode('cloud')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${authMode === 'cloud' ? 'bg-twitch/20 text-twitch border border-twitch/30' : 'bg-black/20 text-gray-500 border border-white/5'}`}>
-                                        Cloud (Supabase)
-                                    </button>
-                                    <button onClick={() => setAuthMode('local')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${authMode === 'local' ? 'bg-white/10 text-white border border-white/20' : 'bg-black/20 text-gray-500 border border-white/5'}`}>
-                                        Manual / Popup
-                                    </button>
-                                </div>
-
-                                {authMode === 'local' && (
-                                     <div className="space-y-4">
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Client ID</label>
-                                            <input type="text" value={clientId} onChange={e => setClientId(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-xs text-white" placeholder="Insira seu Client ID..." />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Access Token (Opcional)</label>
-                                            <input type="password" value={accessToken} onChange={e => setAccessToken(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-xs text-white" placeholder="Cole o token ou use o botão abaixo" />
-                                        </div>
-                                        
-                                        <div className="pt-2">
-                                            <button 
-                                                onClick={handleTwitchPopupLogin}
-                                                className="w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 border border-white/10"
-                                            >
-                                                <span>Gerar Token via Popup ↗</span>
-                                            </button>
-                                            <p className="text-[10px] text-gray-500 mt-2 text-center">
-                                                Requer que seu Client ID esteja configurado para permitir redirecionamento para este domínio.
-                                            </p>
-                                        </div>
-                                     </div>
-                                )}
-                                {authMode === 'cloud' && (
-                                    <div className="space-y-3">
-                                        <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                                            <p className="text-[11px] text-blue-200 leading-relaxed">
-                                                Usa o servidor do app para autenticar. Pode falhar se você estiver usando um domínio de teste não registrado (como AIStudio). Se falhar, use o modo Manual.
-                                            </p>
-                                        </div>
-                                        <button onClick={handleCloudLogin} className="w-full py-3 bg-[#9146FF] hover:bg-[#7c3aed] text-white rounded-lg font-bold text-xs flex items-center justify-center gap-2">
-                                            <PlatformIcon platform="twitch" variant="white" className="w-4 h-4"/>
-                                            Login com Twitch (Cloud)
+                            <SectionHeader title="Kick.com" icon={<PlatformIcon platform="kick" className="w-4 h-4" />} />
+                            <div className="bg-white/5 border border-white/5 rounded-2xl p-4 md:p-6 space-y-6">
+                                
+                                {/* Info Box */}
+                                <div className="bg-kick/5 border border-kick/10 rounded-lg p-3 text-xs text-gray-300">
+                                    <p className="font-bold text-kick mb-1">Como conectar na Kick?</p>
+                                    <p className="mb-2">A API da Kick é fechada para desenvolvedores comuns (CORS Block). Escolha um método:</p>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setShowKickHelp(!showKickHelp)} className="text-[10px] underline hover:text-white">
+                                            {showKickHelp ? "Ocultar Ajuda" : "Ver Tutorial Passo-a-Passo"}
                                         </button>
                                     </div>
+                                </div>
+
+                                {showKickHelp && (
+                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="text-xs text-gray-400 space-y-2 bg-black/40 p-3 rounded-lg border border-white/5">
+                                        <p><strong className="text-white">Método 1 (Oficial):</strong> Só funciona se você tiver um App aprovado no <a href="https://developers.kick.com" className="text-kick underline">Kick Developers</a>.</p>
+                                        <p><strong className="text-white">Método 2 (Recomendado/Manual):</strong> Como o Botrix faz.</p>
+                                        <ol className="list-decimal ml-4 space-y-1 mt-1 text-[10px]">
+                                            <li>Abra a <a href="https://kick.com" target="_blank" className="text-kick">Kick.com</a> e faça login.</li>
+                                            <li>Aperte <code className="bg-white/10 px-1 rounded">F12</code> para abrir o Inspecionar Elemento.</li>
+                                            <li>Vá na aba <strong>Network (Rede)</strong>.</li>
+                                            <li>Envie uma mensagem qualquer no chat de algum streamer.</li>
+                                            <li>Procure na lista de rede uma requisição chamada <code className="text-kick">message</code>.</li>
+                                            <li>Clique nela, vá em <strong>Headers</strong> e procure por <code className="text-orange-400">Authorization</code>.</li>
+                                            <li>Copie tudo que vem depois de "Bearer " (começa com eyJ...).</li>
+                                            <li>Cole no campo <strong>Access Token</strong> abaixo.</li>
+                                        </ol>
+                                    </motion.div>
                                 )}
+
+                                {/* Manual Inputs */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] uppercase font-bold text-gray-500">Seu Usuário Kick</label>
+                                        <input type="text" value={localKickUser} onChange={e => setLocalKickUser(e.target.value)} 
+                                            className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-kick/50 outline-none" placeholder="Ex: gabepeixe" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] uppercase font-bold text-gray-500">Access Token (Manual)</label>
+                                        <input type="password" value={localKickToken} onChange={e => setLocalKickToken(e.target.value)} 
+                                            className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-sm text-white focus:border-kick/50 outline-none font-mono" placeholder="Cole o token Bearer aqui..." />
+                                    </div>
+                                </div>
+                                
+                                {/* Official OAuth (Hidden behind advanced usually, but kept for those who have it) */}
+                                <div className="pt-4 border-t border-white/5 opacity-60 hover:opacity-100 transition-opacity">
+                                     <h4 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Desenvolvedores (OAuth Oficial)</h4>
+                                     <div className="flex flex-col sm:flex-row gap-3">
+                                         <input type="text" value={kickClientId} onChange={e => setKickClientId(e.target.value)} 
+                                            className="flex-1 bg-black/50 border border-white/10 rounded-lg p-3 text-xs text-white focus:border-kick/50 outline-none" placeholder="Client ID (Opcional)" />
+                                         <button onClick={handleKickLogin} className="px-6 py-3 bg-white/5 border border-white/10 text-gray-300 hover:text-white rounded-lg text-xs font-bold hover:bg-white/10 shrink-0">
+                                             Conectar OAuth
+                                         </button>
+                                     </div>
+                                </div>
                             </div>
                         </section>
                     </motion.div>
                 )}
 
-                {/* 2. APPEARANCE TAB (Restored) */}
+                {/* TAB: APPEARANCE */}
                 {activeTab === 'appearance' && (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }} className="space-y-8">
+                        
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                            {/* Visuals */}
                             <div>
                                 <SectionHeader title="Estilo do Chat" />
                                 <div className="space-y-2">
@@ -300,6 +357,8 @@ export const SettingsModal: React.FC<Props> = ({
                                     <ToggleSwitch checked={settings.rainbowUsernames} onChange={() => toggleSetting('rainbowUsernames')} label="Nicks Coloridos (Rainbow)" description="Animação RGB nos nomes." />
                                 </div>
                             </div>
+
+                            {/* Behavior */}
                             <div>
                                 <SectionHeader title="Comportamento" />
                                 <div className="space-y-2">
@@ -311,16 +370,67 @@ export const SettingsModal: React.FC<Props> = ({
                                 </div>
                             </div>
                         </div>
+
+                        {/* Dropdowns */}
+                        <section>
+                            <SectionHeader title="Tipografia & Badges" />
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                                <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                                    <label className="text-[10px] uppercase font-bold text-gray-500 mb-2 block">Tamanho da Fonte</label>
+                                    <select value={settings.fontSize} onChange={(e) => setSettings({...settings, fontSize: e.target.value as any})}
+                                        className="w-full bg-black/50 text-white text-sm rounded-lg p-2.5 outline-none border border-white/10">
+                                        <option value="small">Pequeno</option>
+                                        <option value="medium">Médio</option>
+                                        <option value="large">Grande</option>
+                                    </select>
+                                </div>
+                                <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                                    <label className="text-[10px] uppercase font-bold text-gray-500 mb-2 block">Tipo de Fonte</label>
+                                    <select value={settings.fontFamily} onChange={(e) => setSettings({...settings, fontFamily: e.target.value as any})}
+                                        className="w-full bg-black/50 text-white text-sm rounded-lg p-2.5 outline-none border border-white/10">
+                                        <option value="sans">Moderna (Sans)</option>
+                                        <option value="mono">Developer (Mono)</option>
+                                    </select>
+                                </div>
+                                <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                                    <label className="text-[10px] uppercase font-bold text-gray-500 mb-2 block">Msg Deletada</label>
+                                    <select value={settings.deletedMessageBehavior} onChange={(e) => setSettings({...settings, deletedMessageBehavior: e.target.value as any})}
+                                        className="w-full bg-black/50 text-white text-sm rounded-lg p-2.5 outline-none border border-white/10">
+                                        <option value="strikethrough">Riscado</option>
+                                        <option value="hide">Ocultar</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="bg-black/20 rounded-xl p-4 border border-white/5">
+                                <span className="text-xs font-bold text-gray-400 mb-3 block">Badges Visíveis:</span>
+                                <div className="flex flex-wrap gap-2">
+                                     {['Broadcaster', 'Mod', 'Vip', 'Sub', 'Founder'].map(b => {
+                                         const key = `showBadge${b}` as keyof ChatSettings;
+                                         return (
+                                             <button 
+                                                key={b}
+                                                onClick={() => toggleSetting(key)}
+                                                className={`px-3 py-2 rounded-lg text-[10px] font-bold border transition-all ${settings[key] ? 'bg-white/10 border-white/20 text-white' : 'bg-transparent border-white/5 text-gray-600'}`}
+                                             >
+                                                 {b}
+                                             </button>
+                                         );
+                                     })}
+                                </div>
+                            </div>
+                        </section>
                     </motion.div>
                 )}
 
-                {/* 3. MODERATION TAB (Restored) */}
-                 {activeTab === 'moderation' && (
+                {/* TAB: MODERATION */}
+                {activeTab === 'moderation' && (
                      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }} className="space-y-6 max-w-3xl">
                          <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-4 mb-6">
                              <h4 className="text-red-400 font-bold text-sm mb-1">Nota Importante</h4>
                              <p className="text-xs text-gray-400">Esses filtros funcionam localmente no seu navegador.</p>
                          </div>
+
                          <div className="space-y-6">
                              <div>
                                  <SectionHeader title="Usuários Bloqueados" />
@@ -331,23 +441,30 @@ export const SettingsModal: React.FC<Props> = ({
                                      className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-xs text-white focus:border-red-500/50 outline-none h-32 resize-none leading-relaxed font-mono"
                                  />
                              </div>
+
                              <div>
-                                 <SectionHeader title="Palavras Bloqueadas" />
+                                 <SectionHeader title="Palavras Proibidas (Blacklist)" />
                                  <textarea 
                                      value={blockedKeywordsStr}
                                      onChange={(e) => setBlockedKeywordsStr(e.target.value)}
-                                     placeholder="Separe as palavras por vírgula. Mensagens contendo estas palavras serão ocultadas."
+                                     placeholder="Separe as palavras por vírgula. Ex: spoiler, palavra feia"
                                      className="w-full bg-black/50 border border-white/10 rounded-xl p-4 text-xs text-white focus:border-red-500/50 outline-none h-32 resize-none leading-relaxed font-mono"
                                  />
                              </div>
                          </div>
                      </motion.div>
                 )}
+
             </div>
 
-            {/* Mobile Save */}
-            <div className="p-4 md:hidden border-t border-white/5 bg-[#09090b]">
-                 <button onClick={handleSave} className="w-full py-3 rounded-xl text-sm font-bold bg-white text-black">Salvar</button>
+            {/* Sticky Save Button Mobile */}
+            <div className="p-4 md:hidden border-t border-white/5 bg-[#09090b]/95 backdrop-blur-md absolute bottom-0 left-0 right-0 z-20 pb-[env(safe-area-inset-bottom)]">
+                 <button 
+                    onClick={handleSave}
+                    className="w-full py-4 rounded-xl text-sm font-bold bg-white text-black transition-colors shadow-lg flex items-center justify-center gap-2 active:scale-[0.98]"
+                >
+                    <span>Salvar Alterações</span>
+                </button>
             </div>
         </div>
       </div>

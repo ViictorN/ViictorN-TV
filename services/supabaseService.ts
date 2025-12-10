@@ -1,8 +1,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { SavedMessage, UserNote } from '../types';
 
-// Environment variables with Hardcoded Fallback for Vercel/Production
-// Isso garante que funcione mesmo sem configurar variáveis de ambiente no painel da Vercel
+// Environment variables (Vite uses import.meta.env, Create React App uses process.env)
+// Falling back to provided hardcoded keys for immediate functionality.
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || (import.meta as any).env?.VITE_SUPABASE_URL || 'https://ewlrbudjojzgrzdmfexa.supabase.co';
 const SUPABASE_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3bHJidWRqb2p6Z3J6ZG1mZXhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzODU5OTcsImV4cCI6MjA4MDk2MTk5N30.joBk-QkP84XMx8o2mDIpI6lR3wQaeZrZQcGHhqWyg7U';
 
@@ -16,7 +16,7 @@ if (SUPABASE_URL && SUPABASE_KEY) {
     console.warn('[Backend] Failed to initialize Supabase client:', e);
   }
 } else {
-    console.error('[Backend] CRITICAL: Supabase credentials missing.');
+    console.log('[Backend] Supabase credentials not found. App running in Local/Offline mode.');
 }
 
 export const isBackendConfigured = (): boolean => {
@@ -26,9 +26,9 @@ export const isBackendConfigured = (): boolean => {
 // --- AUTH METHODS ---
 
 export const signInWithTwitch = async () => {
-    if (!supabase) throw new Error("Backend não configurado. Verifique as credenciais no código.");
+    if (!supabase) throw new Error("Backend não configurado.");
     
-    // Explicitly use window.location.origin to ensure redirects work on whatever domain this is running
+    // Scopes needed for chat reading/writing
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'twitch',
         options: {
@@ -41,9 +41,9 @@ export const signInWithTwitch = async () => {
     return data;
 };
 
-// REMOVED BROKEN EDGE FUNCTION CALL
-export const exchangeKickToken = async (code: string, codeVerifier: string, redirectUri: string) => {
-    throw new Error("Use client-side exchange instead.");
+export const signInWithKick = async () => {
+    if (!supabase) throw new Error("Backend não configurado.");
+    alert("Login social da Kick via Supabase requer configuração avançada de provedor customizado.");
 };
 
 export const signOut = async () => {
@@ -134,6 +134,7 @@ export const saveUserNote = async (targetUsername: string, targetPlatform: strin
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Upsert logic based on Unique Constraint (user_id, target_username, target_platform)
     const { error } = await supabase.from('user_notes').upsert({
         user_id: user.id,
         target_username: targetUsername,
