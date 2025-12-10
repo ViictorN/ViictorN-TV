@@ -2,6 +2,7 @@ import { ChatMessage, Platform, Badge, ReplyInfo } from "../types";
 
 type MessageCallback = (msg: ChatMessage) => void;
 type DeleteCallback = (msgId: string) => void;
+type EmoteSetsCallback = (sets: string[]) => void;
 
 // --- TWITCH IMPLEMENTATION ---
 export class TwitchConnection {
@@ -9,14 +10,23 @@ export class TwitchConnection {
   private channel: string;
   private onMessage: MessageCallback;
   private onDelete: DeleteCallback;
+  private onEmoteSets?: EmoteSetsCallback;
   private pingInterval: number | null = null;
   private oauth: string | null = null;
   private username: string | null = null;
 
-  constructor(channel: string, onMessage: MessageCallback, onDelete: DeleteCallback, oauth?: string, username?: string) {
+  constructor(
+      channel: string, 
+      onMessage: MessageCallback, 
+      onDelete: DeleteCallback, 
+      oauth?: string, 
+      username?: string,
+      onEmoteSets?: EmoteSetsCallback
+  ) {
     this.channel = channel.toLowerCase();
     this.onMessage = onMessage;
     this.onDelete = onDelete;
+    this.onEmoteSets = onEmoteSets;
     this.oauth = oauth || null;
     this.username = username || 'justinfan' + Math.floor(Math.random() * 100000);
   }
@@ -63,6 +73,9 @@ export class TwitchConnection {
           this.parseUserNotice(line);
         } else if (line.includes('CLEARMSG')) {
           this.handleClearMsg(line);
+        } else if (line.includes('GLOBALUSERSTATE') || line.includes('USERSTATE')) {
+            // Capture User Emote Sets (Subs, Turbo, Prime)
+            this.handleUserState(line);
         }
       });
     };
@@ -88,47 +101,48 @@ export class TwitchConnection {
     if (this.pingInterval) clearInterval(this.pingInterval);
   }
 
-  private handleClearMsg(raw: string) {
-      const tagsStart = raw.indexOf('@');
-      if (tagsStart === -1) return;
+  private handleUserState(raw: string) {
+      if (!this.onEmoteSets) return;
       
-      const tagsEnd = raw.indexOf(' ');
-      const tagsStr = raw.substring(tagsStart + 1, tagsEnd);
-      
-      const tags: Record<string, string> = {};
-      tagsStr.split(';').forEach(t => {
-          const [key, val] = t.split('=');
-          tags[key] = val;
-      });
+      const tags = this.parseTags(raw);
+      if (tags['emote-sets']) {
+          const sets = tags['emote-sets'].split(',');
+          this.onEmoteSets(sets);
+      }
+  }
 
+  private handleClearMsg(raw: string) {
+      const tags = this.parseTags(raw);
       if (tags['target-msg-id']) {
           this.onDelete(tags['target-msg-id']);
       }
   }
 
-  private parseUserNotice(raw: string) {
-      // Handle Subs, Resubs, Gifts
-      let tags: Record<string, string> = {};
-      let remaining = raw;
-      
+  private parseTags(raw: string): Record<string, string> {
+      const tags: Record<string, string> = {};
       if (raw.startsWith('@')) {
         const endIdx = raw.indexOf(' ');
         const rawTags = raw.substring(1, endIdx);
-        remaining = raw.substring(endIdx + 1);
         rawTags.split(';').forEach(t => {
           const [key, val] = t.split('=');
           tags[key] = val; 
         });
       }
+      return tags;
+  }
 
-      // Check if it is a sub/resub
+  private parseUserNotice(raw: string) {
+      const tags = this.parseTags(raw);
       const msgId = tags['msg-id'];
+      
+      // ... (Existing UserNotice logic retained but simplified using helper)
+      let remaining = raw.substring(raw.indexOf(' ') + 1);
+
       if (msgId === 'sub' || msgId === 'resub' || msgId === 'subgift' || msgId === 'announcement') {
           
           let systemMsg = tags['system-msg'] || 'Subscription Event';
-          systemMsg = systemMsg.replace(/\\s/g, ' '); // Unescape spaces
+          systemMsg = systemMsg.replace(/\\s/g, ' '); 
 
-          // Manual Portuguese Translation
           const subMonths = tags['msg-param-cumulative-months'] ? parseInt(tags['msg-param-cumulative-months']) : 1;
           
           if (msgId === 'sub') {
@@ -140,7 +154,6 @@ export class TwitchConnection {
               systemMsg = `Presenteou uma inscrição para ${recipient}!`;
           }
 
-          // Extract optional user message if exists
           let userMessage = '';
           const channelEnd = remaining.indexOf(' :', remaining.indexOf('USERNOTICE'));
           if (channelEnd !== -1) {
@@ -151,14 +164,13 @@ export class TwitchConnection {
           const userId = tags['user-id'];
           const color = tags['color'];
           
-           // Parse Badges
-            const badges: Badge[] = [];
-            if (tags['badges']) {
+          const badges: Badge[] = [];
+          if (tags['badges']) {
             tags['badges'].split(',').forEach(pair => {
                 const [type, version] = pair.split('/');
                 badges.push({ type, version });
             });
-            }
+          }
 
           const msg: ChatMessage = {
               id: tags['id'] || crypto.randomUUID(),
@@ -174,19 +186,8 @@ export class TwitchConnection {
   }
 
   private parseMessage(raw: string) {
-    let tags: Record<string, string> = {};
-    let remaining = raw;
-    
-    if (raw.startsWith('@')) {
-      const endIdx = raw.indexOf(' ');
-      const rawTags = raw.substring(1, endIdx);
-      remaining = raw.substring(endIdx + 1);
-      
-      rawTags.split(';').forEach(t => {
-        const [key, val] = t.split('=');
-        tags[key] = val;
-      });
-    }
+    const tags = this.parseTags(raw);
+    let remaining = raw.substring(raw.indexOf(' ') + 1);
 
     const privMsgIdx = remaining.indexOf('PRIVMSG');
     if (privMsgIdx === -1) return;
@@ -225,7 +226,6 @@ export class TwitchConnection {
       });
     }
 
-    // NATIVE TWITCH FIRST MESSAGE
     const isFirstMessage = tags['first-msg'] === '1';
 
     const msg: ChatMessage = {
@@ -236,7 +236,7 @@ export class TwitchConnection {
       timestamp: Number(tags['tmi-sent-ts']) || Date.now(),
       emotes,
       replyTo,
-      isFirstMessage // Set based on native tag
+      isFirstMessage
     };
 
     this.onMessage(msg);

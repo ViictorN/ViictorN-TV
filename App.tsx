@@ -137,8 +137,11 @@ export default function App() {
   const [channelBadges, setChannelBadges] = useState<BadgeMap>({});
   const [kickBadges, setKickBadges] = useState<BadgeMap>({});
   const [sevenTVEmotes, setSevenTVEmotes] = useState<EmoteMap>({});
-  const [twitchEmotes, setTwitchEmotes] = useState<TwitchEmote[]>([]); // New State
   
+  // Emotes State
+  const [twitchEmotes, setTwitchEmotes] = useState<TwitchEmote[]>([]);
+  const fetchedEmoteSets = useRef<Set<string>>(new Set());
+
   // Avatar Cache
   const [avatarCache, setAvatarCache] = useState<Record<string, string>>({});
   const pendingAvatars = useRef<Set<string>>(new Set());
@@ -608,12 +611,50 @@ export default function App() {
     }
   };
 
+  // --- EMOTE HANDLERS (Subscriber + Global) ---
+
+  const handleEmoteSetsReceived = useCallback(async (sets: string[]) => {
+      if (!twitchCreds.accessToken || !twitchCreds.clientId) return;
+      
+      // Filter out sets we've already fetched to avoid spam
+      const newSets = sets.filter(s => !fetchedEmoteSets.current.has(s) && s !== '0');
+      if (newSets.length === 0) return;
+
+      newSets.forEach(s => fetchedEmoteSets.current.add(s));
+
+      try {
+          // Twitch API allows up to 25 set_ids per request. 
+          // For safety, we'll take the first 20 if there are many.
+          const idsToFetch = newSets.slice(0, 20);
+          const queryString = idsToFetch.map(id => `emote_set_id=${id}`).join('&');
+
+          const res = await fetch(`https://api.twitch.tv/helix/chat/emotes/set?${queryString}`, {
+              headers: { 
+                  'Client-ID': twitchCreds.clientId, 
+                  'Authorization': `Bearer ${twitchCreds.accessToken}` 
+              }
+          });
+          
+          if (res.ok) {
+              const data = await res.json();
+              if (data.data) {
+                  setTwitchEmotes(prev => {
+                      // Avoid duplicates
+                      const existingIds = new Set(prev.map(e => e.id));
+                      const uniqueNew = data.data.filter((e: TwitchEmote) => !existingIds.has(e.id));
+                      return [...prev, ...uniqueNew];
+                  });
+              }
+          }
+      } catch (e) {
+          console.warn("Failed to fetch sub emote sets", e);
+      }
+  }, [twitchCreds]);
+
   // --- AUTHENTICATED TWITCH DATA FETCH (Official API) ---
   const fetchTwitchDataAuthenticated = async () => {
     if (!twitchCreds.accessToken) return;
     try {
-        // If we came from Cloud, we have ClientID from validate. If manual, from input.
-        // If missing ClientID (rare edge case), we can't hit Helix, but Chat might still work if OAuth is valid.
         if (!twitchCreds.clientId) return;
 
         const headers = { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` };
@@ -630,7 +671,7 @@ export default function App() {
         const streamerData = await streamerRes.json();
         const streamerId = streamerData.data?.[0]?.id;
 
-        // 3. Fetch Channel Badges (Official Helix)
+        // 3. Fetch Channel Badges
         if (streamerId) {
              const cbRes = await fetch(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${streamerId}`, { headers });
              const cbData = await cbRes.json();
@@ -638,19 +679,34 @@ export default function App() {
                 setChannelBadges(parseHelixBadges(cbData.data));
              }
 
-             // --- NEW: Fetch Channel Emotes ---
+             // Fetch Channel Emotes (Gabepeixe Specific)
              const emotesRes = await fetch(`https://api.twitch.tv/helix/chat/emotes?broadcaster_id=${streamerId}`, { headers });
              const emotesData = await emotesRes.json();
              if (emotesData.data) {
-                 setTwitchEmotes(emotesData.data);
+                 setTwitchEmotes(prev => {
+                     const existingIds = new Set(prev.map(e => e.id));
+                     const uniqueNew = emotesData.data.filter((e: TwitchEmote) => !existingIds.has(e.id));
+                     return [...prev, ...uniqueNew];
+                 });
              }
         }
 
-        // 4. Fetch Global Badges (Official Helix)
+        // 4. Fetch Global Badges
         const gbRes = await fetch(`https://api.twitch.tv/helix/chat/badges/global`, { headers });
         const gbData = await gbRes.json();
         if (gbData.data) {
             setGlobalBadges(parseHelixBadges(gbData.data));
+        }
+
+        // 5. Fetch Global Emotes (Standard Twitch Emotes)
+        const geRes = await fetch(`https://api.twitch.tv/helix/chat/emotes/global`, { headers });
+        const geData = await geRes.json();
+        if (geData.data) {
+             setTwitchEmotes(prev => {
+                 const existingIds = new Set(prev.map(e => e.id));
+                 const uniqueNew = geData.data.filter((e: TwitchEmote) => !existingIds.has(e.id));
+                 return [...prev, ...uniqueNew];
+             });
         }
 
     } catch (e) { console.error("Twitch Authenticated Data Error", e); }
@@ -777,7 +833,8 @@ export default function App() {
         handleNewMessage, 
         handleDeleteMessage,
         twitchCreds.accessToken || undefined, 
-        authState.twitchUsername || undefined
+        authState.twitchUsername || undefined,
+        handleEmoteSetsReceived // Callback to load user's sub emotes
     );
     twitchRef.current.connect();
     
@@ -796,7 +853,7 @@ export default function App() {
             twitchRef.current = null;
         }
     };
-  }, [twitchCreds.accessToken, authState.twitchUsername]);
+  }, [twitchCreds.accessToken, authState.twitchUsername, handleEmoteSetsReceived]);
 
   // Kick Connection Logic
   useEffect(() => {
