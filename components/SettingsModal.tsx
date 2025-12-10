@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { TwitchCreds, ChatSettings, AuthMode } from '../types';
-import { PlatformIcon, CloudIcon, DatabaseIcon, SettingsIcon, UsersIcon } from './Icons';
-import { motion, AnimatePresence } from 'framer-motion';
-import { isBackendConfigured, signInWithTwitch, getSession, signOut } from '../services/supabaseService';
+import { PlatformIcon, SettingsIcon, UsersIcon } from './Icons';
+import { motion } from 'framer-motion';
+import { isBackendConfigured, signInWithTwitch, signOut, getSession } from '../services/supabaseService';
 import { initiateKickLogin } from '../services/kickAuthService';
 
 interface Props {
@@ -57,9 +57,7 @@ export const SettingsModal: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('accounts');
   const [authMode, setAuthMode] = useState<AuthMode>('cloud');
-  const [hasBackend, setHasBackend] = useState(false);
-  const [cloudUser, setCloudUser] = useState<any>(null);
-
+  
   // Auth Inputs
   const [clientId, setClientId] = useState(currentCreds.clientId || '');
   const [accessToken, setAccessToken] = useState(currentCreds.accessToken || '');
@@ -71,28 +69,14 @@ export const SettingsModal: React.FC<Props> = ({
   const [blockedUsersStr, setBlockedUsersStr] = useState(chatSettings.ignoredUsers.join(', '));
   const [blockedKeywordsStr, setBlockedKeywordsStr] = useState(chatSettings.ignoredKeywords.join(', '));
 
-  // Init Effects
-  useEffect(() => {
-    setHasBackend(isBackendConfigured());
-    const checkSession = async () => {
-        if (isBackendConfigured()) {
-            const session = await getSession();
-            if (session?.user) {
-                setCloudUser(session.user);
-                setAuthMode('cloud');
-            }
-        }
-    };
-    checkSession();
-  }, [currentCreds.accessToken]);
-
+  // Sync state when opening
   useEffect(() => {
     setClientId(currentCreds.clientId);
     setAccessToken(currentCreds.accessToken);
     setSettings(chatSettings);
     setBlockedUsersStr(chatSettings.ignoredUsers.join(', '));
     setBlockedKeywordsStr(chatSettings.ignoredKeywords.join(', '));
-  }, [currentCreds, kickUsername, kickAccessToken, isOpen, chatSettings]);
+  }, [currentCreds, kickUsername, isOpen, chatSettings]);
 
   if (!isOpen) return null;
 
@@ -118,12 +102,7 @@ export const SettingsModal: React.FC<Props> = ({
       try { await signInWithTwitch(); } catch (e: any) { alert("Erro: " + e.message); }
   };
 
-  const handleCloudLogout = async () => {
-      await signOut();
-      setCloudUser(null);
-  };
-
-  // AUTOMATIC LOGIN HANDLER
+  // AUTOMATIC KICK LOGIN
   const handleKickLogin = () => {
       initiateKickLogin();
   };
@@ -145,7 +124,7 @@ export const SettingsModal: React.FC<Props> = ({
             <div className="p-4 md:p-6 flex items-center justify-between">
                 <div>
                     <h2 className="text-lg md:text-xl font-display font-bold text-white tracking-tight">Ajustes</h2>
-                    <p className="text-[10px] text-gray-500 hidden md:block mt-1">ViictorN TV v2.1</p>
+                    <p className="text-[10px] text-gray-500 hidden md:block mt-1">ViictorN TV v2.2</p>
                 </div>
                 <button onClick={onClose} className="md:hidden p-2 bg-white/5 rounded-full text-white/50 hover:text-white">✕</button>
             </div>
@@ -186,15 +165,14 @@ export const SettingsModal: React.FC<Props> = ({
         <div className="flex-1 flex flex-col min-h-0 bg-[#09090b]/50 relative">
             <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 pb-32 md:pb-8">
                 
-                {/* ACCOUNTS TAB */}
+                {/* 1. ACCOUNTS TAB */}
                 {activeTab === 'accounts' && (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }} className="space-y-8 max-w-2xl mx-auto md:mx-0">
                         
-                        {/* Kick Section - FULL AUTOMATIC */}
+                        {/* KICK SECTION (Automatic) */}
                         <section>
                             <SectionHeader title="Kick.com" icon={<PlatformIcon platform="kick" className="w-4 h-4" />} />
                             <div className="bg-white/5 border border-white/5 rounded-2xl p-4 md:p-6 space-y-4">
-                                
                                 {kickUsername ? (
                                     <div className="flex flex-col items-center gap-4 py-4 animate-fade-in bg-black/20 rounded-xl border border-white/5">
                                          <div className="relative">
@@ -228,7 +206,7 @@ export const SettingsModal: React.FC<Props> = ({
                                             <div>
                                                 <p className="font-bold text-kick mb-1 text-sm">Login Automático</p>
                                                 <p className="leading-relaxed text-gray-400">
-                                                    Clique abaixo para conectar sua conta Kick. Uma janela será aberta pedindo autorização (igual ao Botrix).
+                                                    Clique no botão abaixo. Uma janela da Kick será aberta pedindo autorização (igual ao Botrix).
                                                 </p>
                                             </div>
                                         </div>
@@ -245,11 +223,10 @@ export const SettingsModal: React.FC<Props> = ({
                             </div>
                         </section>
 
-                        {/* Twitch Section */}
+                        {/* TWITCH SECTION */}
                         <section>
                             <SectionHeader title="Twitch.tv" icon={<PlatformIcon platform="twitch" className="w-4 h-4" />} />
                             <div className="bg-white/5 border border-white/5 rounded-2xl p-4 md:p-6">
-                                 {/* Header Controls */}
                                  <div className="flex gap-2 mb-4">
                                     <button onClick={() => setAuthMode('cloud')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${authMode === 'cloud' ? 'bg-twitch/20 text-twitch border border-twitch/30' : 'bg-black/20 text-gray-500 border border-white/5'}`}>
                                         Cloud
@@ -273,11 +250,10 @@ export const SettingsModal: React.FC<Props> = ({
                                 )}
                             </div>
                         </section>
-
                     </motion.div>
                 )}
 
-                {/* APPEARANCE TAB (RESTORED) */}
+                {/* 2. APPEARANCE TAB (Restored) */}
                 {activeTab === 'appearance' && (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }} className="space-y-8">
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
@@ -304,8 +280,8 @@ export const SettingsModal: React.FC<Props> = ({
                         </div>
                     </motion.div>
                 )}
-                
-                 {/* MODERATION TAB (RESTORED) */}
+
+                {/* 3. MODERATION TAB (Restored) */}
                  {activeTab === 'moderation' && (
                      <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }} className="space-y-6 max-w-3xl">
                          <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-4 mb-6">

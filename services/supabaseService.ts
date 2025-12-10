@@ -1,8 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { SavedMessage, UserNote } from '../types';
 
-// Environment variables (Vite uses import.meta.env, Create React App uses process.env)
-// Falling back to provided hardcoded keys for immediate functionality.
+// Environment variables
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || (import.meta as any).env?.VITE_SUPABASE_URL || 'https://ewlrbudjojzgrzdmfexa.supabase.co';
 const SUPABASE_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV3bHJidWRqb2p6Z3J6ZG1mZXhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzODU5OTcsImV4cCI6MjA4MDk2MTk5N30.joBk-QkP84XMx8o2mDIpI6lR3wQaeZrZQcGHhqWyg7U';
 
@@ -42,8 +41,9 @@ export const signInWithTwitch = async () => {
 };
 
 export const signInWithKick = async () => {
-    if (!supabase) throw new Error("Backend não configurado.");
-    alert("Login social da Kick via Supabase requer configuração avançada de provedor customizado.");
+    // Kick Native Auth is not yet supported in Supabase.
+    // We use the manual frontend OAuth flow in kickAuthService.ts instead.
+    alert("Para fazer login na Kick, use o botão 'Conectar com Kick' na aba Contas das configurações. Este botão (Cloud) ainda não está disponível.");
 };
 
 export const signOut = async () => {
