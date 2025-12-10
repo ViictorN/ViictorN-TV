@@ -161,23 +161,36 @@ export default function App() {
             // Helper to integrate Cloud Token into App State
             const integrateCloudToken = async (sessionData: any) => {
                 if (sessionData?.provider_token) {
-                    console.log("[App] Found Twitch Cloud Token. Validating...");
+                    console.log("[App] Found Twitch Cloud Token. Validating & Syncing...");
                     try {
-                        // We have the token, but we need the Client ID to make API calls work fully.
-                        // We ask Twitch to validate the token, which returns the Client ID.
+                        // Validate token against Twitch to get ClientID and Username
                         const res = await fetch('https://id.twitch.tv/oauth2/validate', {
                             headers: { 'Authorization': `OAuth ${sessionData.provider_token}` }
                         });
+                        
                         if (res.ok) {
                             const data = await res.json();
-                            if (data.client_id) {
-                                console.log("[App] Cloud Token Validated. Enabling Full Features.");
+                            
+                            // Essential Data Found
+                            if (data.client_id && data.login) {
+                                console.log(`[App] Authenticated as ${data.login} via Cloud.`);
+                                
                                 const newCreds = { 
                                     clientId: data.client_id, 
                                     accessToken: sessionData.provider_token 
                                 };
+
+                                // 1. Set Credentials (triggers fetchTwitchDataAuthenticated)
                                 setTwitchCreds(newCreds);
-                                // We also update localStorage so it behaves like manual login
+                                
+                                // 2. Force Auth State Update (Enables Chat Immediately)
+                                setAuthState(prev => ({
+                                    ...prev,
+                                    twitch: true,
+                                    twitchUsername: data.login
+                                }));
+
+                                // 3. Update localStorage so it persists even if Supabase is slow on next load
                                 localStorage.setItem('twitch_creds', JSON.stringify(newCreds));
                             }
                         }
@@ -190,13 +203,13 @@ export default function App() {
             if (session?.user) {
                 console.log("[App] Cloud Session Active:", session.user.id);
                 setCloudUserId(session.user.id);
-                integrateCloudToken(session); // Try to upgrade permissions immediately
+                await integrateCloudToken(session); // Await to ensure we have auth before profile
 
                 // Fetch Data from Cloud DB
                 const profile = await getUserProfile(session.user.id);
                 if (profile) {
                     if (profile.settings) setChatSettings(prev => ({ ...prev, ...profile.settings }));
-                    // Only overwrite if we didn't just get a fresh provider token
+                    // Only overwrite creds if we DIDN'T just get a fresh provider token
                     if (!session.provider_token && profile.twitch_creds) {
                          setTwitchCreds(prev => ({ ...prev, ...profile.twitch_creds }));
                     }
@@ -211,11 +224,11 @@ export default function App() {
             const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
                 if (event === 'SIGNED_IN' && session) {
                     setCloudUserId(session.user.id);
-                    integrateCloudToken(session);
+                    await integrateCloudToken(session);
                 } else if (event === 'SIGNED_OUT') {
                     setCloudUserId(null);
-                    // Optional: Clear creds on logout? 
-                    // For now, we keep them to act as "local cache" unless user explicitly clears in settings
+                    setAuthState(prev => ({ ...prev, twitch: false, twitchUsername: '' }));
+                    setTwitchCreds({ clientId: '', accessToken: '' });
                 }
             });
 
@@ -354,11 +367,13 @@ export default function App() {
     // Although we save explicitly, this effect ensures sync if state changes from elsewhere
     localStorage.setItem('twitch_creds', JSON.stringify(twitchCreds));
     
-    const isTwitchReady = !!(twitchCreds.accessToken && twitchCreds.clientId);
+    // Check if we have credentials. 
+    // Note: When logging in via Cloud, ClientId comes from the validation step.
+    const isTwitchReady = !!twitchCreds.accessToken;
     setAuthState(prev => ({ ...prev, twitch: isTwitchReady }));
 
     // If we have credentials, use the Official API to overwrite/improve badges
-    if (isTwitchReady) {
+    if (isTwitchReady && twitchCreds.clientId) {
         fetchTwitchDataAuthenticated();
     }
   }, [twitchCreds]);
@@ -594,6 +609,10 @@ export default function App() {
   const fetchTwitchDataAuthenticated = async () => {
     if (!twitchCreds.accessToken) return;
     try {
+        // If we came from Cloud, we have ClientID from validate. If manual, from input.
+        // If missing ClientID (rare edge case), we can't hit Helix, but Chat might still work if OAuth is valid.
+        if (!twitchCreds.clientId) return;
+
         const headers = { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` };
         
         // 1. Get Logged In User
@@ -795,7 +814,8 @@ export default function App() {
     setHistoryIndex(-1);
 
     if (commentPlatform === 'twitch') {
-        if (!twitchRef.current || !authState.twitch) {
+        // Updated check: Allows chat if we have an accessToken, even if ClientID might be loading
+        if (!twitchRef.current || !twitchCreds.accessToken) {
             alert('Você está em modo anônimo. Conecte sua conta da Twitch nas configurações (engrenagem) para enviar mensagens.');
             return;
         }
