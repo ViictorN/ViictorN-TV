@@ -292,38 +292,31 @@ export default function App() {
     const kickCode = urlParams.get('code');
     
     if (kickCode) {
-        const savedClientId = localStorage.getItem('kick_client_id_temp');
-        if (savedClientId) {
-            // Clean URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-            
-            // Perform Exchange
-            // IMPORTANT: We use window.location.origin + '/' to ensure exact match with Redirect URI
-            handleKickCallback(kickCode, savedClientId, window.location.origin + '/')
-                .then(async (data) => {
-                    if (data.access_token) {
-                        const profile = await fetchKickUserProfile(data.access_token);
-                        
-                        // Save Creds
-                        setKickAccessToken(data.access_token);
-                        localStorage.setItem('kick_access_token', data.access_token);
-                        
-                        if (profile) {
-                            setKickUsername(profile.username);
-                            localStorage.setItem('kick_username', profile.username);
-                        }
-                        
-                        setIsSettingsOpen(true);
-                        alert("Kick Login com Sucesso!");
+        // Clean URL immediately
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Automatic exchange using internal client ID
+        handleKickCallback(kickCode)
+            .then(async (data) => {
+                if (data.access_token) {
+                    const profile = await fetchKickUserProfile(data.access_token);
+                    
+                    // Save Creds
+                    setKickAccessToken(data.access_token);
+                    localStorage.setItem('kick_access_token', data.access_token);
+                    
+                    if (profile) {
+                        setKickUsername(profile.username);
+                        localStorage.setItem('kick_username', profile.username);
                     }
-                })
-                .catch(err => {
-                    alert("Erro no Login Kick: " + err.message);
-                })
-                .finally(() => {
-                    localStorage.removeItem('kick_client_id_temp');
-                });
-        }
+                    
+                    setIsSettingsOpen(true);
+                    console.log("Kick Login Success");
+                }
+            })
+            .catch(err => {
+                alert("Erro no Login Kick: " + err.message);
+            });
     }
 
 
