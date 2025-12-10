@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SavedMessage, UserNote } from '../types';
 
 // Environment variables (Vite uses import.meta.env, Create React App uses process.env)
 // Falling back to provided hardcoded keys for immediate functionality.
@@ -40,12 +41,8 @@ export const signInWithTwitch = async () => {
     return data;
 };
 
-// Kick currently doesn't have a direct Supabase Auth provider built-in as easily as Twitch,
-// usually requiring a custom OAuth flow or OpenID Connect. 
-// This is a placeholder for when that integration exists or via custom Edge Function.
 export const signInWithKick = async () => {
     if (!supabase) throw new Error("Backend não configurado.");
-    // Placeholder: In a real scenario, this might redirect to a custom backend endpoint
     alert("Login social da Kick via Supabase requer configuração avançada de provedor customizado.");
 };
 
@@ -62,9 +59,8 @@ export const getSession = async () => {
 
 export const getClient = () => supabase;
 
-// --- DATA SYNC METHODS ---
+// --- DATA SYNC METHODS (PROFILE) ---
 
-// Fetch user profile (settings, saved keys)
 export const getUserProfile = async (userId: string) => {
     if (!supabase) return null;
     
@@ -76,7 +72,6 @@ export const getUserProfile = async (userId: string) => {
             .single();
         
         if (error) {
-            // It's common to not have a profile yet if it's the first login
             if (error.code !== 'PGRST116') {
                 console.warn('[Supabase] Fetch Profile Error', error);
             }
@@ -89,19 +84,79 @@ export const getUserProfile = async (userId: string) => {
     }
 };
 
-// Save user profile (Upsert)
 export const updateUserProfile = async (userId: string, data: { settings?: any, twitch_creds?: any, kick_creds?: any }) => {
     if (!supabase) return;
     
-    // Prepare payload, removing undefined
     const payload: any = { id: userId, updated_at: new Date().toISOString() };
     if (data.settings) payload.settings = data.settings;
     if (data.twitch_creds) payload.twitch_creds = data.twitch_creds;
     if (data.kick_creds) payload.kick_creds = data.kick_creds;
 
-    const { error } = await supabase
-        .from('profiles')
-        .upsert(payload);
-        
+    const { error } = await supabase.from('profiles').upsert(payload);
     if (error) console.error('[Supabase] Save Error', error);
+};
+
+// --- NEW FEATURES: BOOKMARKS & NOTES ---
+
+export const saveMessage = async (msg: { platform: string, author: string, content: string, timestamp: number, avatar_url?: string }) => {
+    if (!supabase) return null;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase.from('saved_messages').insert({
+        user_id: user.id,
+        platform: msg.platform,
+        author: msg.author,
+        content: msg.content,
+        timestamp: msg.timestamp,
+        avatar_url: msg.avatar_url
+    }).select().single();
+
+    if (error) throw error;
+    return data;
+};
+
+export const getSavedMessages = async () => {
+    if (!supabase) return [];
+    const { data, error } = await supabase.from('saved_messages').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    return data as SavedMessage[];
+};
+
+export const deleteSavedMessage = async (id: string) => {
+    if (!supabase) return;
+    await supabase.from('saved_messages').delete().eq('id', id);
+};
+
+// Notes
+export const saveUserNote = async (targetUsername: string, targetPlatform: string, note: string) => {
+    if (!supabase) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Upsert logic based on Unique Constraint (user_id, target_username, target_platform)
+    const { error } = await supabase.from('user_notes').upsert({
+        user_id: user.id,
+        target_username: targetUsername,
+        target_platform: targetPlatform,
+        note: note,
+        updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id, target_username, target_platform' });
+
+    if (error) console.error('Error saving note', error);
+};
+
+export const getUserNote = async (targetUsername: string, targetPlatform: string): Promise<string> => {
+    if (!supabase) return '';
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return '';
+
+    const { data } = await supabase.from('user_notes')
+        .select('note')
+        .eq('user_id', user.id)
+        .eq('target_username', targetUsername)
+        .eq('target_platform', targetPlatform)
+        .single();
+    
+    return data?.note || '';
 };

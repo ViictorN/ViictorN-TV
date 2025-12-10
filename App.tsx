@@ -4,13 +4,14 @@ import { ChatMessageItem } from './components/ChatMessageItem';
 import { SettingsModal } from './components/SettingsModal';
 import { OfflineScreen } from './components/OfflineScreen';
 import { UserCard } from './components/UserCard';
+import { BookmarksModal } from './components/BookmarksModal'; // New Import
 import { SendIcon, PlatformIcon } from './components/Icons';
 import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, EmoteMap, ChatSettings, User } from './types';
 import { TwitchConnection, KickConnection } from './services/chatConnection';
 import { analyzeChatVibe } from './services/geminiService';
 import { fetch7TVEmotes } from './services/sevenTVService';
 import { handleKickCallback, fetchKickUserProfile } from './services/kickAuthService';
-import { isBackendConfigured, getSession, getUserProfile, updateUserProfile } from './services/supabaseService'; // IMPORTED
+import { isBackendConfigured, getSession, getUserProfile, updateUserProfile, saveMessage } from './services/supabaseService'; // New Import saveMessage
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MAX_MESSAGES = 500;
@@ -109,6 +110,9 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
+  // New: Bookmarks Modal State
+  const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
   
   const [twitchCreds, setTwitchCreds] = useState<TwitchCreds>(() => {
     if (typeof window !== 'undefined') {
@@ -352,6 +356,27 @@ export default function App() {
     }
   };
 
+  // --- CLOUD FEATURES ---
+  const handleSaveMessage = async (msg: ChatMessage) => {
+      if (!cloudUserId) return;
+      
+      const avatarKey = `${msg.platform}-${msg.user.username}`;
+      const savedAvatar = msg.user.avatarUrl || avatarCache[avatarKey];
+
+      try {
+          await saveMessage({
+              platform: msg.platform,
+              author: msg.user.username,
+              content: msg.content,
+              timestamp: msg.timestamp,
+              avatar_url: savedAvatar
+          });
+          // Visual feedback can be added here
+      } catch(e) {
+          console.error("Failed to save message", e);
+      }
+  };
+
   // --- AVATAR FETCH SERVICE ---
   const requestAvatar = useCallback(async (platform: Platform, user: User) => {
       const key = `${platform}-${user.username}`;
@@ -435,13 +460,9 @@ export default function App() {
       const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
       
-      // FIX: Increased tolerance significantly (80px -> 250px)
-      // This prevents the chat from pausing automatically when large messages arrive
-      // or when smooth scrolling lags slightly behind the message stream.
       if (distanceFromBottom > 250) {
           if (!isPaused) setIsPaused(true);
       } 
-      // Auto-resume if user returns close to bottom (20px -> 100px for easier snapping)
       else if (distanceFromBottom < 100) {
           if (isPaused) {
               setIsPaused(false);
@@ -455,8 +476,6 @@ export default function App() {
     // Only auto-scroll if NOT paused
     if (chatContainerRef.current && !isPaused) {
         const scrollContainer = chatContainerRef.current;
-        // Use requestAnimationFrame to ensure we scroll AFTER the DOM has fully updated with the new message height
-        // This reduces race conditions where the scroll height isn't ready yet
         requestAnimationFrame(() => {
             const { scrollHeight, clientHeight } = scrollContainer;
             scrollContainer.scrollTo({
@@ -468,16 +487,13 @@ export default function App() {
   }, [messages, isPaused, chatSettings.smoothScroll]);
 
   const scrollToBottom = () => {
-      // 1. Immediately update state to prevent race conditions
       setIsPaused(false);
       setUnreadCount(0);
-
-      // 2. Force scroll
       if (chatContainerRef.current) {
           const { scrollHeight, clientHeight } = chatContainerRef.current;
           chatContainerRef.current.scrollTo({
               top: scrollHeight - clientHeight,
-              behavior: 'auto' // Instant scroll when clicking button is usually better feel
+              behavior: 'auto'
           });
       }
   };
@@ -505,8 +521,6 @@ export default function App() {
             }
         }
     } catch (e) { 
-        // If fetch fails (mobile CORS?), don't force false, keep previous state or assume unknown if it was null
-        // However, to fix "false offline", if we fail we might just not update status or set to null
         console.warn("Kick stats fail", e); 
     }
 
@@ -539,7 +553,6 @@ export default function App() {
         }
 
         // 2. Get Broadcaster ID (Gabepeixe) for Channel Badges
-        // IMPORTANT: We need Gabepeixe's ID to get HIS badges, not the logged in user's badges
         const streamerRes = await fetch(`https://api.twitch.tv/helix/users?login=${TWITCH_USER_LOGIN}`, { headers });
         const streamerData = await streamerRes.json();
         const streamerId = streamerData.data?.[0]?.id;
@@ -616,26 +629,18 @@ export default function App() {
 
   const handleNewMessage = (msg: ChatMessage) => {
     // Logic for "First Message" Tracking (PERSISTED via localStorage)
-    // Create a unique key for the user per platform (LOWERCASE to ensure consistency)
     const userKey = `${msg.platform}-${msg.user.username.toLowerCase()}`;
     
-    // If not seen in HISTORY (across sessions)
     if (!seenUsers.current.has(userKey)) {
-        // If Twitch sends the flag, respect it. 
-        // If Kick (or flag missing), assume session-first is "First Interaction"
         if (msg.platform === Platform.KICK || msg.isFirstMessage === undefined) {
              msg.isFirstMessage = true;
         }
         seenUsers.current.add(userKey);
-        
-        // Update LOCALSTORAGE
         try {
             localStorage.setItem('seen_users', JSON.stringify(Array.from(seenUsers.current)));
         } catch(e) {}
 
     } else {
-        // If seen, ensure flag is false (unless platform insists otherwise, but usually sequential)
-        // Twitch might send isFirstMessage=true only once, so we don't overwrite if true
         if (!msg.isFirstMessage) msg.isFirstMessage = false;
     }
 
@@ -649,7 +654,6 @@ export default function App() {
   };
   
   const handleReply = (username: string) => {
-      // Append if input exists, otherwise set
       setChatInput(prev => {
           if (prev.endsWith(' ')) return `${prev}@${username} `;
           if (prev.length > 0) return `${prev} @${username} `;
@@ -706,7 +710,6 @@ export default function App() {
   // Kick Connection Logic
   useEffect(() => {
     if (!kickRef.current) {
-      // Re-initialize if token changes
       kickRef.current = new KickConnection(STREAMER_SLUG, handleNewMessage, handleDeleteMessage, kickAccessToken);
       kickRef.current.connect();
       addSystemMsg('Kick', true);
@@ -737,7 +740,6 @@ export default function App() {
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
 
-    // Add to History
     setInputHistory(prev => [chatInput, ...prev.filter(i => i !== chatInput)].slice(0, 50));
     setHistoryIndex(-1);
 
@@ -794,7 +796,6 @@ export default function App() {
           handleSendMessage();
       }
       
-      // Input History Logic
       if (e.key === 'ArrowUp') {
           e.preventDefault();
           if (historyIndex < inputHistory.length - 1) {
@@ -826,40 +827,27 @@ export default function App() {
     finally { setIsAnalyzing(false); }
   };
 
-  // Robust parent detection for Twitch Embeds in Brave/Modern Browsers
   const getParentDomain = () => {
       const currentHost = window.location.hostname;
-      // Use Set to avoid duplicates
       const parents = new Set<string>();
-      
       if (currentHost) parents.add(currentHost);
-      
-      // Fallback domains for dev environments where hostname might differ internally
-      // or to ensure localhost works
       if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
           parents.add('localhost'); 
       }
-      
       return Array.from(parents).map(domain => `&parent=${domain}`).join('');
   };
 
   const saveKickSettings = (username: string, token: string) => {
-      handleSaveKickCreds(username, token); // Use secure save
+      handleSaveKickCreds(username, token);
   };
 
-  // Detect Offline Status
-  // STRICT CHECK: Only show offline if explicitly false. If null (checking) or undefined, show nothing/loading.
   const isGlobalOffline = streamStats.isLiveTwitch === false && streamStats.isLiveKick === false;
   const showOfflineScreen = isGlobalOffline && activePlayer !== 'none' && !forcePlay;
 
-  // Filter messages based on Performance Mode
-  // If performance mode is ON, show only last 100 messages in the DOM.
-  // Otherwise show MAX_MESSAGES (500).
   const visibleMessages = chatSettings.performanceMode 
       ? messages.slice(-100) 
       : messages;
 
-  // Determine if we show input: Twitch Login OR Kick Token Present
   const canChat = Boolean(authState.twitch || authState.kickAccessToken);
 
   return (
@@ -875,11 +863,12 @@ export default function App() {
         chatSettings={chatSettings}
         onUpdateSettings={setChatSettings}
         onForceLoadCloud={() => {
-            // Manual re-fetch handler if needed, currently auto-handled by effects
-            // We can refresh the window or force logic here
             window.location.reload(); 
         }}
       />
+      
+      {/* Bookmarks Modal */}
+      <BookmarksModal isOpen={isBookmarksOpen} onClose={() => setIsBookmarksOpen(false)} />
 
       {/* FLOATING BUTTON: Exit Cinema Mode */}
       {chatSettings.cinemaMode && (
@@ -923,6 +912,8 @@ export default function App() {
         onSync={handleSyncPlayer}
         cinemaMode={chatSettings.cinemaMode}
         onToggleCinema={toggleCinemaMode}
+        onOpenBookmarks={() => setIsBookmarksOpen(true)}
+        hasCloudAccess={!!cloudUserId}
       />
 
       {/* Main Layout */}
@@ -957,7 +948,6 @@ export default function App() {
                             title="Twitch Player"
                         ></iframe>
                         
-                        {/* Fallback / External Link Button */}
                         <a 
                             href={`https://www.twitch.tv/${STREAMER_SLUG}`}
                             target="_blank"
@@ -967,7 +957,6 @@ export default function App() {
                             <span>Assistir na Twitch ↗</span>
                         </a>
 
-                        {/* Brave Warning Tooltip */}
                         <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
                             <div className="bg-black/90 backdrop-blur-md text-white text-[10px] p-3 rounded-xl border border-white/10 max-w-[220px] shadow-xl">
                                 <p className="mb-1 font-bold text-orange-400 flex items-center gap-1">
@@ -1015,7 +1004,7 @@ export default function App() {
           )}
         </div>
 
-        {/* Chat Area - FIXED: Added flex-1 on mobile so it grows to fill height */}
+        {/* Chat Area */}
         <div className={`
             ${activePlayer === 'none' ? 'w-full flex-1' : 'md:w-[380px] xl:w-[420px] w-full flex-1 md:flex-none'}
             bg-[#000000] border-t md:border-t-0 
@@ -1023,14 +1012,12 @@ export default function App() {
             flex flex-col z-10 transition-all duration-500 ease-out-expo min-h-0 relative
         `}>
           
-          {/* Messages - ADDED PADDING BOTTOM FOR FLOATING INPUT */}
           <div 
             className={`flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-0 scroll-smooth ${canChat ? 'pb-2' : 'pb-4'}`}
             ref={chatContainerRef}
             onScroll={handleScroll}
             >
             
-            {/* Mobile Chat Filter - STICKY INSIDE SCROLL CONTAINER FOR LIQUID EFFECT */}
             <div className={`md:hidden sticky top-4 z-50 mx-6 mb-4 animate-fade-in ${activePlayer !== 'none' ? 'hidden' : ''}`}>
                <div className="liquid-glass rounded-full flex justify-center py-2 px-2 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
                    <div className="flex items-center gap-1">
@@ -1054,14 +1041,11 @@ export default function App() {
                 ) : (
                 visibleMessages
                     .filter(msg => {
-                        // 1. Platform Filter
                         if (chatFilter === 'twitch' && msg.platform !== Platform.TWITCH) return false;
                         if (chatFilter === 'kick' && msg.platform !== Platform.KICK) return false;
                         
-                        // 2. Blocked Users
                         if (chatSettings.ignoredUsers.length > 0 && chatSettings.ignoredUsers.includes(msg.user.username.toLowerCase())) return false;
                         
-                        // 3. Blocked Keywords
                         if (chatSettings.ignoredKeywords.length > 0) {
                             const contentLower = msg.content.toLowerCase();
                             if (chatSettings.ignoredKeywords.some(kw => contentLower.includes(kw))) return false;
@@ -1087,12 +1071,13 @@ export default function App() {
                         onUserClick={handleUserClick}
                         avatarCache={avatarCache}
                         onRequestAvatar={requestAvatar}
+                        onSaveMessage={handleSaveMessage}
+                        canSave={!!cloudUserId}
                     />
                 ))
                 )}
             </div>
 
-            {/* PAUSE / UNREAD INDICATOR - ANIMATED */}
             <AnimatePresence>
             {isPaused && (
                 <div className="sticky bottom-4 flex justify-center w-full z-20 pointer-events-none">
@@ -1122,12 +1107,10 @@ export default function App() {
             </AnimatePresence>
           </div>
 
-          {/* Input Area - Fixed Layout for Mobile Stability */}
           {canChat && (
               <div className="w-full z-30 bg-black/60 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_30px_rgba(0,0,0,0.5)] shrink-0">
                  <div className="p-3">
                     <div className={`relative flex items-center bg-black/40 rounded-2xl border transition-all duration-300 ease-out-expo ${commentPlatform === 'twitch' ? 'border-twitch/30 focus-within:border-twitch/80 shadow-[0_0_20px_rgba(145,70,255,0.05)]' : 'border-kick/30 focus-within:border-kick/80 shadow-[0_0_20px_rgba(83,252,24,0.05)]'}`}>
-                        {/* Platform Selector */}
                         <div className="pl-1.5 pr-1 py-1">
                             <motion.button 
                                 whileTap={{ scale: 0.9 }}

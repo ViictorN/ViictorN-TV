@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, ChatMessage, Platform, TwitchCreds } from '../types';
 import { PlatformIcon } from './Icons';
+import { getUserNote, saveUserNote, isBackendConfigured } from '../services/supabaseService';
 
 interface Props {
   user: User;
@@ -12,6 +13,9 @@ interface Props {
 
 export const UserCard: React.FC<Props> = ({ user, platform, messages, onClose, twitchCreds }) => {
   const [fetchedAvatar, setFetchedAvatar] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+  const [hasBackend] = useState(isBackendConfigured());
 
   // Stats Logic
   const userMessages = messages.filter(m => m.user.username.toLowerCase() === user.username.toLowerCase() && m.platform === platform);
@@ -42,6 +46,20 @@ export const UserCard: React.FC<Props> = ({ user, platform, messages, onClose, t
       }
   }, [user, platform, twitchCreds]);
 
+  // Fetch Note
+  useEffect(() => {
+      if (hasBackend) {
+          getUserNote(user.username, platform).then(setNote);
+      }
+  }, [user.username, platform, hasBackend]);
+
+  const handleSaveNote = async () => {
+      if (!hasBackend) return;
+      setSavingNote(true);
+      await saveUserNote(user.username, platform, note);
+      setTimeout(() => setSavingNote(false), 500);
+  };
+
   // Display Image
   const displayAvatar = fetchedAvatar || user.avatarUrl;
   
@@ -55,17 +73,17 @@ export const UserCard: React.FC<Props> = ({ user, platform, messages, onClose, t
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
         
         {/* Card */}
-        <div className="relative bg-[#18181b] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-slide-up">
+        <div className="relative bg-[#18181b] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[90vh]">
             
-            {/* Header / Banner area could go here, for now using solid color */}
-            <div className="h-24 w-full bg-gradient-to-r from-gray-900 to-black relative border-b border-white/5">
+            {/* Header / Banner */}
+            <div className="h-24 w-full bg-gradient-to-r from-gray-900 to-black relative border-b border-white/5 shrink-0">
                  <button onClick={onClose} className="absolute top-2 right-2 p-2 text-white/50 hover:text-white transition-colors">✕</button>
             </div>
 
-            <div className="px-6 pb-6 -mt-12 relative">
+            <div className="px-6 pb-6 -mt-12 relative overflow-y-auto custom-scrollbar">
                 {/* Avatar */}
                 <div className="flex justify-between items-end mb-4">
-                    <div className="w-24 h-24 rounded-full border-4 border-[#18181b] bg-[#18181b] overflow-hidden shadow-lg relative">
+                    <div className="w-24 h-24 rounded-full border-4 border-[#18181b] bg-[#18181b] overflow-hidden shadow-lg relative shrink-0">
                         {displayAvatar ? (
                              <img src={displayAvatar} alt={user.username} className="w-full h-full object-cover" />
                         ) : (
@@ -101,6 +119,24 @@ export const UserCard: React.FC<Props> = ({ user, platform, messages, onClose, t
                     </a>
                 </div>
 
+                {/* Cloud Notes Section (NEW) */}
+                {hasBackend && (
+                    <div className="mb-4">
+                         <div className="flex justify-between items-center mb-1">
+                             <label className="text-[10px] font-bold text-yellow-500 uppercase tracking-widest">Notas Privadas (Cloud)</label>
+                             {savingNote && <span className="text-[9px] text-green-400">Salvo ✓</span>}
+                         </div>
+                         <textarea 
+                             className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-xs text-white/90 outline-none focus:border-yellow-500/50 transition-colors resize-none"
+                             rows={3}
+                             placeholder="Adicione notas de moderação ou observações sobre este usuário..."
+                             value={note}
+                             onChange={(e) => setNote(e.target.value)}
+                             onBlur={handleSaveNote}
+                         />
+                    </div>
+                )}
+
                 {/* Stats Grid */}
                 <div className="bg-black/40 rounded-xl p-4 border border-white/5 space-y-3">
                     <div className="flex justify-between items-center pb-2 border-b border-white/5">
@@ -120,10 +156,9 @@ export const UserCard: React.FC<Props> = ({ user, platform, messages, onClose, t
                     </div>
                 </div>
 
-                {/* Debug Info (Like Axel Chat) */}
+                {/* Debug Info */}
                  <div className="mt-4 pt-4 border-t border-white/5 text-[10px] text-gray-600 font-mono break-all">
                     <p>Folder: services/{platform.toLowerCase()}/authors/{user.username.toLowerCase()}</p>
-                    <p>Avatar: {displayAvatar || 'null'}</p>
                  </div>
 
             </div>

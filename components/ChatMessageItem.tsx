@@ -19,6 +19,8 @@ interface Props {
   onUserClick: (user: User, platform: Platform) => void;
   avatarCache: Record<string, string>;
   onRequestAvatar: (platform: Platform, user: User) => void;
+  onSaveMessage?: (msg: ChatMessage) => void; // New prop
+  canSave?: boolean; // New prop
 }
 
 // Improved Badge Styling: Clean, no shadow, consistent size
@@ -35,7 +37,6 @@ const FALLBACK_TWITCH_BADGES: Record<string, string> = {
 };
 
 // --- KICK OFFICIAL SVG BADGES ---
-// Re-created as SVGs to ensure they never break and look crisp.
 const KickBadgeSVG: React.FC<{ type: string }> = ({ type }) => {
     switch(type) {
         case 'broadcaster': // Host / Anchor
@@ -111,7 +112,9 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
     onReply, 
     onUserClick,
     avatarCache,
-    onRequestAvatar
+    onRequestAvatar,
+    onSaveMessage,
+    canSave
 }) => {
   const [imageError, setImageError] = useState(false);
   const isSystem = message.platform === Platform.SYSTEM;
@@ -121,10 +124,7 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   let displayAvatar = message.user.avatarUrl || avatarCache[avatarKey];
 
   // FIX FOR KICK AVATARS:
-  // We use wsrv.nl proxy to bypass CORS on files.kick.com.
-  // We check if it is already proxied to avoid double-wrapping.
   if (message.platform === Platform.KICK && displayAvatar && !displayAvatar.includes('wsrv.nl')) {
-      // Decode potential double encoding
       const cleanUrl = decodeURIComponent(displayAvatar);
       displayAvatar = `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&w=64&h=64&fit=cover&output=webp`;
   }
@@ -165,18 +165,15 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
           if (message.platform === Platform.KICK) {
              const key = `${message.id}-kbadge-${idx}`;
              
-             // Check if we have an official SVG for this badge type
              if (['broadcaster', 'moderator', 'vip', 'verified', 'founder', 'sub_gifter'].includes(badge.type)) {
                  return <KickBadgeSVG key={key} type={badge.type} />;
              }
              
-             // Subscriber Badge (Try dynamic image first, then fallback to SVG)
              if (badge.type === 'subscriber') {
                  if (kickBadges?.['subscriber'] && kickBadges['subscriber'][badge.version || '1']) {
                      const url = kickBadges['subscriber'][badge.version || '1'];
                      return <img key={key} src={url} className={BADGE_CLASS} alt="sub" />;
                  }
-                 // Fallback SVG if image fails or not loaded
                  return <KickBadgeSVG key={key} type="subscriber" />;
              }
              
@@ -325,7 +322,6 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   const zebraClass = settings.alternatingBackground && index % 2 === 0 ? 'bg-white/[0.02]' : '';
   const hoverClass = 'hover:liquid-glass transition-all duration-300';
   
-  // Updated Mention Class: Glass effect instead of flat red
   const mentionClass = isMention ? 'liquid-glass border-l-2 border-red-500 shadow-[inset_0_0_20px_rgba(239,68,68,0.2)]' : 'border-l-2 border-transparent';
   const deletedClass = message.isDeleted && settings.deletedMessageBehavior === 'hide' ? 'hidden' : '';
 
@@ -370,8 +366,6 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   // --- SUBSCRIPTIONS ---
   if (message.isSubscription) {
       const isTwitch = message.platform === Platform.TWITCH;
-      
-      // Gradient Effect Style
       const subStyle = isTwitch 
         ? "liquid-glass border-l-4 border-l-[#9146FF] bg-gradient-to-r from-[#9146FF]/20 via-[#9146FF]/5 to-transparent shadow-[inset_0_0_20px_rgba(145,70,255,0.1)]" 
         : "liquid-glass border-l-4 border-l-[#53FC18] bg-gradient-to-r from-[#53FC18]/20 via-[#53FC18]/5 to-transparent shadow-[inset_0_0_20px_rgba(83,252,24,0.1)]";
@@ -408,15 +402,23 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   return (
     <div className={`group flex items-start gap-2 py-1 px-2 relative border-b border-transparent hover:border-white/5 ${zebraClass} ${hoverClass} ${mentionClass} ${deletedClass}`}>
       
+      {/* CLOUD SAVE BUTTON (On Hover) */}
+      {canSave && onSaveMessage && (
+          <button 
+            onClick={() => onSaveMessage(message)}
+            className="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity text-white/30 hover:text-yellow-400 p-1"
+            title="Salvar na Nuvem"
+          >
+             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          </button>
+      )}
+
       {!settings.hideAvatars && AvatarComponent}
 
       <div className="flex-1 min-w-0 overflow-hidden">
           {message.replyTo && (
               <div className="flex items-center gap-2 mb-1 ml-0.5">
-                  {/* Connector Line */}
                   <div className="w-3 h-3 border-l-2 border-t-2 border-gray-500 rounded-tl-lg mt-2"></div>
-                  
-                  {/* Reply Bubble - UPDATED TO LIQUID GLASS */}
                   <div className="flex items-center gap-2 liquid-glass rounded-md pl-1.5 pr-2 py-1 max-w-full backdrop-blur-md">
                       <div className="flex items-center gap-1 shrink-0">
                           <span className="text-[10px] text-gray-400 select-none">@</span>

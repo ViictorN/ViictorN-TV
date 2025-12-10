@@ -17,6 +17,8 @@ interface Props {
   onSync: () => void;
   cinemaMode: boolean;
   onToggleCinema: () => void;
+  onOpenBookmarks?: () => void; // New prop
+  hasCloudAccess?: boolean; // New prop
 }
 
 export const ControlPanel: React.FC<Props> = ({ 
@@ -32,7 +34,9 @@ export const ControlPanel: React.FC<Props> = ({
     onSetChatFilter,
     onSync,
     cinemaMode,
-    onToggleCinema
+    onToggleCinema,
+    onOpenBookmarks,
+    hasCloudAccess
 }) => {
   
   const totalViewers = (streamStats.kickViewers || 0) + (streamStats.twitchViewers || 0);
@@ -94,7 +98,6 @@ export const ControlPanel: React.FC<Props> = ({
         </div>
 
         {/* CHAT FILTER (VISIBLE ALWAYS on Desktop/Tablet if space allows, but let's hide on MD if crowded) */}
-        {/* We keep it on SM+ because it's important, but compacted */}
         <div className="hidden sm:flex p-0.5 md:p-1 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 w-auto ml-2">
              <motion.button 
                 whileHover={{ scale: 1.05 }}
@@ -138,7 +141,7 @@ export const ControlPanel: React.FC<Props> = ({
         {/* Desktop Tools (Visible on Tablet MD+) */}
         <div className="hidden md:flex items-center gap-4">
             
-            {/* Sync Button - HIDDEN ON TABLET (MD/LG), VISIBLE ON XL */}
+            {/* Sync Button */}
             {activePlayer !== 'none' && (
                 <motion.button
                     whileHover={{ scale: 1.05 }}
@@ -152,7 +155,7 @@ export const ControlPanel: React.FC<Props> = ({
                 </motion.button>
             )}
 
-            {/* Stats Pill - HIDDEN ON TABLET (MD/LG), VISIBLE ON XL */}
+            {/* Stats Pill */}
             <div className="hidden xl:flex items-center gap-3 bg-black/40 backdrop-blur-sm px-4 py-2 rounded-2xl border border-white/10 shadow-lg cursor-default select-none">
                 <div className="flex flex-col items-center min-w-[30px]">
                     <span className="text-[9px] font-bold text-gray-500 mb-0.5">TOT</span>
@@ -176,12 +179,25 @@ export const ControlPanel: React.FC<Props> = ({
                 </div>
             </div>
 
-            {/* Separator - HIDDEN ON TABLET */}
+            {/* Separator */}
             <div className="hidden xl:block h-6 w-px bg-white/5"></div>
 
             {/* Tools - ALWAYS VISIBLE ON MD+ */}
             <div className="flex items-center gap-2">
                 
+                {/* Bookmarks Button (Only if cloud enabled) */}
+                {hasCloudAccess && onOpenBookmarks && (
+                    <motion.button
+                        whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.05)" }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={onOpenBookmarks}
+                        className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 text-yellow-500/70 hover:text-yellow-400 border border-white/10 shadow-lg"
+                        title="Mensagens Salvas"
+                    >
+                        <span className="text-lg">★</span>
+                    </motion.button>
+                )}
+
                 {/* Cinema Mode Toggle */}
                 <motion.button
                     whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.05)" }}

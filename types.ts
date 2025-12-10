@@ -110,3 +110,20 @@ export interface UserProfile {
   kick_token?: string;
   settings?: ChatSettings;
 }
+
+// NEW TYPES FOR CLOUD FEATURES
+export interface SavedMessage {
+  id: string; // UUID from Supabase
+  platform: string;
+  author: string;
+  content: string;
+  avatar_url?: string;
+  timestamp: number;
+  created_at: string;
+}
+
+export interface UserNote {
+  target_username: string;
+  target_platform: string;
+  note: string;
+}
