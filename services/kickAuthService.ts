@@ -1,4 +1,4 @@
-// PKCE Utils
+// PKCE Utils for OAuth 2.0 Security
 function generateRandomString(length: number) {
     let text = "";
     const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
@@ -13,26 +13,28 @@ function generateRandomString(length: number) {
     const data = encoder.encode(codeVerifier);
     const digest = await window.crypto.subtle.digest("SHA-256", data);
     
-    // Convert ArrayBuffer to Base64URL string
+    // Convert ArrayBuffer to Base64URL string compliant with RFC 7636
     return btoa(String.fromCharCode(...new Uint8Array(digest)))
       .replace(/\+/g, "-")
       .replace(/\//g, "_")
       .replace(/=+$/, "");
   }
   
-  // Service Config
+  // Configuration based on Kick Developer Docs
   const KICK_AUTH_URL = "https://id.kick.com/oauth/authorize";
   const KICK_TOKEN_URL = "https://id.kick.com/oauth/token";
   const KICK_API_URL = "https://api.kick.com/public/v1";
   
-  // Scopes needed for chat and reading user info
-  const SCOPES = "user:read channel:read chat:write";
+  // Scopes extracted from your screenshot:
+  // user:read, channel:read, chat:write, events:subscribe, etc.
+  const SCOPES = "user:read channel:read chat:write events:subscribe";
   
   export interface KickTokenResponse {
     access_token: string;
     refresh_token: string;
     expires_in: number;
     token_type: string;
+    scope: string;
   }
   
   export interface KickUserProfile {
@@ -41,17 +43,21 @@ function generateRandomString(length: number) {
     profile_pic?: string;
   }
   
+  /**
+   * Initiates the Official PKCE Flow.
+   * Redirects the user to Kick's login page.
+   */
   export const initiateKickLogin = async (clientId: string, redirectUri: string) => {
-    // 1. Generate PKCE Verifier
+    // 1. Generate PKCE Verifier (High entropy random string)
     const codeVerifier = generateRandomString(128);
     
-    // 2. Save verifier to verify later upon callback
+    // 2. Save verifier to LocalStorage to verify later upon callback (Critical for security)
     localStorage.setItem("kick_code_verifier", codeVerifier);
     
-    // 3. Generate Challenge
+    // 3. Generate Code Challenge (SHA-256 hash of the verifier)
     const codeChallenge = await generateCodeChallenge(codeVerifier);
   
-    // 4. Construct URL
+    // 4. Construct the Authorization URL
     const params = new URLSearchParams({
       response_type: "code",
       client_id: clientId,
@@ -61,15 +67,21 @@ function generateRandomString(length: number) {
       code_challenge_method: "S256"
     });
   
+    console.log(`[Kick Auth] Redirecting to: ${KICK_AUTH_URL}?${params.toString()}`);
+    
     // 5. Redirect User
     window.location.href = `${KICK_AUTH_URL}?${params.toString()}`;
   };
   
+  /**
+   * Handles the Callback from Kick.
+   * Exchanges the Authorization Code for an Access Token.
+   */
   export const handleKickCallback = async (code: string, clientId: string, redirectUri: string): Promise<KickTokenResponse> => {
     const codeVerifier = localStorage.getItem("kick_code_verifier");
     
     if (!codeVerifier) {
-      throw new Error("PKCE Code Verifier not found. Please try logging in again.");
+      throw new Error("PKCE Code Verifier not found. The flow was interrupted or local storage was cleared.");
     }
   
     const params = new URLSearchParams({
@@ -80,34 +92,46 @@ function generateRandomString(length: number) {
       code: code
     });
   
-    // Note: We use corsproxy because requesting token from browser usually triggers CORS on Kick's ID server
-    // If the app has a backend, this request should ideally be done there.
+    // NOTE: Kick's Token Endpoint enforces CORS. 
+    // Since we are a client-side app (SPA) without a dedicated backend server,
+    // we must use a CORS Proxy to complete the token exchange.
     const proxy = "https://corsproxy.io/?";
     
-    const response = await fetch(`${proxy}${KICK_TOKEN_URL}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json"
-      },
-      body: params
-    });
-  
-    if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`Kick Login Failed: ${err}`);
+    console.log("[Kick Auth] Exchanging code for token...");
+
+    try {
+        const response = await fetch(`${proxy}${KICK_TOKEN_URL}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "application/json"
+            },
+            body: params
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error("[Kick Auth] Token Exchange Failed:", errText);
+            throw new Error(`Kick API Error (${response.status}): ${errText}`);
+        }
+    
+        const data = await response.json();
+        
+        // Security Cleanup
+        localStorage.removeItem("kick_code_verifier");
+        
+        console.log("[Kick Auth] Success!");
+        return data;
+
+    } catch (error: any) {
+        console.error("Kick Login Error:", error);
+        throw new Error("Falha na troca de token. Verifique se o Client ID e a Redirect URI estão exatos na Dashboard da Kick.");
     }
-  
-    const data = await response.json();
-    
-    // Cleanup
-    localStorage.removeItem("kick_code_verifier");
-    
-    return data;
   };
   
   export const fetchKickUserProfile = async (accessToken: string): Promise<KickUserProfile | null> => {
       try {
+          // Public API requests also often need proxy from browser
           const proxy = "https://corsproxy.io/?";
           const res = await fetch(`${proxy}${KICK_API_URL}/users`, {
               headers: {
@@ -117,11 +141,15 @@ function generateRandomString(length: number) {
           
           if (res.ok) {
               const data = await res.json();
-              return {
-                  id: data.data.id,
-                  username: data.data.username,
-                  profile_pic: data.data.profile_pic
-              };
+              if (data.data) {
+                  return {
+                      id: data.data.id,
+                      username: data.data.username,
+                      profile_pic: data.data.profile_pic
+                  };
+              }
+          } else {
+              console.warn("[Kick API] Profile fetch failed", await res.text());
           }
       } catch (e) {
           console.error("Failed to fetch Kick user profile", e);

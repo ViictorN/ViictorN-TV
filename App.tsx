@@ -298,7 +298,8 @@ export default function App() {
             window.history.replaceState({}, document.title, window.location.pathname);
             
             // Perform Exchange
-            handleKickCallback(kickCode, savedClientId, window.location.origin)
+            // IMPORTANT: We use window.location.origin + '/' to ensure exact match with Redirect URI
+            handleKickCallback(kickCode, savedClientId, window.location.origin + '/')
                 .then(async (data) => {
                     if (data.access_token) {
                         const profile = await fetchKickUserProfile(data.access_token);
