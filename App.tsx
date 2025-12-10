@@ -348,15 +348,14 @@ export default function App() {
       const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
       
-      // FIX: Increase tolerance.
-      // 1. Only pause if user scrolls up significantly (> 80px). 
-      //    This prevents accidental pauses from small mouse bumps or touch jitter.
-      if (distanceFromBottom > 80) {
+      // FIX: Increased tolerance significantly (80px -> 250px)
+      // This prevents the chat from pausing automatically when large messages arrive
+      // or when smooth scrolling lags slightly behind the message stream.
+      if (distanceFromBottom > 250) {
           if (!isPaused) setIsPaused(true);
       } 
-      // 2. Auto-resume if user returns close to bottom (< 20px)
-      //    This removes the need to click the button if you just scroll back down manually.
-      else if (distanceFromBottom < 20) {
+      // Auto-resume if user returns close to bottom (20px -> 100px for easier snapping)
+      else if (distanceFromBottom < 100) {
           if (isPaused) {
               setIsPaused(false);
               setUnreadCount(0);
@@ -368,10 +367,15 @@ export default function App() {
   useEffect(() => {
     // Only auto-scroll if NOT paused
     if (chatContainerRef.current && !isPaused) {
-        const { scrollHeight, clientHeight } = chatContainerRef.current;
-        chatContainerRef.current.scrollTo({
-            top: scrollHeight - clientHeight,
-            behavior: chatSettings.smoothScroll ? 'smooth' : 'auto'
+        const scrollContainer = chatContainerRef.current;
+        // Use requestAnimationFrame to ensure we scroll AFTER the DOM has fully updated with the new message height
+        // This reduces race conditions where the scroll height isn't ready yet
+        requestAnimationFrame(() => {
+            const { scrollHeight, clientHeight } = scrollContainer;
+            scrollContainer.scrollTo({
+                top: scrollHeight - clientHeight,
+                behavior: chatSettings.smoothScroll ? 'smooth' : 'auto'
+            });
         });
     }
   }, [messages, isPaused, chatSettings.smoothScroll]);
