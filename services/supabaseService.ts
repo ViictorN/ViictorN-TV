@@ -40,10 +40,31 @@ export const signInWithTwitch = async () => {
     return data;
 };
 
-export const signInWithKick = async () => {
-    // Kick Native Auth is not yet supported in Supabase.
-    // We use the manual frontend OAuth flow in kickAuthService.ts instead.
-    alert("Para fazer login na Kick, use o botão 'Conectar com Kick' na aba Contas das configurações. Este botão (Cloud) ainda não está disponível.");
+// --- KICK SERVER-SIDE AUTH ---
+export const exchangeKickToken = async (code: string, codeVerifier: string, redirectUri: string) => {
+    if (!supabase) throw new Error("Supabase não inicializado.");
+
+    console.log("[Supabase] Invocando Edge Function 'kick-auth'...");
+
+    // Chama a Edge Function que contém o Client Secret seguro
+    const { data, error } = await supabase.functions.invoke('kick-auth', {
+        body: { 
+            code, 
+            code_verifier: codeVerifier, 
+            redirect_uri: redirectUri 
+        }
+    });
+
+    if (error) {
+        console.error("Erro na Edge Function:", error);
+        throw new Error("Falha na comunicação com o servidor de autenticação.");
+    }
+    
+    if (data.error) {
+        throw new Error("Erro retornado pela Kick: " + (data.error_description || data.error));
+    }
+
+    return data;
 };
 
 export const signOut = async () => {
@@ -134,7 +155,6 @@ export const saveUserNote = async (targetUsername: string, targetPlatform: strin
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Upsert logic based on Unique Constraint (user_id, target_username, target_platform)
     const { error } = await supabase.from('user_notes').upsert({
         user_id: user.id,
         target_username: targetUsername,
