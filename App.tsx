@@ -4,15 +4,14 @@ import { ChatMessageItem } from './components/ChatMessageItem';
 import { SettingsModal } from './components/SettingsModal';
 import { OfflineScreen } from './components/OfflineScreen';
 import { UserCard } from './components/UserCard';
-import { BookmarksModal } from './components/BookmarksModal'; // New Import
-import { EmotePicker } from './components/EmotePicker'; // New Import
+import { BookmarksModal } from './components/BookmarksModal';
+import { EmotePicker } from './components/EmotePicker';
 import { SendIcon, PlatformIcon, SmileyIcon } from './components/Icons';
 import { ChatMessage, AuthState, Platform, StreamStats, TwitchCreds, BadgeMap, EmoteMap, ChatSettings, User, TwitchEmote } from './types';
 import { TwitchConnection, KickConnection } from './services/chatConnection';
-import { analyzeChatVibe } from './services/geminiService';
 import { fetch7TVEmotes } from './services/sevenTVService';
 import { handleKickCallback, fetchKickUserProfile } from './services/kickAuthService';
-import { isBackendConfigured, getSession, getUserProfile, updateUserProfile, saveMessage, getClient } from './services/supabaseService'; // New Import saveMessage
+import { isBackendConfigured, getUserProfile, updateUserProfile, saveMessage, getClient } from './services/supabaseService';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const MAX_MESSAGES = 500;
@@ -22,7 +21,7 @@ const TWITCH_USER_LOGIN = 'gabepeixe';
 // Default Settings
 const DEFAULT_SETTINGS: ChatSettings = {
     showTimestamps: false,
-    hideAvatars: true, // Changed to true by default per user request
+    hideAvatars: true,
     fontSize: 'medium',
     hideSystemMessages: false,
     deletedMessageBehavior: 'strikethrough',
@@ -39,7 +38,7 @@ const DEFAULT_SETTINGS: ChatSettings = {
     smoothScroll: true,
     pauseOnHover: false,
     cinemaMode: false,
-    performanceMode: false, // Default: keep 500 msgs visible
+    performanceMode: false,
     showBadgeBroadcaster: true,
     showBadgeMod: true,
     showBadgeVip: true,
@@ -97,7 +96,7 @@ export default function App() {
   const [isPaused, setIsPaused] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Stats / Offline Logic - Initialize as null to prevent premature offline screen
+  // Stats / Offline Logic
   const [streamStats, setStreamStats] = useState<StreamStats>({ 
     kickViewers: null, 
     twitchViewers: null,
@@ -106,15 +105,14 @@ export default function App() {
   });
   
   // Force play bypass for offline screen
-  const [forcePlay, setForcePlay] = useState(false);
+  // DEFAULT TRUE: Ensures player loads immediately regardless of API status
+  const [forcePlay, setForcePlay] = useState(true);
   
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
   // New: Bookmarks Modal State
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
-  const [isEmotePickerOpen, setIsEmotePickerOpen] = useState(false); // New State
+  const [isEmotePickerOpen, setIsEmotePickerOpen] = useState(false);
   
   const [twitchCreds, setTwitchCreds] = useState<TwitchCreds>(() => {
     if (typeof window !== 'undefined') {
@@ -146,7 +144,7 @@ export default function App() {
   const [avatarCache, setAvatarCache] = useState<Record<string, string>>({});
   const pendingAvatars = useRef<Set<string>>(new Set());
 
-  // Session Tracking for First Interactions (Persisted in LOCALSTORAGE to survive refreshes/close)
+  // Session Tracking for First Interactions
   const seenUsers = useRef<Set<string>>(new Set());
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -164,58 +162,31 @@ export default function App() {
             // 1. Check current session
             const { data: { session } } = await supabase.auth.getSession();
             
-            // Helper to integrate Cloud Token into App State
             const integrateCloudToken = async (sessionData: any) => {
                 if (sessionData?.provider_token) {
-                    console.log("[App] Found Twitch Cloud Token. Validating & Syncing...");
                     try {
-                        // Validate token against Twitch to get ClientID and Username
                         const res = await fetch('https://id.twitch.tv/oauth2/validate', {
                             headers: { 'Authorization': `OAuth ${sessionData.provider_token}` }
                         });
-                        
                         if (res.ok) {
                             const data = await res.json();
-                            
-                            // Essential Data Found
                             if (data.client_id && data.login) {
-                                console.log(`[App] Authenticated as ${data.login} via Cloud.`);
-                                
-                                const newCreds = { 
-                                    clientId: data.client_id, 
-                                    accessToken: sessionData.provider_token 
-                                };
-
-                                // 1. Set Credentials (triggers fetchTwitchDataAuthenticated)
+                                const newCreds = { clientId: data.client_id, accessToken: sessionData.provider_token };
                                 setTwitchCreds(newCreds);
-                                
-                                // 2. Force Auth State Update (Enables Chat Immediately)
-                                setAuthState(prev => ({
-                                    ...prev,
-                                    twitch: true,
-                                    twitchUsername: data.login
-                                }));
-
-                                // 3. Update localStorage so it persists even if Supabase is slow on next load
+                                setAuthState(prev => ({ ...prev, twitch: true, twitchUsername: data.login }));
                                 localStorage.setItem('twitch_creds', JSON.stringify(newCreds));
                             }
                         }
-                    } catch (e) {
-                        console.warn("[App] Failed to validate cloud token", e);
-                    }
+                    } catch (e) {}
                 }
             };
 
             if (session?.user) {
-                console.log("[App] Cloud Session Active:", session.user.id);
                 setCloudUserId(session.user.id);
-                await integrateCloudToken(session); // Await to ensure we have auth before profile
-
-                // Fetch Data from Cloud DB
+                await integrateCloudToken(session);
                 const profile = await getUserProfile(session.user.id);
                 if (profile) {
                     if (profile.settings) setChatSettings(prev => ({ ...prev, ...profile.settings }));
-                    // Only overwrite creds if we DIDN'T just get a fresh provider token
                     if (!session.provider_token && profile.twitch_creds) {
                          setTwitchCreds(prev => ({ ...prev, ...profile.twitch_creds }));
                     }
@@ -226,7 +197,6 @@ export default function App() {
                 }
             }
 
-            // 2. Listen for Auth Changes (Login/Logout)
             const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
                 if (event === 'SIGNED_IN' && session) {
                     setCloudUserId(session.user.id);
@@ -244,17 +214,16 @@ export default function App() {
     initCloud();
   }, []);
 
-  // --- CLOUD AUTO-SAVE (Debounced) ---
+  // --- CLOUD AUTO-SAVE ---
   useEffect(() => {
     if (cloudUserId) {
         const timeout = setTimeout(() => {
-            // Only save if we actually have data to save
             updateUserProfile(cloudUserId, {
                 settings: chatSettings,
                 twitch_creds: twitchCreds,
                 kick_creds: { username: kickUsername, token: kickAccessToken }
             });
-        }, 3000); // 3 seconds debounce
+        }, 3000);
         return () => clearTimeout(timeout);
     }
   }, [chatSettings, twitchCreds, kickUsername, kickAccessToken, cloudUserId]);
@@ -262,23 +231,19 @@ export default function App() {
 
   // Init logic
   useEffect(() => {
-    // Initialize Seen Users from LOCAL STORAGE
     try {
         const saved = localStorage.getItem('seen_users');
         if (saved) {
             const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed)) {
-                parsed.forEach(u => seenUsers.current.add(u));
-            }
+            if (Array.isArray(parsed)) parsed.forEach(u => seenUsers.current.add(u));
         }
     } catch(e) {}
 
-    // --- POPUP HANDLER (CHILD) ---
+    // --- POPUP HANDLER ---
     if (window.opener && window.location.hash.includes('access_token')) {
         const hash = window.location.hash.substring(1);
         const params = new URLSearchParams(hash);
         const accessToken = params.get('access_token');
-        
         if (accessToken) {
             window.opener.postMessage({ type: 'TWITCH_AUTH_SUCCESS', accessToken }, window.location.origin);
             window.close();
@@ -287,62 +252,44 @@ export default function App() {
     }
 
     // --- KICK AUTH CALLBACK HANDLER ---
-    // Detects ?code=... from Kick redirect
     const urlParams = new URLSearchParams(window.location.search);
     const kickCode = urlParams.get('code');
-    
     if (kickCode) {
         const savedClientId = localStorage.getItem('kick_client_id_temp');
         if (savedClientId) {
-            // Clean URL
             window.history.replaceState({}, document.title, window.location.pathname);
-            
-            // Perform Exchange
             handleKickCallback(kickCode, savedClientId, window.location.origin)
                 .then(async (data) => {
                     if (data.access_token) {
                         const profile = await fetchKickUserProfile(data.access_token);
-                        
-                        // Save Creds
                         setKickAccessToken(data.access_token);
                         localStorage.setItem('kick_access_token', data.access_token);
-                        
                         if (profile) {
                             setKickUsername(profile.username);
                             localStorage.setItem('kick_username', profile.username);
                         }
-                        
                         setIsSettingsOpen(true);
                         alert("Kick Login com Sucesso!");
                     }
                 })
-                .catch(err => {
-                    alert("Erro no Login Kick: " + err.message);
-                })
-                .finally(() => {
-                    localStorage.removeItem('kick_client_id_temp');
-                });
+                .catch(err => { alert("Erro no Login Kick: " + err.message); })
+                .finally(() => { localStorage.removeItem('kick_client_id_temp'); });
         }
     }
 
-
-    // --- MAIN APP HANDLER (PARENT) ---
+    // --- MAIN APP HANDLER ---
     const handleMessage = (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
-        
         if (event.data && event.data.type === 'TWITCH_AUTH_SUCCESS') {
             const { accessToken } = event.data;
-            handleSaveTwitchCreds({ ...twitchCreds, accessToken }); // Use secure save
+            handleSaveTwitchCreds({ ...twitchCreds, accessToken });
             setIsSettingsOpen(true);
         }
     };
     window.addEventListener('message', handleMessage);
 
-    // Initial Data
     fetchStats();
     fetch7TVEmotes().then(map => setSevenTVEmotes(map));
-    
-    // Always try to load Public badges first (fastest)
     fetchTwitchBadgesNoAuth(); 
 
     const poll = setInterval(fetchStats, 30000);
@@ -355,40 +302,24 @@ export default function App() {
     };
   }, []);
 
-  // --- PERSISTENCE EFFECT (LOCAL) ---
-  useEffect(() => {
-    localStorage.setItem('chat_settings', JSON.stringify(chatSettings));
-  }, [chatSettings]);
+  // --- PERSISTENCE ---
+  useEffect(() => { localStorage.setItem('chat_settings', JSON.stringify(chatSettings)); }, [chatSettings]);
+  useEffect(() => { localStorage.setItem('active_player', activePlayer); }, [activePlayer]);
+  useEffect(() => { localStorage.setItem('chat_filter', chatFilter); }, [chatFilter]);
 
+  // Sync Auth
   useEffect(() => {
-    localStorage.setItem('active_player', activePlayer);
-  }, [activePlayer]);
-
-  useEffect(() => {
-    localStorage.setItem('chat_filter', chatFilter);
-  }, [chatFilter]);
-
-  // Sync Auth State & Fetch Authenticated Data
-  useEffect(() => {
-    // Although we save explicitly, this effect ensures sync if state changes from elsewhere
     localStorage.setItem('twitch_creds', JSON.stringify(twitchCreds));
-    
-    // Check if we have credentials. 
-    // Note: When logging in via Cloud, ClientId comes from the validation step.
     const isTwitchReady = !!twitchCreds.accessToken;
     setAuthState(prev => ({ ...prev, twitch: isTwitchReady }));
-
-    // If we have credentials, use the Official API to overwrite/improve badges
     if (isTwitchReady && twitchCreds.clientId) {
         fetchTwitchDataAuthenticated();
     }
   }, [twitchCreds]);
 
   useEffect(() => {
-      // Although we save explicitly, this effect ensures sync
       localStorage.setItem('kick_username', kickUsername);
       localStorage.setItem('kick_access_token', kickAccessToken);
-
       setAuthState(prev => ({ 
           ...prev, 
           kick: !!kickUsername, 
@@ -398,7 +329,6 @@ export default function App() {
   }, [kickUsername, kickAccessToken]);
 
 
-  // --- EXPLICIT SAVE HANDLERS (Passed to SettingsModal) ---
   const handleSaveTwitchCreds = (creds: TwitchCreds) => {
       setTwitchCreds(creds);
       localStorage.setItem('twitch_creds', JSON.stringify(creds));
@@ -416,25 +346,19 @@ export default function App() {
     if (messageQueue.current.length > 0) {
       setMessages(prev => {
         const newMsgs = [...prev, ...messageQueue.current].slice(-MAX_MESSAGES);
-        
-        // Handle Unread Count if Paused
         if (isPaused) {
             setUnreadCount(c => c + messageQueue.current.length);
         }
-
         messageQueue.current = [];
         return newMsgs;
       });
     }
   };
 
-  // --- CLOUD FEATURES ---
   const handleSaveMessage = async (msg: ChatMessage) => {
       if (!cloudUserId) return;
-      
       const avatarKey = `${msg.platform}-${msg.user.username}`;
       const savedAvatar = msg.user.avatarUrl || avatarCache[avatarKey];
-
       try {
           await saveMessage({
               platform: msg.platform,
@@ -443,67 +367,42 @@ export default function App() {
               timestamp: msg.timestamp,
               avatar_url: savedAvatar
           });
-          // Visual feedback can be added here
-      } catch(e) {
-          console.error("Failed to save message", e);
-      }
+      } catch(e) { console.error("Failed to save message", e); }
   };
 
-  // --- AVATAR FETCH SERVICE ---
+  // --- AVATAR FETCH ---
   const requestAvatar = useCallback(async (platform: Platform, user: User) => {
       const key = `${platform}-${user.username}`;
-      
-      // Prevent redundant fetches
       if (avatarCache[key] || pendingAvatars.current.has(key)) return;
-      // If user object already has a valid URL, skip
       if (user.avatarUrl && !user.avatarUrl.includes('null')) return;
 
       pendingAvatars.current.add(key);
-
       try {
           let url: string | null = null;
-          
-          // --- KICK AVATAR STRATEGY ---
           if (platform === Platform.KICK && user.id) {
-               // Strategy 1: 7TV API (Preferred - Bypass CORS)
-               // The direct Kick CDN often fails due to CORS or requires headers we can't send
                try {
                    const res = await fetch(`https://7tv.io/v3/users/kick/${user.id}`);
                    if (res.ok) {
                        const data = await res.json();
                        if (data.user?.avatar_url) {
-                           url = data.user.avatar_url.startsWith('//') 
-                             ? `https:${data.user.avatar_url}` 
-                             : data.user.avatar_url;
+                           url = data.user.avatar_url.startsWith('//') ? `https:${data.user.avatar_url}` : data.user.avatar_url;
                        }
                    }
                } catch (e) {}
-
-               // Strategy 2: Direct Kick CDN (Fallback)
-               // Only use this if 7TV failed.
-               if (!url) {
-                   url = `https://files.kick.com/images/user_profile_pics/${user.id}/image.webp`;
-               }
+               if (!url) url = `https://files.kick.com/images/user_profile_pics/${user.id}/image.webp`;
           }
-
-          // --- TWITCH AVATAR STRATEGY ---
           else if (platform === Platform.TWITCH) {
-              // 1. 7TV (Cross-check)
               if (user.id) {
                   try {
                       const res = await fetch(`https://7tv.io/v3/users/twitch/${user.id}`);
                       if (res.ok) {
                           const data = await res.json();
                           if (data.user?.avatar_url) {
-                               url = data.user.avatar_url.startsWith('//') 
-                                 ? `https:${data.user.avatar_url}` 
-                                 : data.user.avatar_url;
+                               url = data.user.avatar_url.startsWith('//') ? `https:${data.user.avatar_url}` : data.user.avatar_url;
                           }
                       }
                   } catch (e) {}
               }
-
-              // 2. IVR API (Username based, reliable public API)
               if (!url) {
                   try {
                     const res = await fetch(`https://api.ivr.fi/v2/twitch/user?login=${user.username}`);
@@ -514,46 +413,25 @@ export default function App() {
                   } catch(e) {}
               }
           }
-
-          if (url) {
-              setAvatarCache(prev => ({ ...prev, [key]: url! }));
-          }
-      } catch (e) {
-          // Silent fail
-      } finally {
-          pendingAvatars.current.delete(key);
-      }
+          if (url) setAvatarCache(prev => ({ ...prev, [key]: url! }));
+      } catch (e) {} finally { pendingAvatars.current.delete(key); }
   }, [avatarCache]);
 
-  // --- SCROLL HANDLER (Chat Freeze) ---
+  // --- SCROLL ---
   const handleScroll = () => {
       if (!chatContainerRef.current) return;
-      
       const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
       const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      
-      if (distanceFromBottom > 250) {
-          if (!isPaused) setIsPaused(true);
-      } 
-      else if (distanceFromBottom < 100) {
-          if (isPaused) {
-              setIsPaused(false);
-              setUnreadCount(0);
-          }
-      }
+      if (distanceFromBottom > 250) { if (!isPaused) setIsPaused(true); } 
+      else if (distanceFromBottom < 100) { if (isPaused) { setIsPaused(false); setUnreadCount(0); } }
   };
 
-  // Auto-scroll Effect
   useEffect(() => {
-    // Only auto-scroll if NOT paused
     if (chatContainerRef.current && !isPaused) {
         const scrollContainer = chatContainerRef.current;
         requestAnimationFrame(() => {
             const { scrollHeight, clientHeight } = scrollContainer;
-            scrollContainer.scrollTo({
-                top: scrollHeight - clientHeight,
-                behavior: chatSettings.smoothScroll ? 'smooth' : 'auto'
-            });
+            scrollContainer.scrollTo({ top: scrollHeight - clientHeight, behavior: chatSettings.smoothScroll ? 'smooth' : 'auto' });
         });
     }
   }, [messages, isPaused, chatSettings.smoothScroll]);
@@ -563,15 +441,11 @@ export default function App() {
       setUnreadCount(0);
       if (chatContainerRef.current) {
           const { scrollHeight, clientHeight } = chatContainerRef.current;
-          chatContainerRef.current.scrollTo({
-              top: scrollHeight - clientHeight,
-              behavior: 'auto'
-          });
+          chatContainerRef.current.scrollTo({ top: scrollHeight - clientHeight, behavior: 'auto' });
       }
   };
 
   // --- API ---
-
   const fetchStats = async () => {
     try {
         const response = await fetch(`https://corsproxy.io/?https://kick.com/api/v1/channels/${STREAMER_SLUG}`);
@@ -582,19 +456,13 @@ export default function App() {
             } else {
                 setStreamStats(prev => ({ ...prev, kickViewers: 0, isLiveKick: false }));
             }
-
-            // Fetch Kick Badges (Subscriber images)
             if (data.subscriber_badges) {
                 const subBadges: Record<string, string> = {};
-                data.subscriber_badges.forEach((b: any) => {
-                    subBadges[String(b.months)] = b.badge_image.src;
-                });
+                data.subscriber_badges.forEach((b: any) => { subBadges[String(b.months)] = b.badge_image.src; });
                 setKickBadges(prev => ({ ...prev, 'subscriber': subBadges }));
             }
         }
-    } catch (e) { 
-        console.warn("Kick stats fail", e); 
-    }
+    } catch (e) {}
 
     if (twitchCreds.accessToken && twitchCreds.clientId) {
         try {
@@ -607,79 +475,53 @@ export default function App() {
             } else {
                  setStreamStats(prev => ({ ...prev, twitchViewers: 0, isLiveTwitch: false }));
             }
-        } catch (e) { console.error("Twitch stats fail", e); }
+        } catch (e) {}
     }
   };
 
-  // --- EMOTE HANDLERS (Subscriber + Global) ---
-
   const handleEmoteSetsReceived = useCallback(async (sets: string[]) => {
       if (!twitchCreds.accessToken || !twitchCreds.clientId) return;
-      
-      // Filter out sets we've already fetched to avoid spam
       const newSets = sets.filter(s => !fetchedEmoteSets.current.has(s) && s !== '0');
       if (newSets.length === 0) return;
-
       newSets.forEach(s => fetchedEmoteSets.current.add(s));
-
       try {
-          // Twitch API allows up to 25 set_ids per request. 
-          // For safety, we'll take the first 20 if there are many.
           const idsToFetch = newSets.slice(0, 20);
           const queryString = idsToFetch.map(id => `emote_set_id=${id}`).join('&');
-
           const res = await fetch(`https://api.twitch.tv/helix/chat/emotes/set?${queryString}`, {
-              headers: { 
-                  'Client-ID': twitchCreds.clientId, 
-                  'Authorization': `Bearer ${twitchCreds.accessToken}` 
-              }
+              headers: { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` }
           });
-          
           if (res.ok) {
               const data = await res.json();
               if (data.data) {
                   setTwitchEmotes(prev => {
-                      // Avoid duplicates
                       const existingIds = new Set(prev.map(e => e.id));
                       const uniqueNew = data.data.filter((e: TwitchEmote) => !existingIds.has(e.id));
                       return [...prev, ...uniqueNew];
                   });
               }
           }
-      } catch (e) {
-          console.warn("Failed to fetch sub emote sets", e);
-      }
+      } catch (e) {}
   }, [twitchCreds]);
 
-  // --- AUTHENTICATED TWITCH DATA FETCH (Official API) ---
   const fetchTwitchDataAuthenticated = async () => {
-    if (!twitchCreds.accessToken) return;
+    if (!twitchCreds.accessToken || !twitchCreds.clientId) return;
     try {
-        if (!twitchCreds.clientId) return;
-
         const headers = { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` };
-        
-        // 1. Get Logged In User
         const myUserRes = await fetch(`https://api.twitch.tv/helix/users`, { headers });
         const myData = await myUserRes.json();
         if (myData.data && myData.data.length > 0) {
             setAuthState(prev => ({ ...prev, twitchUsername: myData.data[0].display_name }));
         }
 
-        // 2. Get Broadcaster ID (Gabepeixe) for Channel Badges & Emotes
         const streamerRes = await fetch(`https://api.twitch.tv/helix/users?login=${TWITCH_USER_LOGIN}`, { headers });
         const streamerData = await streamerRes.json();
         const streamerId = streamerData.data?.[0]?.id;
 
-        // 3. Fetch Channel Badges
         if (streamerId) {
              const cbRes = await fetch(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${streamerId}`, { headers });
              const cbData = await cbRes.json();
-             if (cbData.data) {
-                setChannelBadges(parseHelixBadges(cbData.data));
-             }
+             if (cbData.data) setChannelBadges(parseHelixBadges(cbData.data));
 
-             // Fetch Channel Emotes (Gabepeixe Specific)
              const emotesRes = await fetch(`https://api.twitch.tv/helix/chat/emotes?broadcaster_id=${streamerId}`, { headers });
              const emotesData = await emotesRes.json();
              if (emotesData.data) {
@@ -690,15 +532,9 @@ export default function App() {
                  });
              }
         }
-
-        // 4. Fetch Global Badges
         const gbRes = await fetch(`https://api.twitch.tv/helix/chat/badges/global`, { headers });
         const gbData = await gbRes.json();
-        if (gbData.data) {
-            setGlobalBadges(parseHelixBadges(gbData.data));
-        }
-
-        // 5. Fetch Global Emotes (Standard Twitch Emotes)
+        if (gbData.data) setGlobalBadges(parseHelixBadges(gbData.data));
         const geRes = await fetch(`https://api.twitch.tv/helix/chat/emotes/global`, { headers });
         const geData = await geRes.json();
         if (geData.data) {
@@ -708,8 +544,7 @@ export default function App() {
                  return [...prev, ...uniqueNew];
              });
         }
-
-    } catch (e) { console.error("Twitch Authenticated Data Error", e); }
+    } catch (e) {}
   };
 
   const parseHelixBadges = (data: any[]): BadgeMap => {
@@ -723,28 +558,20 @@ export default function App() {
      return map;
   };
 
-  // --- PUBLIC TWITCH DATA FETCH (IVR Fallback) ---
   const fetchTwitchBadgesNoAuth = async () => {
       try {
-          // Using CORS Proxy to avoid direct fetch issues with IVR
           const proxy = 'https://corsproxy.io/?';
-
-          // 1. Global Badges
           const globalRes = await fetch(`${proxy}${encodeURIComponent('https://api.ivr.fi/v2/twitch/badges/global')}`);
           if (globalRes.ok) {
               const data = await globalRes.json();
               setGlobalBadges(prev => Object.keys(prev).length === 0 ? parseIvrBadges(data) : prev);
           }
-
-          // 2. Channel Badges (Gabepeixe)
           const channelRes = await fetch(`${proxy}${encodeURIComponent(`https://api.ivr.fi/v2/twitch/badges/channel/${TWITCH_USER_LOGIN}`)}`);
            if (channelRes.ok) {
               const data = await channelRes.json();
               setChannelBadges(prev => Object.keys(prev).length === 0 ? parseIvrBadges(data) : prev);
           }
-      } catch (e) {
-          // Suppress error to avoid console noise for users, as this is a fallback
-      }
+      } catch (e) {}
   };
 
   const parseIvrBadges = (data: any[]): BadgeMap => {
@@ -752,41 +579,24 @@ export default function App() {
       if (!data) return map;
       data.forEach((set: any) => {
           const versions: Record<string, string> = {};
-          set.versions.forEach((v: any) => {
-              // IVR returns 'image_url_2x' or 'image_url_1x'
-              versions[v.id] = v.image_url_2x || v.image_url_1x; 
-          });
+          set.versions.forEach((v: any) => { versions[v.id] = v.image_url_2x || v.image_url_1x; });
           map[set.set_id] = versions;
       });
       return map;
   };
 
-  // --- HANDLERS ---
-
   const handleNewMessage = (msg: ChatMessage) => {
-    // Logic for "First Message" Tracking (PERSISTED via localStorage)
     const userKey = `${msg.platform}-${msg.user.username.toLowerCase()}`;
-    
     if (!seenUsers.current.has(userKey)) {
-        if (msg.platform === Platform.KICK || msg.isFirstMessage === undefined) {
-             msg.isFirstMessage = true;
-        }
+        if (msg.platform === Platform.KICK || msg.isFirstMessage === undefined) msg.isFirstMessage = true;
         seenUsers.current.add(userKey);
-        try {
-            localStorage.setItem('seen_users', JSON.stringify(Array.from(seenUsers.current)));
-        } catch(e) {}
-
-    } else {
-        if (!msg.isFirstMessage) msg.isFirstMessage = false;
-    }
-
+        try { localStorage.setItem('seen_users', JSON.stringify(Array.from(seenUsers.current))); } catch(e) {}
+    } else { if (!msg.isFirstMessage) msg.isFirstMessage = false; }
     messageQueue.current.push(msg);
   };
   
   const handleDeleteMessage = (msgId: string) => {
-      setMessages(prev => prev.map(m => 
-          m.id === msgId ? { ...m, isDeleted: true } : m
-      ));
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, isDeleted: true } : m));
   };
   
   const handleReply = (username: string) => {
@@ -797,65 +607,33 @@ export default function App() {
       });
   };
   
-  // Emote Selection Handler
   const handleEmoteSelect = (emoteCode: string) => {
       setChatInput(prev => {
           if (prev.endsWith(' ')) return `${prev}${emoteCode} `;
           if (prev.length > 0) return `${prev} ${emoteCode} `;
           return `${emoteCode} `;
       });
-      // Optionally close picker or keep open for multi-select
-      // setIsEmotePickerOpen(false); 
   };
 
-  const handleUserClick = (user: User, platform: Platform) => {
-      setSelectedUser({ user, platform });
-  };
+  const handleUserClick = (user: User, platform: Platform) => { setSelectedUser({ user, platform }); };
+  const handleSyncPlayer = () => { setPlayerKey(prev => prev + 1); };
+  const toggleCinemaMode = () => { setChatSettings(prev => ({ ...prev, cinemaMode: !prev.cinemaMode })); };
 
-  const handleSyncPlayer = () => {
-    setPlayerKey(prev => prev + 1);
-  };
-
-  const toggleCinemaMode = () => {
-      setChatSettings(prev => ({ ...prev, cinemaMode: !prev.cinemaMode }));
-  };
-
-  // Twitch Connection Logic
   useEffect(() => {
-    if (twitchRef.current) {
-        twitchRef.current.disconnect();
-        twitchRef.current = null;
-        addSystemMsg('Twitch', false);
-    }
-
+    if (twitchRef.current) { twitchRef.current.disconnect(); twitchRef.current = null; addSystemMsg('Twitch', false); }
     twitchRef.current = new TwitchConnection(
-        STREAMER_SLUG, 
-        handleNewMessage, 
-        handleDeleteMessage,
-        twitchCreds.accessToken || undefined, 
-        authState.twitchUsername || undefined,
-        handleEmoteSetsReceived // Callback to load user's sub emotes
+        STREAMER_SLUG, handleNewMessage, handleDeleteMessage,
+        twitchCreds.accessToken || undefined, authState.twitchUsername || undefined, handleEmoteSetsReceived
     );
     twitchRef.current.connect();
-    
     const mode = authState.twitch ? 'Autenticado' : 'Anônimo (Leitura)';
     handleNewMessage({
-      id: crypto.randomUUID(),
-      platform: Platform.SYSTEM,
-      user: { username: 'System', badges: [] },
-      content: `Conectado à Twitch em modo: ${mode}.`,
-      timestamp: Date.now()
+      id: crypto.randomUUID(), platform: Platform.SYSTEM, user: { username: 'System', badges: [] },
+      content: `Conectado à Twitch em modo: ${mode}.`, timestamp: Date.now()
     });
-
-    return () => {
-        if (twitchRef.current) {
-            twitchRef.current.disconnect();
-            twitchRef.current = null;
-        }
-    };
+    return () => { if (twitchRef.current) { twitchRef.current.disconnect(); twitchRef.current = null; } };
   }, [twitchCreds.accessToken, authState.twitchUsername, handleEmoteSetsReceived]);
 
-  // Kick Connection Logic
   useEffect(() => {
     if (!kickRef.current) {
       kickRef.current = new KickConnection(STREAMER_SLUG, handleNewMessage, handleDeleteMessage, kickAccessToken);
@@ -866,137 +644,71 @@ export default function App() {
          kickRef.current = new KickConnection(STREAMER_SLUG, handleNewMessage, handleDeleteMessage, kickAccessToken);
          kickRef.current.connect();
     }
-    
-    return () => {
-        if (kickRef.current) {
-            kickRef.current.disconnect();
-            kickRef.current = null;
-        }
-    };
+    return () => { if (kickRef.current) { kickRef.current.disconnect(); kickRef.current = null; } };
   }, [kickAccessToken]);
 
   const addSystemMsg = (platform: string, connected: boolean) => {
     handleNewMessage({
-      id: crypto.randomUUID(),
-      platform: Platform.SYSTEM,
-      user: { username: 'System', badges: [] },
-      content: connected ? `Conectado ao servidor da ${platform}.` : `Desconectado da ${platform}.`,
-      timestamp: Date.now()
+      id: crypto.randomUUID(), platform: Platform.SYSTEM, user: { username: 'System', badges: [] },
+      content: connected ? `Conectado ao servidor da ${platform}.` : `Desconectado da ${platform}.`, timestamp: Date.now()
     });
   };
 
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
-
     setInputHistory(prev => [chatInput, ...prev.filter(i => i !== chatInput)].slice(0, 50));
     setHistoryIndex(-1);
-
     if (commentPlatform === 'twitch') {
-        // Updated check: Allows chat if we have an accessToken, even if ClientID might be loading
         if (!twitchRef.current || !twitchCreds.accessToken) {
             alert('Você está em modo anônimo. Conecte sua conta da Twitch nas configurações (engrenagem) para enviar mensagens.');
             return;
         }
         twitchRef.current.sendMessage(chatInput);
-        
         handleNewMessage({
-            id: crypto.randomUUID(),
-            platform: Platform.TWITCH,
-            user: { username: authState.twitchUsername || 'Eu', badges: [], color: '#a970ff' },
-            content: chatInput,
-            timestamp: Date.now()
+            id: crypto.randomUUID(), platform: Platform.TWITCH, user: { username: authState.twitchUsername || 'Eu', badges: [], color: '#a970ff' },
+            content: chatInput, timestamp: Date.now()
         });
         setChatInput('');
     } 
     else if (commentPlatform === 'kick') {
-        if (!kickAccessToken) {
-            alert('Para enviar mensagens na Kick, você precisa de um Access Token. Vá em Configurações > Kick > Access Token.');
-            return;
-        }
-
+        if (!kickAccessToken) { alert('Para enviar mensagens na Kick, você precisa de um Access Token.'); return; }
         if (!kickRef.current) return;
-
         try {
             await kickRef.current.sendMessage(chatInput);
-             
-            // Optimistic UI Update
             handleNewMessage({
-                id: crypto.randomUUID(),
-                platform: Platform.KICK,
-                user: { 
-                    username: authState.kickUsername || 'Eu', 
-                    badges: [], 
-                    color: '#53FC18' 
-                },
-                content: chatInput,
-                timestamp: Date.now()
+                id: crypto.randomUUID(), platform: Platform.KICK, user: { username: authState.kickUsername || 'Eu', badges: [], color: '#53FC18' },
+                content: chatInput, timestamp: Date.now()
             });
             setChatInput('');
-
-        } catch (error: any) {
-            alert(`Falha ao enviar para Kick: ${error.message}\n\nNota: A API da Kick pode bloquear envios diretos do navegador (CORS).`);
-        }
+        } catch (error: any) { alert(`Falha ao enviar para Kick: ${error.message}`); }
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-          e.preventDefault();
-          handleSendMessage();
-      }
-      
+      if (e.key === 'Enter') { e.preventDefault(); handleSendMessage(); }
       if (e.key === 'ArrowUp') {
           e.preventDefault();
-          if (historyIndex < inputHistory.length - 1) {
-              const newIndex = historyIndex + 1;
-              setHistoryIndex(newIndex);
-              setChatInput(inputHistory[newIndex]);
-          }
+          if (historyIndex < inputHistory.length - 1) { const newIndex = historyIndex + 1; setHistoryIndex(newIndex); setChatInput(inputHistory[newIndex]); }
       }
       if (e.key === 'ArrowDown') {
           e.preventDefault();
-          if (historyIndex > 0) {
-              const newIndex = historyIndex - 1;
-              setHistoryIndex(newIndex);
-              setChatInput(inputHistory[newIndex]);
-          } else if (historyIndex === 0) {
-              setHistoryIndex(-1);
-              setChatInput('');
-          }
+          if (historyIndex > 0) { const newIndex = historyIndex - 1; setHistoryIndex(newIndex); setChatInput(inputHistory[newIndex]); } else if (historyIndex === 0) { setHistoryIndex(-1); setChatInput(''); }
       }
-  };
-
-  const handleAnalyze = async () => {
-    setIsAnalyzing(true);
-    try {
-      const result = await analyzeChatVibe(messages);
-      setAiAnalysis(result);
-      setTimeout(() => setAiAnalysis(null), 20000);
-    } catch (e) { console.error(e); } 
-    finally { setIsAnalyzing(false); }
   };
 
   const getParentDomain = () => {
       const currentHost = window.location.hostname;
       const parents = new Set<string>();
       if (currentHost) parents.add(currentHost);
-      if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
-          parents.add('localhost'); 
-      }
+      if (currentHost !== 'localhost' && currentHost !== '127.0.0.1') parents.add('localhost'); 
       return Array.from(parents).map(domain => `&parent=${domain}`).join('');
   };
 
-  const saveKickSettings = (username: string, token: string) => {
-      handleSaveKickCreds(username, token);
-  };
+  const saveKickSettings = (username: string, token: string) => { handleSaveKickCreds(username, token); };
 
   const isGlobalOffline = streamStats.isLiveTwitch === false && streamStats.isLiveKick === false;
   const showOfflineScreen = isGlobalOffline && activePlayer !== 'none' && !forcePlay;
-
-  const visibleMessages = chatSettings.performanceMode 
-      ? messages.slice(-100) 
-      : messages;
-
+  const visibleMessages = chatSettings.performanceMode ? messages.slice(-100) : messages;
   const canChat = Boolean(authState.twitch || authState.kickAccessToken);
 
   return (
@@ -1011,311 +723,81 @@ export default function App() {
         onSaveKick={saveKickSettings}
         chatSettings={chatSettings}
         onUpdateSettings={setChatSettings}
-        onForceLoadCloud={() => {
-            window.location.reload(); 
-        }}
+        onForceLoadCloud={() => { window.location.reload(); }}
       />
-      
-      {/* Bookmarks Modal */}
       <BookmarksModal isOpen={isBookmarksOpen} onClose={() => setIsBookmarksOpen(false)} />
-
-      {/* FLOATING BUTTON: Exit Cinema Mode */}
       {chatSettings.cinemaMode && (
-         <motion.button 
-           initial={{ opacity: 0, scale: 0.8 }}
-           animate={{ opacity: 1, scale: 1 }}
-           whileHover={{ scale: 1.1 }}
-           whileTap={{ scale: 0.9 }}
-           onClick={toggleCinemaMode}
-           className="fixed top-4 right-4 z-[999] bg-black/60 hover:bg-black/90 text-white/70 hover:text-white p-3 rounded-full backdrop-blur-md border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] group"
-           title="Sair do Modo Cinema (Mostrar Cabeçalho)"
-         >
-           <div className="group-hover:rotate-180 transition-transform duration-500">
-             <span className="text-xl leading-none block">✕</span>
-           </div>
+         <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={toggleCinemaMode} className="fixed top-4 right-4 z-[999] bg-black/60 hover:bg-black/90 text-white/70 hover:text-white p-3 rounded-full backdrop-blur-md border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] group" title="Sair do Modo Cinema">
+           <div className="group-hover:rotate-180 transition-transform duration-500"><span className="text-xl leading-none block">✕</span></div>
          </motion.button>
       )}
-
-      {/* USER CARD POPUP */}
-      {selectedUser && (
-        <UserCard 
-            user={selectedUser.user}
-            platform={selectedUser.platform}
-            messages={messages}
-            onClose={() => setSelectedUser(null)}
-            twitchCreds={twitchCreds}
-        />
-      )}
-
+      {selectedUser && ( <UserCard user={selectedUser.user} platform={selectedUser.platform} messages={messages} onClose={() => setSelectedUser(null)} twitchCreds={twitchCreds} /> )}
+      
       <ControlPanel 
-        authState={authState} 
-        onToggleAuth={() => setIsSettingsOpen(true)}
-        onAnalyze={handleAnalyze}
-        isAnalyzing={isAnalyzing}
+        authState={authState} onToggleAuth={() => setIsSettingsOpen(true)}
         streamStats={streamStats}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        activePlayer={activePlayer}
-        onSetPlayer={setActivePlayer}
-        chatFilter={chatFilter}
-        onSetChatFilter={setChatFilter}
-        onSync={handleSyncPlayer}
-        cinemaMode={chatSettings.cinemaMode}
-        onToggleCinema={toggleCinemaMode}
-        onOpenBookmarks={() => setIsBookmarksOpen(true)}
-        hasCloudAccess={!!cloudUserId}
+        onOpenSettings={() => setIsSettingsOpen(true)} activePlayer={activePlayer} onSetPlayer={setActivePlayer} chatFilter={chatFilter} onSetChatFilter={setChatFilter}
+        onSync={handleSyncPlayer} cinemaMode={chatSettings.cinemaMode} onToggleCinema={toggleCinemaMode} onOpenBookmarks={() => setIsBookmarksOpen(true)} hasCloudAccess={!!cloudUserId}
       />
 
-      {/* Main Layout */}
       <div className="flex flex-1 flex-col md:flex-row overflow-hidden relative z-0">
-        
-        {/* Player Area */}
-        <div className={`bg-black relative shrink-0 transition-all duration-500 ease-out-expo overflow-hidden
-            ${activePlayer === 'none' 
-              ? 'md:w-0 w-full h-0 md:h-auto opacity-0' 
-              : 'w-full md:flex-1 aspect-video md:aspect-auto md:h-auto opacity-100'
-            }`}
-        >
-            {/* OFFLINE SCREEN LAYER */}
+        <div className={`bg-black relative shrink-0 transition-all duration-500 ease-out-expo overflow-hidden ${activePlayer === 'none' ? 'md:w-0 w-full h-0 md:h-auto opacity-0' : 'w-full md:flex-1 aspect-video md:aspect-auto md:h-auto opacity-100'}`}>
             {showOfflineScreen ? (
-                 <OfflineScreen 
-                    twitchCreds={twitchCreds}
-                    streamerSlug={STREAMER_SLUG}
-                    onForcePlay={() => setForcePlay(true)}
-                 />
+                 <OfflineScreen twitchCreds={twitchCreds} streamerSlug={STREAMER_SLUG} onForcePlay={() => setForcePlay(true)} />
             ) : (
                 <>
                     {activePlayer === 'twitch' && (
                     <div className="relative w-full h-full group">
-                        <iframe
-                            key={`twitch-${playerKey}`}
-                            src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=true&autoplay=true`}
-                            className="w-full h-full border-none"
-                            allowFullScreen
-                            scrolling="no"
-                            referrerPolicy="origin-when-cross-origin"
-                            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write"
-                            title="Twitch Player"
-                        ></iframe>
-                        
-                        <a 
-                            href={`https://www.twitch.tv/${STREAMER_SLUG}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/60 hover:bg-twitch text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 backdrop-blur-md flex items-center gap-2"
-                        >
-                            <span>Assistir na Twitch ↗</span>
-                        </a>
-
-                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-                            <div className="bg-black/90 backdrop-blur-md text-white text-[10px] p-3 rounded-xl border border-white/10 max-w-[220px] shadow-xl">
-                                <p className="mb-1 font-bold text-orange-400 flex items-center gap-1">
-                                    <span>⚠️</span> Problemas com Play?
-                                </p>
-                                <p className="text-gray-300 leading-relaxed">
-                                    Se o player não iniciar:<br/>
-                                    1. Desative o <strong className="text-white">Brave Shields</strong> (Leão)<br/>
-                                    2. Ou clique em "Assistir na Twitch"
-                                </p>
-                            </div>
-                        </div>
+                        <iframe key={`twitch-${playerKey}`} src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=true&autoplay=true`} className="w-full h-full border-none" allowFullScreen scrolling="no" referrerPolicy="origin-when-cross-origin" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write" title="Twitch Player"></iframe>
+                        <a href={`https://www.twitch.tv/${STREAMER_SLUG}`} target="_blank" rel="noopener noreferrer" className="absolute top-4 left-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/60 hover:bg-twitch text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-white/10 backdrop-blur-md flex items-center gap-2"><span>Assistir na Twitch ↗</span></a>
                     </div>
                     )}
-
-                    {activePlayer === 'kick' && (
-                        <iframe
-                            key={`kick-${playerKey}`}
-                            src={`https://player.kick.com/${STREAMER_SLUG}?autoplay=true&muted=false`}
-                            className="w-full h-full border-none"
-                            allowFullScreen
-                            scrolling="no"
-                            allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
-                            title="Kick Player"
-                        ></iframe>
-                    )}
-
-                    {activePlayer === 'none' && (
-                        <div className="w-full h-full bg-black"></div>
-                    )}
+                    {activePlayer === 'kick' && ( <iframe key={`kick-${playerKey}`} src={`https://player.kick.com/${STREAMER_SLUG}?autoplay=true&muted=false`} className="w-full h-full border-none" allowFullScreen scrolling="no" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope" title="Kick Player"></iframe> )}
+                    {activePlayer === 'none' && ( <div className="w-full h-full bg-black"></div> )}
                 </>
             )}
-          
-          {aiAnalysis && (
-            <div className="absolute top-8 left-1/2 transform -translate-x-1/2 max-w-2xl w-[90%] liquid-glass-strong p-6 rounded-3xl z-50 animate-slide-in shadow-[0_0_50px_rgba(0,0,0,0.8)] border border-white/5">
-                <div className="flex justify-between items-start mb-3 border-b border-white/5 pb-2">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xl">🤖</span>
-                        <h3 className="font-display font-bold text-lg text-white">Analysis</h3>
-                    </div>
-                    <button onClick={() => setAiAnalysis(null)} className="text-white/50 hover:text-white transition-colors">✕</button>
-                </div>
-                <p className="text-white/80 text-sm leading-relaxed">{aiAnalysis}</p>
-            </div>
-          )}
         </div>
 
-        {/* Chat Area */}
-        <div className={`
-            ${activePlayer === 'none' ? 'w-full flex-1' : 'md:w-[380px] xl:w-[420px] w-full flex-1 md:flex-none'}
-            bg-[#000000] border-t md:border-t-0 
-            ${activePlayer !== 'none' ? 'md:border-l border-white/5' : ''}
-            flex flex-col z-10 transition-all duration-500 ease-out-expo min-h-0 relative
-        `}>
-          
-          <div 
-            className={`flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-0 scroll-smooth ${canChat ? 'pb-2' : 'pb-4'}`}
-            ref={chatContainerRef}
-            onScroll={handleScroll}
-            >
-            
-            <div className={`md:hidden sticky top-4 z-50 mx-6 mb-4 animate-fade-in ${activePlayer !== 'none' ? 'hidden' : ''}`}>
-               <div className="liquid-glass rounded-full flex justify-center py-2 px-2 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-                   <div className="flex items-center gap-1">
-                       <button onClick={() => setChatFilter('all')} className={`px-5 py-1.5 rounded-full text-xs font-bold transition-all ${chatFilter === 'all' ? 'bg-white/20 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}>All</button>
-                       <button onClick={() => setChatFilter('twitch')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${chatFilter === 'twitch' ? 'bg-twitch/20 text-twitch shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}>
-                           Twitch
-                       </button>
-                       <button onClick={() => setChatFilter('kick')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${chatFilter === 'kick' ? 'bg-kick/20 text-kick shadow-sm' : 'text-gray-400 hover:text-gray-200'}`}>
-                           Kick
-                       </button>
-                   </div>
-               </div>
-            </div>
-
+        <div className={`${activePlayer === 'none' ? 'w-full flex-1' : 'md:w-[380px] xl:w-[420px] w-full flex-1 md:flex-none'} bg-[#000000] border-t md:border-t-0 ${activePlayer !== 'none' ? 'md:border-l border-white/5' : ''} flex flex-col z-10 transition-all duration-500 ease-out-expo min-h-0 relative`}>
+          <div className={`flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-0 scroll-smooth ${canChat ? 'pb-[80px]' : 'pb-4'}`} ref={chatContainerRef} onScroll={handleScroll}>
             <div className="min-h-full flex flex-col justify-end">
                 {visibleMessages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-white/20 space-y-2">
-                    <div className="text-2xl animate-pulse">⚡</div>
-                    <p className="text-xs font-medium tracking-widest">CONECTANDO...</p>
-                </div>
+                <div className="flex flex-col items-center justify-center h-full text-white/20 space-y-2"><div className="text-2xl animate-pulse">⚡</div><p className="text-xs font-medium tracking-widest">CONECTANDO...</p></div>
                 ) : (
-                visibleMessages
-                    .filter(msg => {
+                visibleMessages.filter(msg => {
                         if (chatFilter === 'twitch' && msg.platform !== Platform.TWITCH) return false;
                         if (chatFilter === 'kick' && msg.platform !== Platform.KICK) return false;
-                        
-                        if (chatSettings.ignoredUsers.length > 0 && chatSettings.ignoredUsers.includes(msg.user.username.toLowerCase())) return false;
-                        
-                        if (chatSettings.ignoredKeywords.length > 0) {
-                            const contentLower = msg.content.toLowerCase();
-                            if (chatSettings.ignoredKeywords.some(kw => contentLower.includes(kw))) return false;
-                        }
-
+                        if (chatSettings.ignoredUsers.includes(msg.user.username.toLowerCase())) return false;
+                        if (chatSettings.ignoredKeywords.some(kw => msg.content.toLowerCase().includes(kw))) return false;
                         return true;
-                    })
-                    .map((msg, idx) => (
-                    <ChatMessageItem 
-                        key={msg.id} 
-                        message={msg} 
-                        index={idx}
-                        globalBadges={globalBadges}
-                        channelBadges={channelBadges}
-                        kickBadges={kickBadges}
-                        sevenTVEmotes={sevenTVEmotes}
-                        settings={chatSettings}
-                        currentUser={{
-                            twitch: authState.twitchUsername,
-                            kick: authState.kickUsername
-                        }}
-                        onReply={handleReply}
-                        onUserClick={handleUserClick}
-                        avatarCache={avatarCache}
-                        onRequestAvatar={requestAvatar}
-                        onSaveMessage={handleSaveMessage}
-                        canSave={!!cloudUserId}
-                    />
-                ))
-                )}
+                    }).map((msg, idx) => (
+                    <ChatMessageItem key={msg.id} message={msg} index={idx} globalBadges={globalBadges} channelBadges={channelBadges} kickBadges={kickBadges} sevenTVEmotes={sevenTVEmotes} settings={chatSettings} currentUser={{ twitch: authState.twitchUsername, kick: authState.kickUsername }} onReply={handleReply} onUserClick={handleUserClick} avatarCache={avatarCache} onRequestAvatar={requestAvatar} onSaveMessage={handleSaveMessage} canSave={!!cloudUserId} />
+                )))}
             </div>
-
             <AnimatePresence>
             {isPaused && (
-                <div className="sticky bottom-4 flex justify-center w-full z-20 pointer-events-none">
-                    <motion.button 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 20 }}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={scrollToBottom}
-                        className="pointer-events-auto bg-black/80 hover:bg-black text-white backdrop-blur-md border border-white/20 px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 text-xs font-bold group"
-                    >
-                        {unreadCount > 0 ? (
-                            <>
-                                <span className="text-twitch group-hover:animate-pulse">↓</span>
-                                <span>Ver {unreadCount} novas mensagens</span>
-                            </>
-                        ) : (
-                            <>
-                                <span className="text-gray-400">⏸</span>
-                                <span>Chat Pausado</span>
-                            </>
-                        )}
+                <div className="sticky bottom-[100px] flex justify-center w-full z-20 pointer-events-none">
+                    <motion.button initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={scrollToBottom} className="pointer-events-auto bg-black/60 backdrop-blur-xl border border-white/20 px-6 py-2.5 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.6)] flex items-center gap-2 text-xs font-bold group hover:border-white/40 transition-colors">
+                        {unreadCount > 0 ? ( <><span className="text-twitch group-hover:animate-pulse">↓</span><span>Ver {unreadCount} novas mensagens</span></> ) : ( <><span className="text-gray-400">⏸</span><span>Chat Pausado</span></> )}
                     </motion.button>
                 </div>
             )}
             </AnimatePresence>
           </div>
-
+          
           {canChat && (
-              <div className="w-full z-30 bg-black/60 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_30px_rgba(0,0,0,0.5)] shrink-0">
-                 <div className="p-3">
-                    <div className={`relative flex items-center bg-black/40 rounded-2xl border transition-all duration-300 ease-out-expo ${commentPlatform === 'twitch' ? 'border-twitch/30 focus-within:border-twitch/80 shadow-[0_0_20px_rgba(145,70,255,0.05)]' : 'border-kick/30 focus-within:border-kick/80 shadow-[0_0_20px_rgba(83,252,24,0.05)]'}`}>
-                        
-                        {/* EMOTE PICKER (ABSOLUTE) */}
-                        <EmotePicker 
-                            isOpen={isEmotePickerOpen}
-                            onClose={() => setIsEmotePickerOpen(false)}
-                            onSelect={handleEmoteSelect}
-                            sevenTVEmotes={sevenTVEmotes}
-                            twitchEmotes={twitchEmotes}
-                        />
-
-                        <div className="pl-1.5 pr-1 py-1">
-                            <motion.button 
-                                whileTap={{ scale: 0.9 }}
-                                onClick={() => setCommentPlatform(prev => prev === 'twitch' ? 'kick' : 'twitch')}
-                                className={`p-2 rounded-xl transition-colors ${commentPlatform === 'twitch' ? 'bg-twitch/10 text-twitch hover:bg-twitch/20' : 'bg-kick/10 text-kick hover:bg-kick/20'}`}
-                            >
+              <div className="absolute bottom-0 left-0 right-0 z-30 p-4 bg-gradient-to-t from-black via-black/80 to-transparent">
+                    <div className={`relative flex items-center liquid-glass-strong rounded-full border border-white/15 transition-all duration-300 ease-out-expo shadow-2xl ${commentPlatform === 'twitch' ? 'focus-within:border-twitch/50 focus-within:shadow-[0_0_30px_rgba(145,70,255,0.15)]' : 'focus-within:border-kick/50 focus-within:shadow-[0_0_30px_rgba(83,252,24,0.15)]'}`}>
+                        <EmotePicker isOpen={isEmotePickerOpen} onClose={() => setIsEmotePickerOpen(false)} onSelect={handleEmoteSelect} sevenTVEmotes={sevenTVEmotes} twitchEmotes={twitchEmotes} />
+                        <div className="pl-2 pr-1 py-1">
+                            <motion.button whileTap={{ scale: 0.9 }} onClick={() => setCommentPlatform(prev => prev === 'twitch' ? 'kick' : 'twitch')} className={`p-2 rounded-full transition-colors ${commentPlatform === 'twitch' ? 'bg-twitch/10 text-twitch hover:bg-twitch/20' : 'bg-kick/10 text-kick hover:bg-kick/20'}`}>
                                 <PlatformIcon platform={commentPlatform} variant={commentPlatform === 'twitch' ? 'white' : 'default'} className="w-4 h-4" />
                             </motion.button>
                         </div>
-
-                        <input 
-                            type="text" 
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder={`Enviar mensagem na ${commentPlatform}...`}
-                            className="w-full bg-transparent text-white px-2 py-3 text-sm focus:outline-none placeholder-white/20"
-                        />
-                        
-                        {/* EMOTE BUTTON */}
-                        <motion.button 
-                             whileHover={{ scale: 1.1 }}
-                             whileTap={{ scale: 0.9 }}
-                             onClick={() => setIsEmotePickerOpen(!isEmotePickerOpen)}
-                             className={`p-2 transition-colors ${isEmotePickerOpen ? 'text-yellow-400' : 'text-gray-400 hover:text-white'}`}
-                        >
-                            <SmileyIcon className="w-5 h-5" />
-                        </motion.button>
-
-                        <motion.button 
-                            whileHover={{ scale: 1.1, rotate: -10 }}
-                            whileTap={{ scale: 0.9, rotate: 0 }}
-                            onClick={handleSendMessage}
-                            disabled={!chatInput.trim()}
-                            className={`p-2 mr-1 rounded-xl transition-colors ${chatInput.trim() ? (commentPlatform === 'twitch' ? 'text-twitch hover:bg-twitch/10' : 'text-kick hover:bg-kick/10') : 'text-white/20 cursor-not-allowed'}`}
-                        >
-                            <SendIcon className="w-5 h-5" />
-                        </motion.button>
+                        <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={handleKeyDown} placeholder={`Enviar mensagem na ${commentPlatform}...`} className="w-full bg-transparent text-white px-2 py-3.5 text-sm focus:outline-none placeholder-white/30" />
+                        <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => setIsEmotePickerOpen(!isEmotePickerOpen)} className={`p-2 transition-colors ${isEmotePickerOpen ? 'text-yellow-400' : 'text-gray-400 hover:text-white'}`}><SmileyIcon className="w-5 h-5" /></motion.button>
+                        <motion.button whileHover={{ scale: 1.1, rotate: -10 }} whileTap={{ scale: 0.9, rotate: 0 }} onClick={handleSendMessage} disabled={!chatInput.trim()} className={`p-2 mr-2 rounded-full transition-colors ${chatInput.trim() ? (commentPlatform === 'twitch' ? 'text-twitch hover:bg-twitch/10' : 'text-kick hover:bg-kick/10') : 'text-white/20 cursor-not-allowed'}`}><SendIcon className="w-5 h-5" /></motion.button>
                     </div>
-                    
-                    {commentPlatform === 'kick' && !kickAccessToken && (
-                        <div className="text-[10px] text-yellow-500/60 mt-2 px-1 text-center font-medium tracking-wide">
-                            Configure o Access Token para enviar mensagens na Kick.
-                        </div>
-                    )}
-                 </div>
               </div>
           )}
         </div>

@@ -25,12 +25,10 @@ export const OfflineScreen: React.FC<Props> = ({ twitchCreds, streamerSlug, onFo
 
   useEffect(() => {
     const fetchClips = async () => {
-      // We can only fetch clips if we have user credentials to hit the Twitch API
       if (!twitchCreds.clientId || !twitchCreds.accessToken) return;
 
       setLoading(true);
       try {
-        // 1. Get User ID
         const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${streamerSlug}`, {
           headers: { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` }
         });
@@ -38,10 +36,8 @@ export const OfflineScreen: React.FC<Props> = ({ twitchCreds, streamerSlug, onFo
         const userId = userData.data?.[0]?.id;
 
         if (userId) {
-          // 2. Get Clips (Last 7 days, sorted by views)
-          // Default range to past week
           const startDate = new Date();
-          startDate.setDate(startDate.getDate() - 30); // Last 30 days
+          startDate.setDate(startDate.getDate() - 30);
           
           const clipsRes = await fetch(`https://api.twitch.tv/helix/clips?broadcaster_id=${userId}&first=4&started_at=${startDate.toISOString()}`, {
              headers: { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` }
@@ -63,12 +59,10 @@ export const OfflineScreen: React.FC<Props> = ({ twitchCreds, streamerSlug, onFo
 
   return (
     <div className="w-full h-full bg-black relative flex flex-col items-center justify-center overflow-hidden p-6">
-        {/* Background Ambient */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-twitch/10 via-black to-black opacity-50"></div>
         
         <div className="z-10 flex flex-col items-center w-full max-w-5xl">
             
-            {/* Header */}
             <div className="text-center mb-6 md:mb-10">
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4 animate-fade-in">
                     <span className="w-2 h-2 rounded-full bg-red-500"></span>
@@ -82,7 +76,6 @@ export const OfflineScreen: React.FC<Props> = ({ twitchCreds, streamerSlug, onFo
                 </p>
             </div>
 
-            {/* Clips Grid (Only if we have creds/data) */}
             {clips.length > 0 && (
                 <div className="w-full mb-8">
                      <h3 className="text-xs font-bold uppercase tracking-widest text-white/50 mb-4 flex items-center gap-2 justify-center md:justify-start">
@@ -113,39 +106,24 @@ export const OfflineScreen: React.FC<Props> = ({ twitchCreds, streamerSlug, onFo
                 </div>
             )}
 
-            {/* Actions */}
             <div className="flex flex-wrap justify-center gap-4">
-                <motion.a 
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    href={`https://www.twitch.tv/${streamerSlug}/videos`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="px-5 py-3 rounded-xl bg-[#9146FF]/10 hover:bg-[#9146FF]/20 text-[#9146FF] border border-[#9146FF]/20 hover:border-[#9146FF]/50 transition-colors font-bold text-xs md:text-sm flex items-center gap-2"
-                >
-                    <PlatformIcon platform="twitch" className="w-4 h-4" />
-                    VODs Twitch
+                <motion.a whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} href={`https://www.twitch.tv/${streamerSlug}/videos`} target="_blank" rel="noopener noreferrer" className="px-5 py-3 rounded-xl bg-[#9146FF]/10 hover:bg-[#9146FF]/20 text-[#9146FF] border border-[#9146FF]/20 hover:border-[#9146FF]/50 transition-colors font-bold text-xs md:text-sm flex items-center gap-2">
+                    <PlatformIcon platform="twitch" className="w-4 h-4" /> VODs Twitch
                 </motion.a>
-                <motion.a 
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    href={`https://kick.com/${streamerSlug}/videos`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="px-5 py-3 rounded-xl bg-[#53FC18]/10 hover:bg-[#53FC18]/20 text-[#53FC18] border border-[#53FC18]/20 hover:border-[#53FC18]/50 transition-colors font-bold text-xs md:text-sm flex items-center gap-2"
-                >
-                    <PlatformIcon platform="kick" className="w-4 h-4" />
-                    VODs Kick
+                <motion.a whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} href={`https://kick.com/${streamerSlug}/videos`} target="_blank" rel="noopener noreferrer" className="px-5 py-3 rounded-xl bg-[#53FC18]/10 hover:bg-[#53FC18]/20 text-[#53FC18] border border-[#53FC18]/20 hover:border-[#53FC18]/50 transition-colors font-bold text-xs md:text-sm flex items-center gap-2">
+                    <PlatformIcon platform="kick" className="w-4 h-4" /> VODs Kick
                 </motion.a>
             </div>
 
-            {/* Emergency Play Button */}
-            <button 
+            <motion.button 
+                whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.1)" }}
+                whileTap={{ scale: 0.95 }}
                 onClick={onForcePlay}
-                className="mt-6 md:mt-8 text-[10px] text-gray-600 hover:text-gray-400 underline decoration-gray-700 underline-offset-2"
+                className="mt-8 px-6 py-3 rounded-full bg-white/5 border border-white/10 text-white font-bold text-xs tracking-wide shadow-[0_0_20px_rgba(255,255,255,0.05)] hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] transition-all flex items-center gap-2"
             >
-                A API diz que está offline, mas eu quero abrir o player mesmo assim.
-            </button>
+                <span>⚠️</span>
+                <span>Forçar Carregamento do Player</span>
+            </motion.button>
         </div>
     </div>
   );
