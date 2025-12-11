@@ -44,9 +44,10 @@ export const ControlPanel: React.FC<Props> = ({
   };
 
   return (
-    <div className={`w-full liquid-glass border-b border-white/5 flex flex-row items-center justify-between px-3 md:px-4 z-50 sticky top-0 transition-all duration-500 ease-out-expo shrink-0 ${cinemaMode ? 'h-0 opacity-0 overflow-hidden py-0 border-none' : 'h-[52px] md:h-[72px]'}`}>
+    <div className={`w-full liquid-glass border-b border-white/5 flex flex-row items-center justify-between px-2 md:px-4 z-50 sticky top-0 transition-all duration-500 ease-out-expo shrink-0 ${cinemaMode ? 'h-0 opacity-0 overflow-hidden py-0 border-none' : 'h-[52px] md:h-[72px]'}`}>
       
-      <div className="flex items-center md:w-auto md:justify-start shrink-0 mr-2 gap-4">
+      {/* Logo Area */}
+      <div className="flex items-center md:w-auto md:justify-start shrink-0 mr-1 md:mr-2 gap-4">
         <div className="flex items-center gap-3 group cursor-default">
             <ViictorNLogo className="w-7 h-7 md:w-10 md:h-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_20px_rgba(145,70,255,0.4)] transition-all duration-500" />
             <div className="hidden lg:flex flex-col justify-center">
@@ -59,8 +60,11 @@ export const ControlPanel: React.FC<Props> = ({
         </div>
       </div>
 
-      <div className="flex-1 md:flex-none flex justify-center max-w-[280px] md:max-w-none mx-auto gap-2">
-        <div className="flex p-0.5 md:p-1 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 w-auto shadow-inner shadow-white/5">
+      {/* Center Controls (Player & Filter) */}
+      <div className="flex-1 md:flex-none flex items-center justify-center md:max-w-none mx-auto gap-2 overflow-x-auto no-scrollbar-mobile px-1">
+        
+        {/* Player Selector */}
+        <div className="flex shrink-0 p-0.5 md:p-1 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 w-auto shadow-inner shadow-white/5">
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onSetPlayer('twitch')} className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-5 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold transition-colors ${activePlayer === 'twitch' ? 'bg-[#9146FF] text-white shadow-[0_0_20px_rgba(145,70,255,0.4)]' : 'text-gray-500 hover:text-gray-300'}`} title="Assistir Twitch">
                 <PlatformIcon platform="twitch" variant={activePlayer === 'twitch' ? 'white' : 'default'} className="w-3 h-3 md:w-4 md:h-4" />
             </motion.button>
@@ -70,14 +74,16 @@ export const ControlPanel: React.FC<Props> = ({
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onSetPlayer('none')} className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-5 py-1.5 md:py-2 rounded-full text-[10px] md:text-xs font-bold transition-colors ${activePlayer === 'none' ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]' : 'text-gray-500 hover:text-gray-300'}`} title="Modo Apenas Chat">Chat</motion.button>
         </div>
 
-        <div className="hidden sm:flex p-0.5 md:p-1 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 w-auto ml-2">
+        {/* Chat Filters (Visible ALWAYS now) */}
+        <div className="flex shrink-0 p-0.5 md:p-1 bg-black/40 backdrop-blur-sm rounded-full border border-white/10 w-auto ml-0 md:ml-2">
              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onSetChatFilter('all')} className={`px-3 py-1.5 rounded-full text-[10px] font-bold ${chatFilter === 'all' ? 'bg-white/20 text-white' : 'text-gray-500 hover:text-gray-400'}`}>All</motion.button>
-             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onSetChatFilter('twitch')} className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'twitch' ? 'bg-twitch/10' : 'hover:text-gray-400'}`}><PlatformIcon platform="twitch" variant={chatFilter === 'twitch' ? 'default' : 'subdued'} className="w-3.5 h-3.5" /></motion.button>
-             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onSetChatFilter('kick')} className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'kick' ? 'bg-kick/10' : 'hover:text-gray-400'}`}><PlatformIcon platform="kick" variant={chatFilter === 'kick' ? 'default' : 'subdued'} className="w-3.5 h-3.5" /></motion.button>
+             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onSetChatFilter('twitch')} className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'twitch' ? 'bg-twitch/10' : 'hover:text-gray-400'}`} title="Apenas Twitch"><PlatformIcon platform="twitch" variant={chatFilter === 'twitch' ? 'default' : 'subdued'} className="w-3.5 h-3.5" /></motion.button>
+             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => onSetChatFilter('kick')} className={`px-2 py-1.5 rounded-full text-[10px] ${chatFilter === 'kick' ? 'bg-kick/10' : 'hover:text-gray-400'}`} title="Apenas Kick"><PlatformIcon platform="kick" variant={chatFilter === 'kick' ? 'default' : 'subdued'} className="w-3.5 h-3.5" /></motion.button>
         </div>
       </div>
       
-      <div className="flex items-center gap-2 justify-end shrink-0 ml-2">
+      {/* Right Actions */}
+      <div className="flex items-center gap-2 justify-end shrink-0 ml-1 md:ml-2">
          <motion.button whileTap={{ scale: 0.9 }} onClick={onOpenSettings} className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 border border-white/5"><SettingsIcon className="w-4 h-4" /></motion.button>
         <div className="hidden md:flex items-center gap-4">
             {activePlayer !== 'none' && (
@@ -87,7 +93,7 @@ export const ControlPanel: React.FC<Props> = ({
                 </motion.button>
             )}
             
-            {/* New Modern Viewer Count Pill */}
+            {/* Viewer Count Pill */}
             <div className="hidden xl:flex items-center bg-black/40 backdrop-blur-sm rounded-full border border-white/10 shadow-lg cursor-default select-none overflow-hidden h-9">
                 <div className="px-3 h-full flex flex-col justify-center bg-white/5 border-r border-white/5">
                      <span className="text-[8px] font-bold text-gray-500 leading-none mb-0.5 uppercase">Total</span>
