@@ -749,6 +749,29 @@ export default function App() {
         onOpenSettings={() => setIsSettingsOpen(true)} activePlayer={activePlayer} onSetPlayer={setActivePlayer} chatFilter={chatFilter} onSetChatFilter={setChatFilter}
         onSync={handleSyncPlayer} cinemaMode={chatSettings.cinemaMode} onToggleCinema={toggleCinemaMode} onOpenBookmarks={() => setIsBookmarksOpen(true)} hasCloudAccess={!!cloudUserId}
       />
+      
+      {/* --- MOBILE FLOATING CHAT FILTER (Only Visible on Mobile & when Player is 'Chat') --- */}
+      <AnimatePresence>
+        {activePlayer === 'none' && (
+          <div className="md:hidden absolute top-[60px] left-0 right-0 z-40 flex justify-center pointer-events-none">
+              <motion.div 
+                 initial={{ opacity: 0, y: -20, scale: 0.9 }}
+                 animate={{ opacity: 1, y: 0, scale: 1 }}
+                 exit={{ opacity: 0, y: -20, scale: 0.9 }}
+                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                 className="pointer-events-auto"
+              >
+                  {/* Filter Pills */}
+                  <div className="flex items-center p-1.5 bg-black/70 backdrop-blur-xl rounded-full border border-white/10 shadow-2xl">
+                     <button onClick={() => setChatFilter('all')} className={`px-4 py-1.5 rounded-full text-[10px] font-bold transition-all duration-300 ${chatFilter === 'all' ? 'bg-white/20 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}>All</button>
+                     <div className="w-px h-3 bg-white/10 mx-1"></div>
+                     <button onClick={() => setChatFilter('twitch')} className={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-300 ${chatFilter === 'twitch' ? 'bg-[#9146FF]/20 text-[#9146FF]' : 'text-gray-400 hover:text-white'}`}><PlatformIcon platform="twitch" className="w-4 h-4" /></button>
+                     <button onClick={() => setChatFilter('kick')} className={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-300 ${chatFilter === 'kick' ? 'bg-[#53FC18]/20 text-[#53FC18]' : 'text-gray-400 hover:text-white'}`}><PlatformIcon platform="kick" className="w-4 h-4" /></button>
+                  </div>
+              </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <div className="flex flex-1 flex-col md:flex-row overflow-hidden relative z-0">
         <div className={`bg-black relative shrink-0 transition-all duration-500 ease-out-expo overflow-hidden ${activePlayer === 'none' ? 'md:w-0 w-full h-0 md:h-auto opacity-0' : 'w-full md:flex-1 aspect-video md:aspect-auto md:h-auto opacity-100'}`}>
