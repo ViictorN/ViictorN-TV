@@ -50,8 +50,11 @@ export const ControlPanel: React.FC<Props> = ({
         <div className="flex items-center gap-3 group cursor-default">
             <ViictorNLogo className="w-7 h-7 md:w-10 md:h-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_20px_rgba(145,70,255,0.4)] transition-all duration-500" />
             <div className="hidden lg:flex flex-col justify-center">
-                <h1 className="font-display font-bold text-base leading-tight text-white tracking-wide">ViictorN7</h1>
-                <span className="text-[10px] font-medium text-white/30 lowercase tracking-widest group-hover:text-twitch transition-colors">gabepeixe</span>
+                <h1 className="font-display font-bold text-base leading-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-gray-400 animate-pulse tracking-wide">ViictorN7</h1>
+                <div className="relative overflow-hidden">
+                    <span className="text-[10px] font-medium text-white/30 lowercase tracking-widest group-hover:text-twitch transition-colors relative z-10">gabepeixe</span>
+                    <span className="text-[10px] font-medium text-twitch/50 lowercase tracking-widest absolute top-0 left-0 animate-pulse opacity-0 group-hover:opacity-100 blur-[1px]">gabepeixe</span>
+                </div>
             </div>
         </div>
       </div>
@@ -78,16 +81,31 @@ export const ControlPanel: React.FC<Props> = ({
          <motion.button whileTap={{ scale: 0.9 }} onClick={onOpenSettings} className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-white/5 text-white/70 hover:bg-white/10 border border-white/5"><SettingsIcon className="w-4 h-4" /></motion.button>
         <div className="hidden md:flex items-center gap-4">
             {activePlayer !== 'none' && (
-                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onSync} className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg border border-red-500/20 hover:border-red-500/40" title="Sincronizar Player">
-                    <span className="text-sm">⚡</span><span className="text-[10px] font-bold uppercase tracking-wider">Sync</span>
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onSync} className="hidden xl:flex items-center gap-2 px-3 py-1.5 bg-black/40 hover:bg-white/5 text-gray-400 hover:text-white rounded-lg border border-white/10 hover:border-white/20 transition-all shadow-sm" title="Corrigir Atraso / Delay">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Delay</span>
                 </motion.button>
             )}
-            <div className="hidden xl:flex items-center gap-3 bg-black/40 backdrop-blur-sm px-4 py-2 rounded-2xl border border-white/10 shadow-lg cursor-default select-none">
-                <div className="flex flex-col items-center min-w-[30px]"><span className="text-[9px] font-bold text-gray-500 mb-0.5">TOT</span><motion.span key={totalViewers} initial={{ scale: 1.2, color: '#fff' }} animate={{ scale: 1, color: '#fff' }} className="text-xs font-mono font-bold text-white text-shadow-sm">{formatViewers(totalViewers)}</motion.span></div>
-                <div className="w-px h-5 bg-white/10"></div>
-                <div className="flex items-center gap-1.5 opacity-80"><PlatformIcon platform="twitch" variant={streamStats.isLiveTwitch ? 'default' : 'subdued'} className="w-3.5 h-3.5" /><span className="text-[10px] font-mono font-medium text-gray-400">{formatViewers(streamStats.twitchViewers)}</span></div>
-                <div className="flex items-center gap-1.5 opacity-80"><PlatformIcon platform="kick" variant={streamStats.isLiveKick ? 'default' : 'subdued'} className="w-3.5 h-3.5" /><span className="text-[10px] font-mono font-medium text-gray-400">{formatViewers(streamStats.kickViewers)}</span></div>
+            
+            {/* New Modern Viewer Count Pill */}
+            <div className="hidden xl:flex items-center bg-black/40 backdrop-blur-sm rounded-full border border-white/10 shadow-lg cursor-default select-none overflow-hidden h-9">
+                <div className="px-3 h-full flex flex-col justify-center bg-white/5 border-r border-white/5">
+                     <span className="text-[8px] font-bold text-gray-500 leading-none mb-0.5 uppercase">Total</span>
+                     <motion.span key={totalViewers} initial={{ opacity: 0.5 }} animate={{ opacity: 1 }} className="text-xs font-mono font-bold text-white leading-none">{formatViewers(totalViewers)}</motion.span>
+                </div>
+                <div className="flex items-center gap-3 px-3">
+                    <div className="flex items-center gap-1.5 opacity-80" title="Twitch Viewers">
+                        <PlatformIcon platform="twitch" variant={streamStats.isLiveTwitch ? 'default' : 'subdued'} className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-mono font-medium text-gray-400">{formatViewers(streamStats.twitchViewers)}</span>
+                    </div>
+                    <div className="w-px h-3 bg-white/10"></div>
+                    <div className="flex items-center gap-1.5 opacity-80" title="Kick Viewers">
+                        <PlatformIcon platform="kick" variant={streamStats.isLiveKick ? 'default' : 'subdued'} className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-mono font-medium text-gray-400">{formatViewers(streamStats.kickViewers)}</span>
+                    </div>
+                </div>
             </div>
+
             <div className="hidden xl:block h-6 w-px bg-white/5"></div>
             <div className="flex items-center gap-2">
                 {hasCloudAccess && onOpenBookmarks && (

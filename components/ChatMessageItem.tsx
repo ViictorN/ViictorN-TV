@@ -136,6 +136,26 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
     }
   }, [settings.hideAvatars, displayAvatar, isSystem, message.platform, message.user, onRequestAvatar]);
 
+  // Handle Interactions (Double Click / Alt Click)
+  const handleMessageClick = (e: React.MouseEvent) => {
+      // Alt + Click to Copy Message Content
+      if (e.altKey) {
+          e.preventDefault();
+          navigator.clipboard.writeText(message.content);
+          // Optional: Add a toast notification here
+          return;
+      }
+
+      // Double Click handled separately by onDoubleClick
+  };
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+      if (settings.clickToReply) {
+          e.preventDefault();
+          onReply(message.user.username);
+      }
+  };
+
 
   // Render System Message
   if (isSystem) {
@@ -400,12 +420,16 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
 
   // --- STANDARD RENDER ---
   return (
-    <div className={`group flex items-start gap-2 py-1 px-2 relative border-b border-transparent hover:border-white/5 ${zebraClass} ${hoverClass} ${mentionClass} ${deletedClass}`}>
+    <div 
+        className={`group flex items-start gap-2 py-1 px-2 relative border-b border-transparent hover:border-white/5 ${zebraClass} ${hoverClass} ${mentionClass} ${deletedClass}`}
+        onClick={handleMessageClick}
+        onDoubleClick={handleDoubleClick}
+    >
       
       {/* CLOUD SAVE BUTTON (On Hover) */}
       {canSave && onSaveMessage && (
           <button 
-            onClick={() => onSaveMessage(message)}
+            onClick={(e) => { e.stopPropagation(); onSaveMessage(message); }}
             className="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity text-white/30 hover:text-yellow-400 p-1"
             title="Salvar na Nuvem"
           >
@@ -448,7 +472,7 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
               </span>
               
               <button 
-                  onClick={() => onReply(message.user.username)}
+                  onClick={(e) => { e.stopPropagation(); onReply(message.user.username); }}
                   className={`font-bold hover:underline cursor-pointer align-middle mr-0.5 ${settings.rainbowUsernames ? 'rainbow-text' : ''}`}
                   style={{ color: settings.rainbowUsernames ? undefined : usernameColor }}
               >

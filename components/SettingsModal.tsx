@@ -151,7 +151,7 @@ export const SettingsModal: React.FC<Props> = ({
             <div className="p-4 md:p-6 flex items-center justify-between">
                 <div>
                     <h2 className="text-lg md:text-xl font-display font-bold text-white tracking-tight">Ajustes</h2>
-                    <p className="text-[10px] text-gray-500 hidden md:block mt-1">ViictorN TV v2.1</p>
+                    <p className="text-[10px] text-gray-500 hidden md:block mt-1">ViictorN TV v2.2</p>
                 </div>
                 <button onClick={onClose} className="md:hidden p-2 bg-white/5 rounded-full text-white/50 hover:text-white">✕</button>
             </div>
@@ -360,8 +360,9 @@ export const SettingsModal: React.FC<Props> = ({
 
                             {/* Behavior */}
                             <div>
-                                <SectionHeader title="Comportamento" />
+                                <SectionHeader title="Interação & Comportamento" />
                                 <div className="space-y-2">
+                                    <ToggleSwitch checked={settings.clickToReply} onChange={() => toggleSetting('clickToReply')} label="Clique Duplo para Responder" description="Estilo Mo'Kick/BTTV." />
                                     <ToggleSwitch checked={settings.smoothScroll} onChange={() => toggleSetting('smoothScroll')} label="Rolagem Suave" />
                                     <ToggleSwitch checked={settings.highlightMentions} onChange={() => toggleSetting('highlightMentions')} label="Destacar Menções (@)" />
                                     <ToggleSwitch checked={settings.largeEmotes} onChange={() => toggleSetting('largeEmotes')} label="Emotes Grandes" />

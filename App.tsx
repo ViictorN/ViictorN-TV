@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS: ChatSettings = {
     pauseOnHover: false,
     cinemaMode: false,
     performanceMode: false,
+    clickToReply: true,
     showBadgeBroadcaster: true,
     showBadgeMod: true,
     showBadgeVip: true,
@@ -727,8 +728,17 @@ export default function App() {
       />
       <BookmarksModal isOpen={isBookmarksOpen} onClose={() => setIsBookmarksOpen(false)} />
       {chatSettings.cinemaMode && (
-         <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={toggleCinemaMode} className="fixed top-4 right-4 z-[999] bg-black/60 hover:bg-black/90 text-white/70 hover:text-white p-3 rounded-full backdrop-blur-md border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] group" title="Sair do Modo Cinema">
-           <div className="group-hover:rotate-180 transition-transform duration-500"><span className="text-xl leading-none block">✕</span></div>
+         <motion.button 
+            initial={{ opacity: 0, y: -20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            whileHover={{ scale: 1.05 }} 
+            whileTap={{ scale: 0.95 }} 
+            onClick={toggleCinemaMode} 
+            className="fixed top-2 left-1/2 -translate-x-1/2 z-[999] bg-black/40 hover:bg-black/80 text-white/50 hover:text-white px-4 py-1.5 rounded-full backdrop-blur-md border border-white/5 shadow-lg group flex items-center gap-2" 
+            title="Sair do Modo Cinema"
+         >
+           <span className="text-xs font-bold uppercase tracking-wider">Sair do Modo Cinema</span>
+           <span className="group-hover:rotate-180 transition-transform duration-300">✕</span>
          </motion.button>
       )}
       {selectedUser && ( <UserCard user={selectedUser.user} platform={selectedUser.platform} messages={messages} onClose={() => setSelectedUser(null)} twitchCreds={twitchCreds} /> )}
@@ -774,9 +784,11 @@ export default function App() {
                     <ChatMessageItem key={msg.id} message={msg} index={idx} globalBadges={globalBadges} channelBadges={channelBadges} kickBadges={kickBadges} sevenTVEmotes={sevenTVEmotes} settings={chatSettings} currentUser={{ twitch: authState.twitchUsername, kick: authState.kickUsername }} onReply={handleReply} onUserClick={handleUserClick} avatarCache={avatarCache} onRequestAvatar={requestAvatar} onSaveMessage={handleSaveMessage} canSave={!!cloudUserId} />
                 )))}
             </div>
+            
+            {/* Chat Paused Indicator - Moved closer to input */}
             <AnimatePresence>
             {isPaused && (
-                <div className="sticky bottom-[100px] flex justify-center w-full z-20 pointer-events-none">
+                <div className="sticky bottom-2 flex justify-center w-full z-20 pointer-events-none">
                     <motion.button initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={scrollToBottom} className="pointer-events-auto bg-black/60 backdrop-blur-xl border border-white/20 px-6 py-2.5 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.6)] flex items-center gap-2 text-xs font-bold group hover:border-white/40 transition-colors">
                         {unreadCount > 0 ? ( <><span className="text-twitch group-hover:animate-pulse">↓</span><span>Ver {unreadCount} novas mensagens</span></> ) : ( <><span className="text-gray-400">⏸</span><span>Chat Pausado</span></> )}
                     </motion.button>

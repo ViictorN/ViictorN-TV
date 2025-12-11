@@ -60,6 +60,7 @@ export interface ChatSettings {
   pauseOnHover: boolean; // (Optional logic)
   cinemaMode: boolean; // Hides header for immersion
   performanceMode: boolean; // Reduces rendered DOM elements (Virtualization-lite)
+  clickToReply: boolean; // Double click to reply (Mo'Kick style)
   
   // Badge Filters
   showBadgeBroadcaster: boolean;
@@ -106,6 +107,7 @@ export interface TwitchEmote {
     format: string[];
     scale: string[];
     theme_mode: string[];
+    emote_set_id: string; // Used for categorization
 }
 
 export interface TwitchCreds {
