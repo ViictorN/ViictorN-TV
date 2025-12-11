@@ -43,6 +43,8 @@ export const ControlPanel: React.FC<Props> = ({
       return num.toString();
   };
 
+  const springTransition = { type: "spring", stiffness: 400, damping: 30 };
+
   return (
     <div className={`w-full liquid-glass border-b border-white/5 flex flex-row items-center justify-between px-3 md:px-4 z-50 sticky top-0 transition-all duration-500 ease-out-expo shrink-0 ${cinemaMode ? 'h-0 opacity-0 overflow-hidden py-0 border-none' : 'h-[52px] md:h-[72px]'}`}>
       
@@ -63,27 +65,73 @@ export const ControlPanel: React.FC<Props> = ({
       {/* Center Controls */}
       <div className="flex-1 flex items-center justify-center gap-2">
         
-        {/* Player Selector - Visible on Mobile & Desktop */}
-        <div className="flex p-0.5 md:p-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10 shadow-inner">
-            <button onClick={() => onSetPlayer('twitch')} className={`relative flex items-center justify-center md:justify-start gap-0 md:gap-2 w-8 md:w-auto px-0 md:px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${activePlayer === 'twitch' ? 'bg-[#9146FF] text-white shadow-lg shadow-[#9146FF]/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <PlatformIcon platform="twitch" variant={activePlayer === 'twitch' ? 'white' : 'subdued'} className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Twitch</span>
-            </button>
-            <button onClick={() => onSetPlayer('kick')} className={`relative flex items-center justify-center md:justify-start gap-0 md:gap-2 w-8 md:w-auto px-0 md:px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${activePlayer === 'kick' ? 'bg-[#53FC18] text-black shadow-lg shadow-[#53FC18]/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <PlatformIcon platform="kick" variant={activePlayer === 'kick' ? 'default' : 'subdued'} className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Kick</span>
-            </button>
-            <button onClick={() => onSetPlayer('none')} className={`relative flex items-center justify-center md:justify-start gap-0 md:gap-2 w-10 md:w-auto px-0 md:px-4 py-1.5 rounded-full text-[10px] md:text-xs font-bold transition-all duration-300 ${activePlayer === 'none' ? 'bg-white text-black shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <span className="md:hidden">Chat</span>
-                <span className="hidden md:inline">Apenas Chat</span>
-            </button>
+        {/* Player Selector - Animated Segmented Control */}
+        <div className="flex p-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10 shadow-inner relative z-0">
+            {[
+                { id: 'twitch', label: 'Twitch', icon: true, color: 'bg-[#9146FF]' },
+                { id: 'kick', label: 'Kick', icon: true, color: 'bg-[#53FC18]' },
+                { id: 'none', label: 'Chat', icon: false, mobileLabel: 'Chat', desktopLabel: 'Apenas Chat', color: 'bg-white' }
+            ].map((tab) => {
+                const isActive = activePlayer === tab.id;
+                return (
+                    <button
+                        key={tab.id}
+                        onClick={() => onSetPlayer(tab.id as any)}
+                        className={`relative z-10 flex items-center justify-center md:justify-start gap-0 md:gap-2 w-8 md:w-auto px-0 md:px-4 py-1.5 rounded-full text-xs font-bold transition-colors duration-200 ${isActive ? (tab.id === 'kick' || tab.id === 'none' ? 'text-black' : 'text-white') : 'text-gray-400 hover:text-white'}`}
+                    >
+                        {isActive && (
+                            <motion.div
+                                layoutId="player-active-bg"
+                                className={`absolute inset-0 rounded-full ${tab.color} shadow-lg`}
+                                transition={springTransition}
+                                style={{ zIndex: -1 }}
+                            />
+                        )}
+                        {tab.icon && (
+                            <PlatformIcon 
+                                platform={tab.id as any} 
+                                variant={isActive ? (tab.id === 'twitch' ? 'white' : 'default') : 'subdued'} 
+                                className="w-3.5 h-3.5 relative z-10" 
+                            />
+                        )}
+                        <span className="relative z-10 hidden md:inline">{tab.desktopLabel || tab.label}</span>
+                        {!tab.icon && <span className="relative z-10 md:hidden">{tab.mobileLabel}</span>}
+                    </button>
+                );
+            })}
         </div>
 
-        {/* Chat Filters - HIDDEN ON MOBILE (Moved to floating bar in App.tsx) */}
-        <div className="hidden md:flex p-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10 shadow-inner">
-             <button onClick={() => onSetChatFilter('all')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-300 ${chatFilter === 'all' ? 'bg-white/20 text-white border border-white/10' : 'text-gray-500 hover:text-gray-300'}`}>All</button>
-             <button onClick={() => onSetChatFilter('twitch')} className={`px-3 py-1.5 rounded-full transition-all duration-300 ${chatFilter === 'twitch' ? 'bg-[#9146FF]/20 text-[#9146FF] border border-[#9146FF]/30' : 'text-gray-500 hover:text-gray-300'}`}><PlatformIcon platform="twitch" className="w-4 h-4" /></button>
-             <button onClick={() => onSetChatFilter('kick')} className={`px-3 py-1.5 rounded-full transition-all duration-300 ${chatFilter === 'kick' ? 'bg-[#53FC18]/20 text-[#53FC18] border border-[#53FC18]/30' : 'text-gray-500 hover:text-gray-300'}`}><PlatformIcon platform="kick" className="w-4 h-4" /></button>
+        {/* Chat Filters - Animated Segmented Control (Desktop Only) */}
+        <div className="hidden md:flex p-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10 shadow-inner relative z-0">
+             {[
+                 { id: 'all', label: 'All', icon: null },
+                 { id: 'twitch', label: null, icon: 'twitch' },
+                 { id: 'kick', label: null, icon: 'kick' }
+             ].map((filter) => {
+                 const isActive = chatFilter === filter.id;
+                 let activeBg = 'bg-white/20 border-white/10';
+                 if (filter.id === 'twitch') activeBg = 'bg-[#9146FF]/20 border-[#9146FF]/30';
+                 if (filter.id === 'kick') activeBg = 'bg-[#53FC18]/20 border-[#53FC18]/30';
+
+                 return (
+                    <button 
+                        key={filter.id}
+                        onClick={() => onSetChatFilter(filter.id as any)} 
+                        className={`relative z-10 px-3 py-1.5 rounded-full text-xs font-bold transition-colors duration-200 flex items-center justify-center min-w-[36px] ${isActive ? (filter.id === 'twitch' ? 'text-[#9146FF]' : filter.id === 'kick' ? 'text-[#53FC18]' : 'text-white') : 'text-gray-500 hover:text-gray-300'}`}
+                    >
+                        {isActive && (
+                             <motion.div
+                                layoutId="filter-active-bg"
+                                className={`absolute inset-0 rounded-full border ${activeBg}`}
+                                transition={springTransition}
+                                style={{ zIndex: -1 }}
+                            />
+                        )}
+                        {filter.label && <span className="relative z-10">{filter.label}</span>}
+                        {filter.icon && <PlatformIcon platform={filter.icon as any} className="w-4 h-4 relative z-10" />}
+                    </button>
+                 );
+             })}
         </div>
       </div>
       
@@ -93,8 +141,14 @@ export const ControlPanel: React.FC<Props> = ({
         
         <div className="hidden md:flex items-center gap-4">
             {activePlayer !== 'none' && (
-                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={onSync} className="hidden xl:flex items-center gap-2 px-3 py-1.5 bg-black/40 hover:bg-white/5 text-gray-400 hover:text-white rounded-lg border border-white/10 hover:border-white/20 transition-all shadow-sm" title="Corrigir Atraso / Delay">
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                <motion.button 
+                    whileHover={{ scale: 1.05, borderColor: "rgba(255,255,255,0.3)" }} 
+                    whileTap={{ scale: 0.95 }} 
+                    onClick={onSync} 
+                    className="hidden xl:flex items-center gap-2 px-3 py-1.5 bg-black/40 text-gray-400 hover:text-white rounded-lg border border-white/10 transition-all shadow-sm group" 
+                    title="Corrigir Atraso / Delay"
+                >
+                    <span className="w-2 h-2 rounded-full bg-red-500 group-hover:animate-pulse shadow-[0_0_8px_#ef4444]"></span>
                     <span className="text-[10px] font-bold uppercase tracking-wider">Delay</span>
                 </motion.button>
             )}
@@ -103,7 +157,7 @@ export const ControlPanel: React.FC<Props> = ({
             <div className="hidden xl:flex items-center bg-black/40 backdrop-blur-sm rounded-full border border-white/10 shadow-lg cursor-default select-none overflow-hidden h-9">
                 <div className="px-3 h-full flex flex-col justify-center bg-white/5 border-r border-white/5">
                      <span className="text-[8px] font-bold text-gray-500 leading-none mb-0.5 uppercase">Total</span>
-                     <motion.span key={totalViewers} initial={{ opacity: 0.5 }} animate={{ opacity: 1 }} className="text-xs font-mono font-bold text-white leading-none">{formatViewers(totalViewers)}</motion.span>
+                     <motion.span key={totalViewers} initial={{ opacity: 0.5, y: 5 }} animate={{ opacity: 1, y: 0 }} className="text-xs font-mono font-bold text-white leading-none">{formatViewers(totalViewers)}</motion.span>
                 </div>
                 <div className="flex items-center gap-3 px-3">
                     <div className="flex items-center gap-1.5 opacity-80" title="Twitch Viewers">
@@ -121,10 +175,34 @@ export const ControlPanel: React.FC<Props> = ({
             <div className="hidden xl:block h-6 w-px bg-white/5"></div>
             <div className="flex items-center gap-2">
                 {hasCloudAccess && onOpenBookmarks && (
-                    <motion.button whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.05)" }} whileTap={{ scale: 0.9 }} onClick={onOpenBookmarks} className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 text-yellow-500/70 hover:text-yellow-400 border border-white/10 shadow-lg" title="Mensagens Salvas"><span className="text-lg">★</span></motion.button>
+                    <motion.button 
+                        whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.1)", boxShadow: "0 0 15px rgba(255,215,0,0.2)" }} 
+                        whileTap={{ scale: 0.9 }} 
+                        onClick={onOpenBookmarks} 
+                        className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 text-yellow-500/70 hover:text-yellow-400 border border-white/10 shadow-lg transition-colors" 
+                        title="Mensagens Salvas"
+                    >
+                        <span className="text-lg">★</span>
+                    </motion.button>
                 )}
-                <motion.button whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.05)" }} whileTap={{ scale: 0.9 }} onClick={onToggleCinema} className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 text-gray-400 border border-white/10 shadow-lg" title="Cinema Mode"><span className="text-lg">↕</span></motion.button>
-                <motion.button whileHover={{ scale: 1.1, rotate: 45, backgroundColor: "rgba(255,255,255,0.05)" }} whileTap={{ scale: 0.9, rotate: 0 }} onClick={onOpenSettings} className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 text-gray-400 border border-white/10 shadow-lg" title="Settings"><SettingsIcon className="w-5 h-5" /></motion.button>
+                <motion.button 
+                    whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.1)" }} 
+                    whileTap={{ scale: 0.9 }} 
+                    onClick={onToggleCinema} 
+                    className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 text-gray-400 border border-white/10 shadow-lg hover:text-white transition-colors" 
+                    title="Cinema Mode"
+                >
+                    <span className="text-lg">↕</span>
+                </motion.button>
+                <motion.button 
+                    whileHover={{ scale: 1.1, rotate: 90, backgroundColor: "rgba(255,255,255,0.1)" }} 
+                    whileTap={{ scale: 0.9, rotate: 0 }} 
+                    onClick={onOpenSettings} 
+                    className="w-10 h-10 rounded-full flex items-center justify-center bg-black/40 text-gray-400 border border-white/10 shadow-lg hover:text-white transition-colors" 
+                    title="Settings"
+                >
+                    <SettingsIcon className="w-5 h-5" />
+                </motion.button>
             </div>
         </div>
       </div>

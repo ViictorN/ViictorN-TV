@@ -386,9 +386,10 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   // --- SUBSCRIPTIONS ---
   if (message.isSubscription) {
       const isTwitch = message.platform === Platform.TWITCH;
+      // CRITICAL FIX: Replaced 'liquid-glass' class with manual styles to allow gradient background to show through.
       const subStyle = isTwitch 
-        ? "liquid-glass border-l-4 border-l-[#9146FF] bg-gradient-to-r from-[#9146FF]/20 via-[#9146FF]/5 to-transparent shadow-[inset_0_0_20px_rgba(145,70,255,0.1)]" 
-        : "liquid-glass border-l-4 border-l-[#53FC18] bg-gradient-to-r from-[#53FC18]/20 via-[#53FC18]/5 to-transparent shadow-[inset_0_0_20px_rgba(83,252,24,0.1)]";
+        ? "backdrop-blur-md border border-white/5 border-l-4 border-l-[#9146FF] bg-gradient-to-r from-[#9146FF]/20 via-[#9146FF]/5 to-transparent shadow-[inset_0_0_20px_rgba(145,70,255,0.1)]" 
+        : "backdrop-blur-md border border-white/5 border-l-4 border-l-[#53FC18] bg-gradient-to-r from-[#53FC18]/20 via-[#53FC18]/5 to-transparent shadow-[inset_0_0_20px_rgba(83,252,24,0.1)]";
 
       return (
         <motion.div 

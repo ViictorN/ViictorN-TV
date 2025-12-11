@@ -731,10 +731,10 @@ export default function App() {
          <motion.button 
             initial={{ opacity: 0, y: -20 }} 
             animate={{ opacity: 1, y: 0 }} 
-            whileHover={{ scale: 1.05 }} 
+            whileHover={{ scale: 1.05, backgroundColor: "rgba(0,0,0,0.8)" }} 
             whileTap={{ scale: 0.95 }} 
             onClick={toggleCinemaMode} 
-            className="fixed top-2 left-1/2 -translate-x-1/2 z-[999] bg-black/40 hover:bg-black/80 text-white/50 hover:text-white px-4 py-1.5 rounded-full backdrop-blur-md border border-white/5 shadow-lg group flex items-center gap-2" 
+            className="fixed top-2 left-1/2 -translate-x-1/2 z-[999] bg-black/40 text-white/50 hover:text-white px-4 py-1.5 rounded-full backdrop-blur-md border border-white/5 shadow-lg group flex items-center gap-2 transition-colors" 
             title="Sair do Modo Cinema"
          >
            <span className="text-xs font-bold uppercase tracking-wider">Sair do Modo Cinema</span>
@@ -761,12 +761,37 @@ export default function App() {
                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
                  className="pointer-events-auto"
               >
-                  {/* Filter Pills */}
-                  <div className="flex items-center p-1.5 bg-black/70 backdrop-blur-xl rounded-full border border-white/10 shadow-2xl">
-                     <button onClick={() => setChatFilter('all')} className={`px-4 py-1.5 rounded-full text-[10px] font-bold transition-all duration-300 ${chatFilter === 'all' ? 'bg-white/20 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}>All</button>
-                     <div className="w-px h-3 bg-white/10 mx-1"></div>
-                     <button onClick={() => setChatFilter('twitch')} className={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-300 ${chatFilter === 'twitch' ? 'bg-[#9146FF]/20 text-[#9146FF]' : 'text-gray-400 hover:text-white'}`}><PlatformIcon platform="twitch" className="w-4 h-4" /></button>
-                     <button onClick={() => setChatFilter('kick')} className={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-300 ${chatFilter === 'kick' ? 'bg-[#53FC18]/20 text-[#53FC18]' : 'text-gray-400 hover:text-white'}`}><PlatformIcon platform="kick" className="w-4 h-4" /></button>
+                  {/* Filter Pills - Animated Segmented Control for Mobile */}
+                  <div className="flex items-center p-1.5 bg-black/70 backdrop-blur-xl rounded-full border border-white/10 shadow-2xl relative z-0">
+                     {[
+                         { id: 'all', label: 'All', icon: null },
+                         { id: 'twitch', label: null, icon: 'twitch' },
+                         { id: 'kick', label: null, icon: 'kick' }
+                     ].map((filter) => {
+                         const isActive = chatFilter === filter.id;
+                         let activeBg = 'bg-white/20 border-white/10';
+                         if (filter.id === 'twitch') activeBg = 'bg-[#9146FF]/20 border-[#9146FF]/30';
+                         if (filter.id === 'kick') activeBg = 'bg-[#53FC18]/20 border-[#53FC18]/30';
+                         
+                         return (
+                             <button
+                                key={filter.id}
+                                onClick={() => setChatFilter(filter.id as any)}
+                                className={`relative z-10 px-4 py-1.5 rounded-full text-[10px] font-bold transition-colors duration-200 flex items-center justify-center min-w-[40px] ${isActive ? (filter.id === 'twitch' ? 'text-[#9146FF]' : filter.id === 'kick' ? 'text-[#53FC18]' : 'text-white') : 'text-gray-400'}`}
+                             >
+                                 {isActive && (
+                                     <motion.div
+                                        layoutId="mobile-filter-active-bg"
+                                        className={`absolute inset-0 rounded-full border ${activeBg} shadow-sm`}
+                                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                                        style={{ zIndex: -1 }}
+                                     />
+                                 )}
+                                 {filter.label && <span className="relative z-10">{filter.label}</span>}
+                                 {filter.icon && <PlatformIcon platform={filter.icon as any} className="w-3.5 h-3.5 relative z-10" />}
+                             </button>
+                         );
+                     })}
                   </div>
               </motion.div>
           </div>
@@ -812,7 +837,7 @@ export default function App() {
             <AnimatePresence>
             {isPaused && (
                 <div className="sticky bottom-2 flex justify-center w-full z-20 pointer-events-none">
-                    <motion.button initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={scrollToBottom} className="pointer-events-auto bg-black/60 backdrop-blur-xl border border-white/20 px-6 py-2.5 rounded-full shadow-[0_0_30px_rgba(0,0,0,0.6)] flex items-center gap-2 text-xs font-bold group hover:border-white/40 transition-colors">
+                    <motion.button initial={{ opacity: 0, scale: 0.9, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 10 }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={scrollToBottom} className="pointer-events-auto liquid-glass-strong px-6 py-2.5 rounded-full flex items-center gap-2 text-xs font-bold group hover:border-white/40 transition-colors">
                         {unreadCount > 0 ? ( <><span className="text-twitch group-hover:animate-pulse">↓</span><span>Ver {unreadCount} novas mensagens</span></> ) : ( <><span className="text-gray-400">⏸</span><span>Chat Pausado</span></> )}
                     </motion.button>
                 </div>
