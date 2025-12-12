@@ -796,7 +796,7 @@ export default function App() {
             whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.15)" }} 
             whileTap={{ scale: 0.95 }} 
             onClick={toggleCinemaMode} 
-            className="fixed top-4 right-4 z-[999] w-10 h-10 bg-black/40 text-white/50 hover:text-white rounded-full backdrop-blur-md border border-white/10 shadow-lg flex items-center justify-center transition-all duration-300 group"
+            className="fixed top-4 right-4 z-[999] w-10 h-10 liquid-glass-strong text-white/50 hover:text-white rounded-full flex items-center justify-center transition-all duration-300 group"
             title="Sair do Modo Cinema"
          >
            <span className="text-sm font-bold group-hover:rotate-90 transition-transform duration-300">✕</span>
@@ -908,7 +908,7 @@ export default function App() {
           
           {canChat && (
               <div className="absolute bottom-0 left-0 right-0 z-30 p-4 bg-gradient-to-t from-black via-black/80 to-transparent">
-                    <div className={`relative flex items-center liquid-glass-strong rounded-full border border-white/15 transition-all duration-300 ease-out-expo shadow-2xl ${commentPlatform === 'twitch' ? 'focus-within:border-twitch/50 focus-within:shadow-[0_0_30px_rgba(145,70,255,0.15)]' : 'focus-within:border-kick/50 focus-within:shadow-[0_0_30px_rgba(83,252,24,0.15)]'}`}>
+                    <div className={`relative flex items-center liquid-glass-strong rounded-full transition-all duration-300 ease-out-expo shadow-2xl ${commentPlatform === 'twitch' ? 'focus-within:border-twitch/50 focus-within:shadow-[0_0_30px_rgba(145,70,255,0.15)]' : 'focus-within:border-kick/50 focus-within:shadow-[0_0_30px_rgba(83,252,24,0.15)]'}`}>
                         <EmotePicker isOpen={isEmotePickerOpen} onClose={() => setIsEmotePickerOpen(false)} onSelect={handleEmoteSelect} sevenTVEmotes={sevenTVEmotes} twitchEmotes={twitchEmotes} />
                         <div className="pl-2 pr-1 py-1">
                             <motion.button whileTap={{ scale: 0.9 }} onClick={() => setCommentPlatform(prev => prev === 'twitch' ? 'kick' : 'twitch')} className={`p-2 rounded-full transition-colors ${commentPlatform === 'twitch' ? 'bg-twitch/10 text-twitch hover:bg-twitch/20' : 'bg-kick/10 text-kick hover:bg-kick/20'}`}>
