@@ -291,6 +291,11 @@ export default function App() {
 
     fetchStats();
     fetch7TVEmotes().then(map => setSevenTVEmotes(map));
+    
+    // BADGE FETCHING STRATEGY:
+    // Always call fetchTwitchBadgesNoAuth first/independently because IVR API is more reliable for 
+    // channel subscriber badges (versions) than the standard Helix authenticated endpoint
+    // which requires specific scopes or returns incomplete data for viewers.
     fetchTwitchBadgesNoAuth(); 
 
     const poll = setInterval(fetchStats, 30000);
@@ -508,21 +513,23 @@ export default function App() {
     if (!twitchCreds.accessToken || !twitchCreds.clientId) return;
     try {
         const headers = { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` };
+        // Fetch Current User
         const myUserRes = await fetch(`https://api.twitch.tv/helix/users`, { headers });
         const myData = await myUserRes.json();
         if (myData.data && myData.data.length > 0) {
             setAuthState(prev => ({ ...prev, twitchUsername: myData.data[0].display_name }));
         }
 
+        // Fetch Streamer ID for Emotes (We use IVR for Badges now to ensure reliability)
         const streamerRes = await fetch(`https://api.twitch.tv/helix/users?login=${TWITCH_USER_LOGIN}`, { headers });
         const streamerData = await streamerRes.json();
         const streamerId = streamerData.data?.[0]?.id;
 
         if (streamerId) {
-             const cbRes = await fetch(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${streamerId}`, { headers });
-             const cbData = await cbRes.json();
-             if (cbData.data) setChannelBadges(parseHelixBadges(cbData.data));
-
+             // Removed Helix Badge Fetch here to prioritize IVR in fetchTwitchBadgesNoAuth
+             // This solves the issue of missing sub badges when authenticated if scopes are limited
+             
+             // Fetch Channel Emotes
              const emotesRes = await fetch(`https://api.twitch.tv/helix/chat/emotes?broadcaster_id=${streamerId}`, { headers });
              const emotesData = await emotesRes.json();
              if (emotesData.data) {
@@ -533,9 +540,8 @@ export default function App() {
                  });
              }
         }
-        const gbRes = await fetch(`https://api.twitch.tv/helix/chat/badges/global`, { headers });
-        const gbData = await gbRes.json();
-        if (gbData.data) setGlobalBadges(parseHelixBadges(gbData.data));
+        
+        // Fetch Global Emotes (Helix)
         const geRes = await fetch(`https://api.twitch.tv/helix/chat/emotes/global`, { headers });
         const geData = await geRes.json();
         if (geData.data) {
@@ -562,17 +568,28 @@ export default function App() {
   const fetchTwitchBadgesNoAuth = async () => {
       try {
           const proxy = 'https://corsproxy.io/?';
+          
+          // IVR API is more robust for public badges than Helix without specific scopes
           const globalRes = await fetch(`${proxy}${encodeURIComponent('https://api.ivr.fi/v2/twitch/badges/global')}`);
           if (globalRes.ok) {
               const data = await globalRes.json();
-              setGlobalBadges(prev => Object.keys(prev).length === 0 ? parseIvrBadges(data) : prev);
+              setGlobalBadges(prev => {
+                  const newMap = parseIvrBadges(data);
+                  // Simple merge: IVR wins if conflict
+                  return { ...prev, ...newMap };
+              });
           }
           const channelRes = await fetch(`${proxy}${encodeURIComponent(`https://api.ivr.fi/v2/twitch/badges/channel/${TWITCH_USER_LOGIN}`)}`);
            if (channelRes.ok) {
               const data = await channelRes.json();
-              setChannelBadges(prev => Object.keys(prev).length === 0 ? parseIvrBadges(data) : prev);
+              setChannelBadges(prev => {
+                   const newMap = parseIvrBadges(data);
+                   return { ...prev, ...newMap };
+              });
           }
-      } catch (e) {}
+      } catch (e) {
+          console.error("IVR Badge Fetch Error", e);
+      }
   };
 
   const parseIvrBadges = (data: any[]): BadgeMap => {
@@ -729,16 +746,15 @@ export default function App() {
       <BookmarksModal isOpen={isBookmarksOpen} onClose={() => setIsBookmarksOpen(false)} />
       {chatSettings.cinemaMode && (
          <motion.button 
-            initial={{ opacity: 0, y: -20 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            whileHover={{ scale: 1.05, backgroundColor: "rgba(0,0,0,0.8)" }} 
+            initial={{ opacity: 0, scale: 0.8 }} 
+            animate={{ opacity: 1, scale: 1 }} 
+            whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.15)" }} 
             whileTap={{ scale: 0.95 }} 
             onClick={toggleCinemaMode} 
-            className="fixed top-2 left-1/2 -translate-x-1/2 z-[999] bg-black/40 text-white/50 hover:text-white px-4 py-1.5 rounded-full backdrop-blur-md border border-white/5 shadow-lg group flex items-center gap-2 transition-colors" 
+            className="fixed top-6 right-6 z-[999] w-12 h-12 bg-black/20 text-white/50 hover:text-white rounded-full backdrop-blur-md border border-white/5 shadow-lg flex items-center justify-center transition-all duration-300 group"
             title="Sair do Modo Cinema"
          >
-           <span className="text-xs font-bold uppercase tracking-wider">Sair do Modo Cinema</span>
-           <span className="group-hover:rotate-180 transition-transform duration-300">✕</span>
+           <span className="text-xl font-bold group-hover:rotate-90 transition-transform duration-300">✕</span>
          </motion.button>
       )}
       {selectedUser && ( <UserCard user={selectedUser.user} platform={selectedUser.platform} messages={messages} onClose={() => setSelectedUser(null)} twitchCreds={twitchCreds} /> )}
