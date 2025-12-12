@@ -60,8 +60,17 @@ export const UserCard: React.FC<Props> = ({ user, platform, messages, onClose, t
       setTimeout(() => setSavingNote(false), 500);
   };
 
-  // Display Image
-  const displayAvatar = fetchedAvatar || user.avatarUrl;
+  // Display Image Logic
+  let displayAvatar = fetchedAvatar || user.avatarUrl;
+  
+  // Apply Kick Proxy Fix (Same as ChatMessageItem to prevent broken images)
+  if (platform === Platform.KICK && displayAvatar && !displayAvatar.includes('wsrv.nl')) {
+      // If it's a Kick file URL or similar that needs proxying for CORS
+      if (displayAvatar.includes('kick.com') || displayAvatar.includes('kick-files')) {
+          const cleanUrl = decodeURIComponent(displayAvatar);
+          displayAvatar = `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&w=128&h=128&fit=cover&output=webp`;
+      }
+  }
   
   // Default Avatar Color
   const initial = user.username.charAt(0).toUpperCase();

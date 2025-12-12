@@ -292,10 +292,7 @@ export default function App() {
     fetchStats();
     fetch7TVEmotes().then(map => setSevenTVEmotes(map));
     
-    // BADGE FETCHING STRATEGY:
-    // Always call fetchTwitchBadgesNoAuth first/independently because IVR API is more reliable for 
-    // channel subscriber badges (versions) than the standard Helix authenticated endpoint
-    // which requires specific scopes or returns incomplete data for viewers.
+    // Always call IVR/NoAuth fetcher as a base.
     fetchTwitchBadgesNoAuth(); 
 
     const poll = setInterval(fetchStats, 30000);
@@ -380,12 +377,19 @@ export default function App() {
   const requestAvatar = useCallback(async (platform: Platform, user: User) => {
       const key = `${platform}-${user.username}`;
       if (avatarCache[key] || pendingAvatars.current.has(key)) return;
-      if (user.avatarUrl && !user.avatarUrl.includes('null')) return;
+
+      // Ensure we cache if user has a valid URL already, and it's not a generic/null string
+      if (user.avatarUrl && !user.avatarUrl.includes('null') && !user.avatarUrl.includes('undefined')) {
+           setAvatarCache(prev => ({ ...prev, [key]: user.avatarUrl! }));
+           return;
+      }
 
       pendingAvatars.current.add(key);
       try {
           let url: string | null = null;
+          
           if (platform === Platform.KICK && user.id) {
+               // 1. Try 7TV (Sometimes better quality)
                try {
                    const res = await fetch(`https://7tv.io/v3/users/kick/${user.id}`);
                    if (res.ok) {
@@ -395,20 +399,31 @@ export default function App() {
                        }
                    }
                } catch (e) {}
+
+               // 2. Fallback to standard Kick URL construction
                if (!url) url = `https://files.kick.com/images/user_profile_pics/${user.id}/image.webp`;
+
+               // 3. APPLY KICK PROXY IMMEDIATELY
+               // Kick images often have strict CORS or hotlink protection. Using wsrv.nl here fixes it globally.
+               if (url) {
+                   url = `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=64&h=64&fit=cover&output=webp`;
+               }
           }
           else if (platform === Platform.TWITCH) {
-              if (user.id) {
+              // 1. Helix (Authenticated - Most Reliable)
+              if (twitchCreds.accessToken && twitchCreds.clientId) {
                   try {
-                      const res = await fetch(`https://7tv.io/v3/users/twitch/${user.id}`);
-                      if (res.ok) {
-                          const data = await res.json();
-                          if (data.user?.avatar_url) {
-                               url = data.user.avatar_url.startsWith('//') ? `https:${data.user.avatar_url}` : data.user.avatar_url;
-                          }
+                      const res = await fetch(`https://api.twitch.tv/helix/users?login=${user.username}`, {
+                          headers: { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` }
+                      });
+                      const data = await res.json();
+                      if (data.data && data.data[0] && data.data[0].profile_image_url) {
+                          url = data.data[0].profile_image_url;
                       }
-                  } catch (e) {}
+                  } catch(e) {}
               }
+
+              // 2. IVR (Public Fallback)
               if (!url) {
                   try {
                     const res = await fetch(`https://api.ivr.fi/v2/twitch/user?login=${user.username}`);
@@ -421,7 +436,7 @@ export default function App() {
           }
           if (url) setAvatarCache(prev => ({ ...prev, [key]: url! }));
       } catch (e) {} finally { pendingAvatars.current.delete(key); }
-  }, [avatarCache]);
+  }, [avatarCache, twitchCreds]);
 
   // --- SCROLL ---
   const handleScroll = () => {
@@ -452,24 +467,49 @@ export default function App() {
   };
 
   // --- API ---
+  const processKickStats = (data: any) => {
+      if (data && data.livestream) {
+          setStreamStats(prev => ({ ...prev, kickViewers: data.livestream.viewer_count, isLiveKick: true }));
+      } else {
+          setStreamStats(prev => ({ ...prev, kickViewers: 0, isLiveKick: false }));
+      }
+      if (data.subscriber_badges) {
+          const subBadges: Record<string, string> = {};
+          data.subscriber_badges.forEach((b: any) => { subBadges[String(b.months)] = b.badge_image.src; });
+          setKickBadges(prev => ({ ...prev, 'subscriber': subBadges }));
+      }
+  };
+
   const fetchStats = async () => {
+    // KICK STATS STRATEGY (Multi-Proxy)
+    let kickSuccess = false;
+    const kickUrl = `https://kick.com/api/v1/channels/${STREAMER_SLUG}`;
+
+    // 1. Try CorsProxy
     try {
-        const response = await fetch(`https://corsproxy.io/?https://kick.com/api/v1/channels/${STREAMER_SLUG}`);
+        const response = await fetch(`https://corsproxy.io/?${kickUrl}`);
         if (response.ok) {
             const data = await response.json();
-            if (data && data.livestream) {
-                setStreamStats(prev => ({ ...prev, kickViewers: data.livestream.viewer_count, isLiveKick: true }));
-            } else {
-                setStreamStats(prev => ({ ...prev, kickViewers: 0, isLiveKick: false }));
-            }
-            if (data.subscriber_badges) {
-                const subBadges: Record<string, string> = {};
-                data.subscriber_badges.forEach((b: any) => { subBadges[String(b.months)] = b.badge_image.src; });
-                setKickBadges(prev => ({ ...prev, 'subscriber': subBadges }));
-            }
+            processKickStats(data);
+            kickSuccess = true;
         }
     } catch (e) {}
 
+    // 2. Try AllOrigins (Fallback if 1 failed)
+    if (!kickSuccess) {
+        try {
+            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(kickUrl)}`);
+            if (response.ok) {
+                const json = await response.json();
+                if (json.contents) {
+                     const data = JSON.parse(json.contents);
+                     processKickStats(data);
+                }
+            }
+        } catch(e) {}
+    }
+
+    // TWITCH STATS
     if (twitchCreds.accessToken && twitchCreds.clientId) {
         try {
             const res = await fetch(`https://api.twitch.tv/helix/streams?user_login=${TWITCH_USER_LOGIN}`, {
@@ -520,14 +560,21 @@ export default function App() {
             setAuthState(prev => ({ ...prev, twitchUsername: myData.data[0].display_name }));
         }
 
-        // Fetch Streamer ID for Emotes (We use IVR for Badges now to ensure reliability)
+        // Fetch Streamer ID 
         const streamerRes = await fetch(`https://api.twitch.tv/helix/users?login=${TWITCH_USER_LOGIN}`, { headers });
         const streamerData = await streamerRes.json();
         const streamerId = streamerData.data?.[0]?.id;
 
         if (streamerId) {
-             // Removed Helix Badge Fetch here to prioritize IVR in fetchTwitchBadgesNoAuth
-             // This solves the issue of missing sub badges when authenticated if scopes are limited
+             // RESTORED: Fetch Channel Badges via Helix if authenticated
+             // This is critical for authenticated users to see sub badges correctly
+             try {
+                const cbRes = await fetch(`https://api.twitch.tv/helix/chat/badges?broadcaster_id=${streamerId}`, { headers });
+                const cbData = await cbRes.json();
+                if (cbData.data) {
+                    setChannelBadges(prev => ({ ...prev, ...parseHelixBadges(cbData.data) }));
+                }
+             } catch(e) { console.error("Helix Badge Fetch Error", e); }
              
              // Fetch Channel Emotes
              const emotesRes = await fetch(`https://api.twitch.tv/helix/chat/emotes?broadcaster_id=${streamerId}`, { headers });
@@ -569,13 +616,11 @@ export default function App() {
       try {
           const proxy = 'https://corsproxy.io/?';
           
-          // IVR API is more robust for public badges than Helix without specific scopes
           const globalRes = await fetch(`${proxy}${encodeURIComponent('https://api.ivr.fi/v2/twitch/badges/global')}`);
           if (globalRes.ok) {
               const data = await globalRes.json();
               setGlobalBadges(prev => {
                   const newMap = parseIvrBadges(data);
-                  // Simple merge: IVR wins if conflict
                   return { ...prev, ...newMap };
               });
           }
@@ -751,10 +796,10 @@ export default function App() {
             whileHover={{ scale: 1.1, backgroundColor: "rgba(255,255,255,0.15)" }} 
             whileTap={{ scale: 0.95 }} 
             onClick={toggleCinemaMode} 
-            className="fixed top-6 right-6 z-[999] w-12 h-12 bg-black/20 text-white/50 hover:text-white rounded-full backdrop-blur-md border border-white/5 shadow-lg flex items-center justify-center transition-all duration-300 group"
+            className="fixed top-4 right-4 z-[999] w-10 h-10 bg-black/40 text-white/50 hover:text-white rounded-full backdrop-blur-md border border-white/10 shadow-lg flex items-center justify-center transition-all duration-300 group"
             title="Sair do Modo Cinema"
          >
-           <span className="text-xl font-bold group-hover:rotate-90 transition-transform duration-300">✕</span>
+           <span className="text-sm font-bold group-hover:rotate-90 transition-transform duration-300">✕</span>
          </motion.button>
       )}
       {selectedUser && ( <UserCard user={selectedUser.user} platform={selectedUser.platform} messages={messages} onClose={() => setSelectedUser(null)} twitchCreds={twitchCreds} /> )}
