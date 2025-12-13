@@ -23,7 +23,6 @@ interface Props {
   canSave?: boolean; 
 }
 
-// Improved Badge Styling: Clean, no shadow, consistent size
 const BADGE_CLASS = "h-[18px] w-auto min-w-[18px] mr-1 inline-block align-middle select-none object-contain hover:scale-110 transition-transform duration-200 ease-out-expo";
 
 // Fallback Twitch badges
@@ -36,20 +35,51 @@ const FALLBACK_TWITCH_BADGES: Record<string, string> = {
   'turbo': 'https://static-cdn.jtvnw.net/badges/v1/bd444ec6-8f34-4bf9-91f4-af1e3428d80f/2',
 };
 
-// --- KICK OFFICIAL BADGES ---
-// Using the 'Kaibh/Kick-Badges' repository which is known to be stable and contains 'founder.png'
-const KICK_OFFICIAL_BADGES: Record<string, string> = {
-    'broadcaster': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/broadcaster.png',
-    'moderator': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/moderator.png',
-    'vip': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/vip.png',
-    'founder': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/founder.png', // Channel Founder / First Subs
-    'verified': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/verified.png',
-    'og': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/og.png',
-    'staff': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/staff.png',
-    'sub_gifter': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/sub-gifter.png',
-    // Generic fallback for subscriber if channel specific one fails
-    'subscriber': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/subscriber.png' 
-};
+// --- ROBUST KICK BADGE COMPONENT ---
+// Tries multiple sources until one works.
+const KickBadge: React.FC<{ type: string }> = React.memo(({ type }) => {
+    const [sourceIndex, setSourceIndex] = useState(0);
+    const [hasError, setHasError] = useState(false);
+
+    // Normalize badge names for filenames
+    const getFileName = (t: string, capitalize: boolean) => {
+        let name = t.toLowerCase();
+        if (name === 'sub_gifter') name = 'sub-gifter';
+        // Some repos use 'Broadcaster', some 'broadcaster'
+        return capitalize ? name.charAt(0).toUpperCase() + name.slice(1) : name;
+    };
+
+    // Priority List of Repositories
+    const sources = [
+        // Source 1: Melon-Raje (Usually reliable, lowercase)
+        (t: string) => `https://raw.githubusercontent.com/Melon-Raje/Kick-Badges/main/badges/${getFileName(t, false)}.png`,
+        // Source 2: RalphD1 (Often uses Capitalized filenames)
+        (t: string) => `https://raw.githubusercontent.com/RalphD1/Kick-Badges/main/${getFileName(t, true)}.png`,
+        // Source 3: Kosmos-Media (Backup)
+        (t: string) => `https://raw.githubusercontent.com/Kosmos-Media/Kick-Badges/main/badges/${getFileName(t, false)}.png`,
+    ];
+
+    const handleError = () => {
+        if (sourceIndex < sources.length - 1) {
+            setSourceIndex(prev => prev + 1);
+        } else {
+            setHasError(true);
+        }
+    };
+
+    if (hasError) return null; // Hide if all sources fail
+
+    return (
+        <img 
+            src={sources[sourceIndex](type)}
+            onError={handleError}
+            className={BADGE_CLASS}
+            alt={type}
+            title={type}
+            loading="lazy"
+        />
+    );
+});
 
 export const ChatMessageItem: React.FC<Props> = React.memo(({ 
     message, 
@@ -132,33 +162,19 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
           // --- KICK BADGES ---
           if (message.platform === Platform.KICK) {
              const key = `${message.id}-kbadge-${idx}`;
-             let badgeUrl: string | undefined;
-
+             
              // Handle Subscriber Badges (Priority: Channel Specific -> Generic Fallback)
              if (badge.type === 'subscriber') {
                  // 1. Try Channel Specific (from API)
                  if (kickBadges?.['subscriber'] && kickBadges['subscriber'][badge.version || '1']) {
-                     badgeUrl = kickBadges['subscriber'][badge.version || '1'];
-                 } else {
-                     // 2. Fallback to Generic Star
-                     badgeUrl = KICK_OFFICIAL_BADGES['subscriber'];
+                     return <img key={key} src={kickBadges['subscriber'][badge.version || '1']} className={BADGE_CLASS} alt={badge.type} title={`Sub (${badge.version} months)`} loading="lazy" />;
                  }
+                 // 2. Fallback to Generic Star using our Robust Component
+                 return <KickBadge key={key} type="subscriber" />;
              } 
-             // Handle Global Roles
-             else if (KICK_OFFICIAL_BADGES[badge.type]) {
-                 badgeUrl = KICK_OFFICIAL_BADGES[badge.type];
-             }
-             // Fallback for "Founder" if mapped to something else in API but file is missing (Safety check)
-             else if (badge.type === 'founder') {
-                 // If the specific founder image fails, fallback to Broadcaster as it's often the same context on Kick
-                 badgeUrl = KICK_OFFICIAL_BADGES['founder'] || KICK_OFFICIAL_BADGES['broadcaster'];
-             }
-
-             if (badgeUrl) {
-                 return <img key={key} src={badgeUrl} className={BADGE_CLASS} alt={badge.type} title={badge.type} loading="lazy" />;
-             }
              
-             return null;
+             // Handle Global Roles (Founder, Mod, VIP, etc.)
+             return <KickBadge key={key} type={badge.type} />;
           }
           
           // --- TWITCH BADGES ---
