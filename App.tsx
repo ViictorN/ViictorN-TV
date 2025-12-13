@@ -153,6 +153,39 @@ export default function App() {
   const kickRef = useRef<KickConnection | null>(null);
   const messageQueue = useRef<ChatMessage[]>([]);
   
+  // --- TOKEN VALIDATION HELPER ---
+  const validateTwitchToken = async (token: string): Promise<boolean> => {
+      try {
+          const res = await fetch('https://id.twitch.tv/oauth2/validate', {
+              headers: { 'Authorization': `OAuth ${token}` }
+          });
+          return res.ok;
+      } catch (e) {
+          return false;
+      }
+  };
+
+  // --- SESSION REFRESH HELPER ---
+  const tryRefreshSession = async () => {
+      if (!isBackendConfigured()) return false;
+      const supabase = getClient();
+      if (!supabase) return false;
+
+      console.log("[Auth] Attempting to refresh Twitch Session...");
+      const { data, error } = await supabase.auth.refreshSession();
+      
+      if (data.session && data.session.provider_token) {
+           console.log("[Auth] Session refreshed successfully.");
+           const newCreds = { ...twitchCreds, accessToken: data.session.provider_token };
+           setTwitchCreds(newCreds); // This triggers the useEffect persistence
+           setAuthState(prev => ({ ...prev, twitch: true }));
+           return true;
+      } else {
+           console.warn("[Auth] Refresh failed or no provider token.", error);
+           return false;
+      }
+  };
+
   // --- CLOUD SYNC INITIALIZATION ---
   useEffect(() => {
     const initCloud = async () => {
@@ -165,20 +198,26 @@ export default function App() {
             
             const integrateCloudToken = async (sessionData: any) => {
                 if (sessionData?.provider_token) {
-                    try {
-                        const res = await fetch('https://id.twitch.tv/oauth2/validate', {
-                            headers: { 'Authorization': `OAuth ${sessionData.provider_token}` }
-                        });
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (data.client_id && data.login) {
-                                const newCreds = { clientId: data.client_id, accessToken: sessionData.provider_token };
-                                setTwitchCreds(newCreds);
-                                setAuthState(prev => ({ ...prev, twitch: true, twitchUsername: data.login }));
-                                localStorage.setItem('twitch_creds', JSON.stringify(newCreds));
+                    const isValid = await validateTwitchToken(sessionData.provider_token);
+                    if (isValid) {
+                        try {
+                            const res = await fetch('https://id.twitch.tv/oauth2/validate', {
+                                headers: { 'Authorization': `OAuth ${sessionData.provider_token}` }
+                            });
+                            if (res.ok) {
+                                const data = await res.json();
+                                if (data.client_id && data.login) {
+                                    const newCreds = { clientId: data.client_id, accessToken: sessionData.provider_token };
+                                    setTwitchCreds(newCreds);
+                                    setAuthState(prev => ({ ...prev, twitch: true, twitchUsername: data.login }));
+                                    localStorage.setItem('twitch_creds', JSON.stringify(newCreds));
+                                }
                             }
-                        }
-                    } catch (e) {}
+                        } catch (e) {}
+                    } else {
+                         console.log("[Auth] Initial token invalid, trying refresh...");
+                         await tryRefreshSession();
+                    }
                 }
             };
 
@@ -199,7 +238,7 @@ export default function App() {
             }
 
             const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-                if (event === 'SIGNED_IN' && session) {
+                if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
                     setCloudUserId(session.user.id);
                     await integrateCloudToken(session);
                 } else if (event === 'SIGNED_OUT') {
@@ -214,6 +253,26 @@ export default function App() {
     };
     initCloud();
   }, []);
+
+  // --- AUTO-VALIDATION LOOP ---
+  // Checks token health every 15 minutes to prevent "hours later" failures
+  useEffect(() => {
+      const checkHealth = setInterval(async () => {
+          if (twitchCreds.accessToken) {
+              const isValid = await validateTwitchToken(twitchCreds.accessToken);
+              if (!isValid) {
+                  console.warn("[Auth] Token expired in background. Refreshing...");
+                  const refreshed = await tryRefreshSession();
+                  if (!refreshed) {
+                      // Optionally mark auth as invalid visually, but usually better to let the user keep reading chat
+                      console.error("[Auth] Could not refresh token in background.");
+                  }
+              }
+          }
+      }, 1000 * 60 * 15); // 15 Minutes
+      return () => clearInterval(checkHealth);
+  }, [twitchCreds.accessToken]);
+
 
   // --- CLOUD AUTO-SAVE ---
   useEffect(() => {
@@ -416,9 +475,25 @@ export default function App() {
                       const res = await fetch(`https://api.twitch.tv/helix/users?login=${user.username}`, {
                           headers: { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` }
                       });
-                      const data = await res.json();
-                      if (data.data && data.data[0] && data.data[0].profile_image_url) {
-                          url = data.data[0].profile_image_url;
+                      
+                      // 401 Handler in Avatar Fetch
+                      if (res.status === 401) {
+                          const refreshed = await tryRefreshSession();
+                          if (refreshed && twitchCreds.accessToken) {
+                              // Retry once
+                              const retryRes = await fetch(`https://api.twitch.tv/helix/users?login=${user.username}`, {
+                                  headers: { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` }
+                              });
+                              if (retryRes.ok) {
+                                  const data = await retryRes.json();
+                                  if (data.data && data.data[0]) url = data.data[0].profile_image_url;
+                              }
+                          }
+                      } else if (res.ok) {
+                          const data = await res.json();
+                          if (data.data && data.data[0] && data.data[0].profile_image_url) {
+                              url = data.data[0].profile_image_url;
+                          }
                       }
                   } catch(e) {}
               }
@@ -515,6 +590,15 @@ export default function App() {
             const res = await fetch(`https://api.twitch.tv/helix/streams?user_login=${TWITCH_USER_LOGIN}`, {
                 headers: { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` }
             });
+            
+            // 401 ERROR HANDLING (Token Expired)
+            if (res.status === 401) {
+                console.warn("[Twitch API] 401 Unauthorized in fetchStats. Attempting refresh...");
+                await tryRefreshSession();
+                // Return here, next cycle will pick up new token
+                return;
+            }
+
             const data = await res.json();
             if (data.data && data.data.length > 0) {
                 setStreamStats(prev => ({ ...prev, twitchViewers: data.data[0].viewer_count, isLiveTwitch: true }));
@@ -554,7 +638,18 @@ export default function App() {
     try {
         const headers = { 'Client-ID': twitchCreds.clientId, 'Authorization': `Bearer ${twitchCreds.accessToken}` };
         // Fetch Current User
-        const myUserRes = await fetch(`https://api.twitch.tv/helix/users`, { headers });
+        let myUserRes = await fetch(`https://api.twitch.tv/helix/users`, { headers });
+        
+        // 401 ERROR HANDLING FOR AUTHENTICATED DATA
+        if (myUserRes.status === 401) {
+             console.warn("[Twitch API] 401 in fetchTwitchDataAuthenticated. Refreshing...");
+             const refreshed = await tryRefreshSession();
+             if (!refreshed) return;
+             // Retry with new token immediately if possible, or wait for next effect cycle.
+             // For simplicity, we exit, and let the state update trigger this effect again.
+             return; 
+        }
+
         const myData = await myUserRes.json();
         if (myData.data && myData.data.length > 0) {
             setAuthState(prev => ({ ...prev, twitchUsername: myData.data[0].display_name }));
