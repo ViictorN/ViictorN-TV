@@ -550,7 +550,10 @@ export default function App() {
       }
       if (data.subscriber_badges) {
           const subBadges: Record<string, string> = {};
-          data.subscriber_badges.forEach((b: any) => { subBadges[String(b.months)] = b.badge_image.src; });
+          data.subscriber_badges.forEach((b: any) => { 
+              // Ensure months are stored as strings for easy lookup in BadgeMap
+              subBadges[String(b.months)] = b.badge_image.src; 
+          });
           setKickBadges(prev => ({ ...prev, 'subscriber': subBadges }));
       }
   };
