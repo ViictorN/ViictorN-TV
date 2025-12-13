@@ -1,6 +1,10 @@
 import React from 'react';
 
-export const ViictorNLogo = ({ className }: { className?: string }) => (
+interface IconProps {
+    className?: string;
+}
+
+export const ViictorNLogo: React.FC<IconProps> = ({ className }) => (
   <svg className={`${className} animate-logo-float`} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="glassGradient" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
@@ -33,57 +37,109 @@ export const ViictorNLogo = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export const TwitchLogo = ({ className }: { className?: string }) => (
+export const TwitchLogo: React.FC<IconProps> = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
      <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/>
   </svg>
 );
 
-export const KickLogo = ({ className }: { className?: string }) => (
+export const KickLogo: React.FC<IconProps> = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Sharp Black Background (Square) */}
     <rect width="24" height="24" fill="#000000"/>
-    {/* Pixelated/Blocky 'K' Shape - Constructed of 4 connecting rectangles */}
-    {/* Left Bar: 5-11, Middle: 11-15, TopRight: 15-20, BotRight: 15-20 */}
     <path d="M5 4h6v16H5V4zm6 5h4v6h-4V9zm4-5h5v5h-5V4zm0 11h5v5h-5v-5z" fill="#53FC18"/>
   </svg>
 );
 
-export const SendIcon = ({ className }: { className?: string }) => (
+export const SendIcon: React.FC<IconProps> = ({ className }) => (
   <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="22" y1="2" x2="11" y2="13"></line>
     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
   </svg>
 );
 
-export const SmileyIcon = ({ className }: { className?: string }) => (
+export const SmileyIcon: React.FC<IconProps> = ({ className }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
     </svg>
 );
 
-export const SettingsIcon = ({ className }: { className?: string }) => (
+export const SettingsIcon: React.FC<IconProps> = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3"></circle>
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
   </svg>
 );
 
-export const UsersIcon = ({ className }: { className?: string }) => (
+export const UsersIcon: React.FC<IconProps> = ({ className }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
     </svg>
 );
 
-export const DatabaseIcon = ({ className }: { className?: string }) => (
+export const DatabaseIcon: React.FC<IconProps> = ({ className }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
     </svg>
 );
 
-export const CloudIcon = ({ className }: { className?: string }) => (
+export const CloudIcon: React.FC<IconProps> = ({ className }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+    </svg>
+);
+
+// --- KICK BADGE ICONS (SVG) ---
+// Hardcoded to prevent broken images from external repos
+
+export const KickBadgeModerator: React.FC<IconProps> = ({ className }) => (
+    <svg className={className} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 0.5L2.5 3.5V8.5C2.5 13.5 10 19.5 10 19.5C10 19.5 17.5 13.5 17.5 8.5V3.5L10 0.5Z" fill="#00E701"/>
+        <path d="M10 16C10 16 15 11.5 15 8V4.5L10 2.5L5 4.5V8C5 11.5 10 16 10 16Z" fill="#00E701"/>
+        <path d="M10 6L12 9H8L10 6Z" fill="black"/> 
+        <rect x="9" y="9" width="2" height="4" fill="black"/>
+    </svg>
+);
+
+export const KickBadgeVIP: React.FC<IconProps> = ({ className }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2 9L12 2L22 9L12 22L2 9Z" fill="#F472B6" stroke="#DB2777" strokeWidth="1.5"/>
+        <path d="M7 9L12 5L17 9L12 18L7 9Z" fill="#FBCFE8"/>
+        <text x="12" y="14" fontSize="6" fontWeight="bold" fill="#831843" textAnchor="middle">VIP</text>
+    </svg>
+);
+
+export const KickBadgeBroadcaster: React.FC<IconProps> = ({ className }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" fill="#EF4444"/>
+        <path d="M15 12L10 15V9L15 12Z" fill="white"/>
+    </svg>
+);
+
+export const KickBadgeVerified: React.FC<IconProps> = ({ className }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+         <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="#53FC18" strokeWidth="2" fill="#53FC18" fillOpacity="0.2"/>
+         <path d="M9 12L11 14L15 10" stroke="#53FC18" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+);
+
+export const KickBadgeFounder: React.FC<IconProps> = ({ className }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L2 22H22L12 2Z" fill="#FACC15" stroke="#CA8A04" strokeWidth="1.5"/>
+        <circle cx="12" cy="15" r="3" fill="#FEF08A"/>
+        <text x="12" y="17" fontSize="8" fontWeight="bold" fill="#854D0E" textAnchor="middle">1st</text>
+    </svg>
+);
+
+export const KickBadgeOG: React.FC<IconProps> = ({ className }) => (
+     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="6" width="20" height="12" rx="2" fill="#3B82F6"/>
+        <text x="12" y="15" fontSize="10" fontWeight="bold" fill="white" textAnchor="middle">OG</text>
+    </svg>
+);
+
+export const KickBadgeSub: React.FC<IconProps> = ({ className }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="#FACC15" stroke="#EAB308" strokeWidth="1"/>
     </svg>
 );
 

@@ -437,22 +437,18 @@ export class KickConnection {
         };
     }
 
-    // --- KICK AVATAR LOGIC UPDATE ---
+    // --- KICK AVATAR LOGIC ---
     let profilePic = data.sender.profile_pic;
     
-    // 1. Check if profile_pic is null, string "null", or empty
-    if (!profilePic || profilePic === 'null' || profilePic === '') {
-        // 2. Construct URL from User ID if available
-        if (data.sender.id) {
-            profilePic = `https://files.kick.com/images/user_profile_pics/${data.sender.id}/image.webp`;
-        } else {
-             // 3. Last resort fallback
-             profilePic = 'https://files.kick.com/images/user_profile_pics/dummy/image.webp';
-        }
+    // Check if profile_pic is "null" string or actual null
+    if (profilePic === 'null' || profilePic === '') {
+        profilePic = null;
     }
     
-    // Ensure we don't pass 'null' string to UI
-    const finalAvatarUrl = (profilePic && profilePic !== 'null') ? profilePic : undefined;
+    // If null, we construct the likely URL based on ID
+    if (!profilePic && data.sender.id) {
+         profilePic = `https://files.kick.com/images/user_profile_pics/${data.sender.id}/image.webp`;
+    }
 
     const msg: ChatMessage = {
       id: data.id,
@@ -461,7 +457,7 @@ export class KickConnection {
         username: data.sender.username,
         color: data.sender.identity?.color || '#53FC18',
         badges: badges,
-        avatarUrl: finalAvatarUrl,
+        avatarUrl: profilePic, // Pass raw URL (or constructed one), ChatMessageItem will proxy it
         id: String(data.sender.id)
       },
       content: data.content,

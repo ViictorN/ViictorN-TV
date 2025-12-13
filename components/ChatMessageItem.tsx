@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { ChatMessage, Platform, Badge, BadgeMap, EmoteMap, ChatSettings, User } from '../types';
-import { PlatformIcon } from './Icons';
+import { PlatformIcon, KickBadgeModerator, KickBadgeVIP, KickBadgeFounder, KickBadgeVerified, KickBadgeBroadcaster, KickBadgeOG, KickBadgeSub } from './Icons';
 import { motion } from 'framer-motion';
 
 interface Props {
@@ -35,23 +35,20 @@ const FALLBACK_TWITCH_BADGES: Record<string, string> = {
   'turbo': 'https://static-cdn.jtvnw.net/badges/v1/bd444ec6-8f34-4bf9-91f4-af1e3428d80f/2',
 };
 
-// --- SIMPLIFIED & STABLE KICK BADGE LOGIC ---
-// Source: CodyMKW/Kick-Badges (Standard for many bots)
-const KICK_BADGE_BASE_URL = "https://raw.githubusercontent.com/CodyMKW/Kick-Badges/master";
-
-const getKickBadgeUrl = (type: string): string => {
+// --- SVG KICK BADGE RENDERER ---
+const RenderKickBadge: React.FC<{ type: string, className: string }> = ({ type, className }) => {
     const t = type.toLowerCase();
-    // Map API names to Filenames (Casing matters for Linux servers like Github)
-    switch (t) {
-        case 'broadcaster': return `${KICK_BADGE_BASE_URL}/broadcaster.png`;
-        case 'moderator': return `${KICK_BADGE_BASE_URL}/moderator.png`;
-        case 'vip': return `${KICK_BADGE_BASE_URL}/vip.png`;
-        case 'founder': return `${KICK_BADGE_BASE_URL}/founder.png`;
-        case 'verified': return `${KICK_BADGE_BASE_URL}/verified.png`;
-        case 'og': return `${KICK_BADGE_BASE_URL}/og.png`;
-        case 'sub_gifter': return `${KICK_BADGE_BASE_URL}/sub-gifter.png`; // Note: dash vs underscore
-        default: return `${KICK_BADGE_BASE_URL}/${t}.png`;
-    }
+    
+    // Map API types to SVG Components
+    if (t === 'moderator') return <KickBadgeModerator className={className} />;
+    if (t === 'vip') return <KickBadgeVIP className={className} />;
+    if (t === 'founder') return <KickBadgeFounder className={className} />;
+    if (t === 'verified') return <KickBadgeVerified className={className} />;
+    if (t === 'broadcaster') return <KickBadgeBroadcaster className={className} />;
+    if (t === 'og') return <KickBadgeOG className={className} />;
+    if (t === 'subscriber' || t === 'sub_gifter') return <KickBadgeSub className={className} />;
+    
+    return null;
 };
 
 export const ChatMessageItem: React.FC<Props> = React.memo(({ 
@@ -79,15 +76,14 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
 
   // --- KICK AVATAR PROXY FIX ---
   // Kick images often 403 on direct load. We MUST proxy them.
-  // We use wsrv.nl which is a high-performance image proxy.
   if (message.platform === Platform.KICK && displayAvatar) {
       if (!displayAvatar.includes('wsrv.nl')) {
            // Ensure we decode first to avoid double encoding if it came from cache
            let cleanUrl = displayAvatar;
            try { cleanUrl = decodeURIComponent(displayAvatar); } catch (e) {}
            
-           // Construct proxy URL
-           displayAvatar = `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&w=64&h=64&fit=cover&output=webp`;
+           // Construct proxy URL with forceful headers simulation via wsrv
+           displayAvatar = `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&w=64&h=64&fit=cover&output=webp&n=-1`;
       }
   }
 
@@ -144,33 +140,17 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
           if (message.platform === Platform.KICK) {
              const key = `${message.id}-kbadge-${idx}`;
              
-             // 1. Subscriber Badges (Priority: Channel Specific -> Generic)
+             // 1. Subscriber Badges (Attempt Channel Specific Image -> Fallback to SVG)
              if (badge.type === 'subscriber') {
                  if (kickBadges?.['subscriber'] && kickBadges['subscriber'][badge.version || '1']) {
-                     return <img key={key} src={kickBadges['subscriber'][badge.version || '1']} className={BADGE_CLASS} alt={badge.type} title={`Sub (${badge.version} months)`} loading="lazy" />;
+                     return <img key={key} src={kickBadges['subscriber'][badge.version || '1']} className={BADGE_CLASS} alt={badge.type} title={`Sub (${badge.version} months)`} loading="lazy" onError={(e) => e.currentTarget.style.display = 'none'} />;
                  }
-                 // Generic Star as fallback
-                 return <img key={key} src="https://raw.githubusercontent.com/CodyMKW/Kick-Badges/master/subscriber.png" className={BADGE_CLASS} alt="subscriber" title="Subscriber" loading="lazy" />;
+                 // SVG Fallback for Sub
+                 return <KickBadgeSub key={key} className={BADGE_CLASS} />;
              } 
              
-             // 2. Global/Role Badges
-             const url = getKickBadgeUrl(badge.type);
-             
-             return (
-                 <img 
-                    key={key} 
-                    src={url} 
-                    onError={(e) => { 
-                        // Fallback: If "founder" fails, try "og" (common mixup)
-                        if (badge.type === 'founder') e.currentTarget.src = getKickBadgeUrl('og');
-                        else e.currentTarget.style.display = 'none'; 
-                    }}
-                    className={BADGE_CLASS} 
-                    alt={badge.type} 
-                    title={badge.type} 
-                    loading="lazy" 
-                 />
-             );
+             // 2. SVG Role Badges (Guaranteed to work)
+             return <RenderKickBadge key={key} type={badge.type} className={BADGE_CLASS} />;
           }
           
           // --- TWITCH BADGES ---
