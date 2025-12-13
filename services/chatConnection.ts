@@ -437,16 +437,22 @@ export class KickConnection {
         };
     }
 
-    // Ensure we handle missing profile pics gracefully
+    // --- KICK AVATAR LOGIC UPDATE ---
     let profilePic = data.sender.profile_pic;
-    // Kick sometimes sends a string "null" or actual null. 
-    // If null, construct standard URL from ID.
-    if (!profilePic || profilePic === 'null') {
+    
+    // 1. Check if profile_pic is null, string "null", or empty
+    if (!profilePic || profilePic === 'null' || profilePic === '') {
+        // 2. Construct URL from User ID if available
         if (data.sender.id) {
             profilePic = `https://files.kick.com/images/user_profile_pics/${data.sender.id}/image.webp`;
+        } else {
+             // 3. Last resort fallback
+             profilePic = 'https://files.kick.com/images/user_profile_pics/dummy/image.webp';
         }
     }
-    const isValidAvatar = profilePic && !profilePic.includes('null');
+    
+    // Ensure we don't pass 'null' string to UI
+    const finalAvatarUrl = (profilePic && profilePic !== 'null') ? profilePic : undefined;
 
     const msg: ChatMessage = {
       id: data.id,
@@ -455,7 +461,7 @@ export class KickConnection {
         username: data.sender.username,
         color: data.sender.identity?.color || '#53FC18',
         badges: badges,
-        avatarUrl: isValidAvatar ? profilePic : undefined,
+        avatarUrl: finalAvatarUrl,
         id: String(data.sender.id)
       },
       content: data.content,

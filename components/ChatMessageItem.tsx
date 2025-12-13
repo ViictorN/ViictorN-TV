@@ -35,51 +35,24 @@ const FALLBACK_TWITCH_BADGES: Record<string, string> = {
   'turbo': 'https://static-cdn.jtvnw.net/badges/v1/bd444ec6-8f34-4bf9-91f4-af1e3428d80f/2',
 };
 
-// --- ROBUST KICK BADGE COMPONENT ---
-// Tries multiple sources until one works.
-const KickBadge: React.FC<{ type: string }> = React.memo(({ type }) => {
-    const [sourceIndex, setSourceIndex] = useState(0);
-    const [hasError, setHasError] = useState(false);
+// --- SIMPLIFIED & STABLE KICK BADGE LOGIC ---
+// Source: CodyMKW/Kick-Badges (Standard for many bots)
+const KICK_BADGE_BASE_URL = "https://raw.githubusercontent.com/CodyMKW/Kick-Badges/master";
 
-    // Normalize badge names for filenames
-    const getFileName = (t: string, capitalize: boolean) => {
-        let name = t.toLowerCase();
-        if (name === 'sub_gifter') name = 'sub-gifter';
-        // Some repos use 'Broadcaster', some 'broadcaster'
-        return capitalize ? name.charAt(0).toUpperCase() + name.slice(1) : name;
-    };
-
-    // Priority List of Repositories
-    const sources = [
-        // Source 1: Melon-Raje (Usually reliable, lowercase)
-        (t: string) => `https://raw.githubusercontent.com/Melon-Raje/Kick-Badges/main/badges/${getFileName(t, false)}.png`,
-        // Source 2: RalphD1 (Often uses Capitalized filenames)
-        (t: string) => `https://raw.githubusercontent.com/RalphD1/Kick-Badges/main/${getFileName(t, true)}.png`,
-        // Source 3: Kosmos-Media (Backup)
-        (t: string) => `https://raw.githubusercontent.com/Kosmos-Media/Kick-Badges/main/badges/${getFileName(t, false)}.png`,
-    ];
-
-    const handleError = () => {
-        if (sourceIndex < sources.length - 1) {
-            setSourceIndex(prev => prev + 1);
-        } else {
-            setHasError(true);
-        }
-    };
-
-    if (hasError) return null; // Hide if all sources fail
-
-    return (
-        <img 
-            src={sources[sourceIndex](type)}
-            onError={handleError}
-            className={BADGE_CLASS}
-            alt={type}
-            title={type}
-            loading="lazy"
-        />
-    );
-});
+const getKickBadgeUrl = (type: string): string => {
+    const t = type.toLowerCase();
+    // Map API names to Filenames (Casing matters for Linux servers like Github)
+    switch (t) {
+        case 'broadcaster': return `${KICK_BADGE_BASE_URL}/broadcaster.png`;
+        case 'moderator': return `${KICK_BADGE_BASE_URL}/moderator.png`;
+        case 'vip': return `${KICK_BADGE_BASE_URL}/vip.png`;
+        case 'founder': return `${KICK_BADGE_BASE_URL}/founder.png`;
+        case 'verified': return `${KICK_BADGE_BASE_URL}/verified.png`;
+        case 'og': return `${KICK_BADGE_BASE_URL}/og.png`;
+        case 'sub_gifter': return `${KICK_BADGE_BASE_URL}/sub-gifter.png`; // Note: dash vs underscore
+        default: return `${KICK_BADGE_BASE_URL}/${t}.png`;
+    }
+};
 
 export const ChatMessageItem: React.FC<Props> = React.memo(({ 
     message, 
@@ -104,10 +77,18 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
   const avatarKey = `${message.platform}-${message.user.username}`;
   let displayAvatar = message.user.avatarUrl || avatarCache[avatarKey];
 
-  // FIX FOR KICK AVATARS:
-  if (message.platform === Platform.KICK && displayAvatar && !displayAvatar.includes('wsrv.nl')) {
-      const cleanUrl = decodeURIComponent(displayAvatar);
-      displayAvatar = `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&w=64&h=64&fit=cover&output=webp`;
+  // --- KICK AVATAR PROXY FIX ---
+  // Kick images often 403 on direct load. We MUST proxy them.
+  // We use wsrv.nl which is a high-performance image proxy.
+  if (message.platform === Platform.KICK && displayAvatar) {
+      if (!displayAvatar.includes('wsrv.nl')) {
+           // Ensure we decode first to avoid double encoding if it came from cache
+           let cleanUrl = displayAvatar;
+           try { cleanUrl = decodeURIComponent(displayAvatar); } catch (e) {}
+           
+           // Construct proxy URL
+           displayAvatar = `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&w=64&h=64&fit=cover&output=webp`;
+      }
   }
 
   // Effect: Fetch Avatar if missing and not hidden
@@ -163,18 +144,33 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
           if (message.platform === Platform.KICK) {
              const key = `${message.id}-kbadge-${idx}`;
              
-             // Handle Subscriber Badges (Priority: Channel Specific -> Generic Fallback)
+             // 1. Subscriber Badges (Priority: Channel Specific -> Generic)
              if (badge.type === 'subscriber') {
-                 // 1. Try Channel Specific (from API)
                  if (kickBadges?.['subscriber'] && kickBadges['subscriber'][badge.version || '1']) {
                      return <img key={key} src={kickBadges['subscriber'][badge.version || '1']} className={BADGE_CLASS} alt={badge.type} title={`Sub (${badge.version} months)`} loading="lazy" />;
                  }
-                 // 2. Fallback to Generic Star using our Robust Component
-                 return <KickBadge key={key} type="subscriber" />;
+                 // Generic Star as fallback
+                 return <img key={key} src="https://raw.githubusercontent.com/CodyMKW/Kick-Badges/master/subscriber.png" className={BADGE_CLASS} alt="subscriber" title="Subscriber" loading="lazy" />;
              } 
              
-             // Handle Global Roles (Founder, Mod, VIP, etc.)
-             return <KickBadge key={key} type={badge.type} />;
+             // 2. Global/Role Badges
+             const url = getKickBadgeUrl(badge.type);
+             
+             return (
+                 <img 
+                    key={key} 
+                    src={url} 
+                    onError={(e) => { 
+                        // Fallback: If "founder" fails, try "og" (common mixup)
+                        if (badge.type === 'founder') e.currentTarget.src = getKickBadgeUrl('og');
+                        else e.currentTarget.style.display = 'none'; 
+                    }}
+                    className={BADGE_CLASS} 
+                    alt={badge.type} 
+                    title={badge.type} 
+                    loading="lazy" 
+                 />
+             );
           }
           
           // --- TWITCH BADGES ---
