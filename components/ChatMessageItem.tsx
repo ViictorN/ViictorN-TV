@@ -36,20 +36,19 @@ const FALLBACK_TWITCH_BADGES: Record<string, string> = {
   'turbo': 'https://static-cdn.jtvnw.net/badges/v1/bd444ec6-8f34-4bf9-91f4-af1e3428d80f/2',
 };
 
-// --- KICK OFFICIAL BADGES (SOURCE: Enfys/kick-badges) ---
-// These are the official assets extracted from Kick, hosted on GitHub.
-// This ensures 100% visual fidelity without manual SVG drawing.
+// --- KICK OFFICIAL BADGES ---
+// Using the 'Kaibh/Kick-Badges' repository which is known to be stable and contains 'founder.png'
 const KICK_OFFICIAL_BADGES: Record<string, string> = {
-    'broadcaster': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/broadcaster.png',
-    'moderator': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/moderator.png',
-    'vip': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/vip.png',
-    'founder': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/founder.png',
-    'verified': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/verified.png',
-    'og': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/og.png',
-    'staff': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/staff.png',
-    'sub_gifter': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/sub-gifter.png',
+    'broadcaster': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/broadcaster.png',
+    'moderator': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/moderator.png',
+    'vip': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/vip.png',
+    'founder': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/founder.png', // Channel Founder / First Subs
+    'verified': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/verified.png',
+    'og': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/og.png',
+    'staff': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/staff.png',
+    'sub_gifter': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/sub-gifter.png',
     // Generic fallback for subscriber if channel specific one fails
-    'subscriber': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/subscriber.png' 
+    'subscriber': 'https://raw.githubusercontent.com/Kaibh/Kick-Badges/main/badges/subscriber.png' 
 };
 
 export const ChatMessageItem: React.FC<Props> = React.memo(({ 
@@ -148,6 +147,11 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
              // Handle Global Roles
              else if (KICK_OFFICIAL_BADGES[badge.type]) {
                  badgeUrl = KICK_OFFICIAL_BADGES[badge.type];
+             }
+             // Fallback for "Founder" if mapped to something else in API but file is missing (Safety check)
+             else if (badge.type === 'founder') {
+                 // If the specific founder image fails, fallback to Broadcaster as it's often the same context on Kick
+                 badgeUrl = KICK_OFFICIAL_BADGES['founder'] || KICK_OFFICIAL_BADGES['broadcaster'];
              }
 
              if (badgeUrl) {
