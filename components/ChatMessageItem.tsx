@@ -36,98 +36,20 @@ const FALLBACK_TWITCH_BADGES: Record<string, string> = {
   'turbo': 'https://static-cdn.jtvnw.net/badges/v1/bd444ec6-8f34-4bf9-91f4-af1e3428d80f/2',
 };
 
-// --- KICK BADGES (SVG RE-IMPLEMENTATION) ---
-// Restoring SVGs to prevent broken images, styled to match Kick's Pixel Art aesthetic
-const KickBadgeSVG: React.FC<{ type: string }> = ({ type }) => {
-    switch(type) {
-        case 'broadcaster': // Pink/Purple Microphone
-            return (
-                <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <title>Broadcaster</title>
-                    <path d="M7 3H13V11H7V3Z" fill="#D32CE6"/>
-                    <path d="M9 11V13H11V11H9Z" fill="#D32CE6"/>
-                    <path d="M6 13H14V14H6V13Z" fill="#D32CE6"/>
-                    <path d="M6 3H7V11H6V3Z" fill="#9014A8"/> {/* Shading */}
-                </svg>
-            );
-        case 'moderator': // Green Sword
-             return (
-                <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                     <title>Moderator</title>
-                     {/* Blade */}
-                     <path d="M14 4L16 2L17 3L15 5L14 4Z" fill="#00E572"/>
-                     <path d="M13 5L15 3L6 12L4 10L13 5Z" fill="#00E572"/>
-                     {/* Hilt */}
-                     <path d="M3 11L6 14L5 15L2 12L3 11Z" fill="#00A855"/> 
-                     <path d="M5 13L7 11L8 12L6 14L5 13Z" fill="#00E572"/>
-                </svg>
-             );
-        case 'vip': // Orange/Gold Crown
-            return (
-                <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <title>VIP</title>
-                    <path d="M4 6L6 14H14L16 6L10 9L4 6Z" fill="#FFC107"/>
-                    <rect x="4" y="14" width="12" height="2" fill="#FFA000"/>
-                </svg>
-            );
-        case 'verified': // Green Check
-            return (
-                <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                     <title>Verified</title>
-                     <path d="M10 2L12.5 4.5L16 5L15.5 8.5L18 11L15.5 13.5L16 17L12.5 17.5L10 20L7.5 17.5L4 17L4.5 13.5L2 11L4.5 8.5L4 5L7.5 4.5L10 2Z" fill="#00E572"/>
-                     <path d="M7 10L9 12L13 8" stroke="black" strokeWidth="2.5" strokeLinecap="square"/>
-                </svg>
-            );
-        case 'founder': // Gold Square with 1
-             return (
-                <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <title>Founder</title>
-                    {/* Gold Base */}
-                    <rect x="3" y="3" width="14" height="14" rx="2" fill="#F5C400"/>
-                    <rect x="3" y="15" width="14" height="2" rx="1" fill="#C99C00"/> {/* Shadow */}
-                    {/* Number 1 */}
-                    <rect x="9" y="6" width="2" height="8" fill="white"/>
-                    <rect x="8" y="6" width="1" height="2" fill="white"/>
-                    <rect x="8" y="13" width="4" height="1" fill="white"/>
-                </svg>
-            );
-        case 'og': // OG Badge
-             return (
-                <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <title>OG</title>
-                    <rect x="2" y="5" width="16" height="10" rx="2" fill="#00E572"/>
-                    <path d="M6 7H9V12H6V7Z" stroke="black" strokeWidth="2"/>
-                    <path d="M11 7H14V12H12V10H13V8H11V12Z" stroke="black" strokeWidth="2"/> {/* Crude G */}
-                </svg>
-            );
-        case 'subscriber': // Subscriber Star Fallback
-            return (
-                 <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <title>Subscriber</title>
-                    <path d="M10 2L12.5 7L18 8L14 12L15 17L10 14.5L5 17L6 12L2 8L7.5 7L10 2Z" fill="#53FC18"/>
-                </svg>
-            );
-        case 'sub_gifter':
-            return (
-                <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                     <title>Gifter</title>
-                     <rect x="4" y="5" width="12" height="10" fill="#9146FF"/>
-                     <rect x="4" y="8" width="12" height="2" fill="#B785FF"/>
-                     <rect x="9" y="5" width="2" height="10" fill="#B785FF"/>
-                </svg>
-            );
-        case 'staff':
-             return (
-                 <svg className={BADGE_CLASS} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                     <title>Staff</title>
-                     <rect x="3" y="3" width="14" height="14" rx="2" fill="#000000"/>
-                     <path d="M10 20L5 15H15L10 20Z" fill="#00E572"/> {/* Placeholder Staff Shape */}
-                     <text x="10" y="14" textAnchor="middle" fill="#00E572" fontSize="10" fontWeight="bold">K</text>
-                 </svg>
-             );
-        default:
-            return null;
-    }
+// --- KICK OFFICIAL BADGES (SOURCE: Enfys/kick-badges) ---
+// These are the official assets extracted from Kick, hosted on GitHub.
+// This ensures 100% visual fidelity without manual SVG drawing.
+const KICK_OFFICIAL_BADGES: Record<string, string> = {
+    'broadcaster': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/broadcaster.png',
+    'moderator': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/moderator.png',
+    'vip': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/vip.png',
+    'founder': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/founder.png',
+    'verified': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/verified.png',
+    'og': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/og.png',
+    'staff': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/staff.png',
+    'sub_gifter': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/sub-gifter.png',
+    // Generic fallback for subscriber if channel specific one fails
+    'subscriber': 'https://raw.githubusercontent.com/Enfys/kick-badges/main/badges/subscriber.png' 
 };
 
 export const ChatMessageItem: React.FC<Props> = React.memo(({ 
@@ -211,20 +133,28 @@ export const ChatMessageItem: React.FC<Props> = React.memo(({
           // --- KICK BADGES ---
           if (message.platform === Platform.KICK) {
              const key = `${message.id}-kbadge-${idx}`;
-             
-             // Handle Subscriber Badges (Channel Specific vs Generic)
+             let badgeUrl: string | undefined;
+
+             // Handle Subscriber Badges (Priority: Channel Specific -> Generic Fallback)
              if (badge.type === 'subscriber') {
-                 // Try to find channel specific badge (Fish, Pufferfish, etc.)
+                 // 1. Try Channel Specific (from API)
                  if (kickBadges?.['subscriber'] && kickBadges['subscriber'][badge.version || '1']) {
-                     const url = kickBadges['subscriber'][badge.version || '1'];
-                     return <img key={key} src={url} className={BADGE_CLASS} alt={`Sub ${badge.version}`} title={`Subscriber (${badge.version} months)`} />;
+                     badgeUrl = kickBadges['subscriber'][badge.version || '1'];
+                 } else {
+                     // 2. Fallback to Generic Star
+                     badgeUrl = KICK_OFFICIAL_BADGES['subscriber'];
                  }
-                 // Fallback to generic Green Star
-                 return <KickBadgeSVG key={key} type="subscriber" />;
+             } 
+             // Handle Global Roles
+             else if (KICK_OFFICIAL_BADGES[badge.type]) {
+                 badgeUrl = KICK_OFFICIAL_BADGES[badge.type];
+             }
+
+             if (badgeUrl) {
+                 return <img key={key} src={badgeUrl} className={BADGE_CLASS} alt={badge.type} title={badge.type} loading="lazy" />;
              }
              
-             // Handle Global Roles (SVG)
-             return <KickBadgeSVG key={key} type={badge.type} />;
+             return null;
           }
           
           // --- TWITCH BADGES ---
