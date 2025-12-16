@@ -14,7 +14,7 @@ import { handleKickCallback, fetchKickUserProfile } from './services/kickAuthSer
 import { isBackendConfigured, getUserProfile, updateUserProfile, saveMessage, getClient } from './services/supabaseService';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const MAX_MESSAGES = 500;
+const MAX_MESSAGES = 1000;
 const STREAMER_SLUG = 'gabepeixe';
 const TWITCH_USER_LOGIN = 'gabepeixe';
 
@@ -869,8 +869,22 @@ export default function App() {
 
   const isGlobalOffline = streamStats.isLiveTwitch === false && streamStats.isLiveKick === false;
   const showOfflineScreen = isGlobalOffline && activePlayer !== 'none' && !forcePlay;
-  const visibleMessages = chatSettings.performanceMode ? messages.slice(-100) : messages;
   const canChat = Boolean(authState.twitch || authState.kickAccessToken);
+
+  // LOGIC FIX: Filter FIRST, then slice for Performance Mode.
+  // This ensures we always have the latest relevant messages (e.g., both Kick and Twitch)
+  // before we cut the list down to 250 items. Previously, we sliced 100 raw messages,
+  // which might be 100% Twitch spam, leaving 0 Kick messages visible.
+  
+  const allFilteredMessages = messages.filter(msg => {
+      if (chatFilter === 'twitch' && msg.platform !== Platform.TWITCH) return false;
+      if (chatFilter === 'kick' && msg.platform !== Platform.KICK) return false;
+      if (chatSettings.ignoredUsers.includes(msg.user.username.toLowerCase())) return false;
+      if (chatSettings.ignoredKeywords.some(kw => msg.content.toLowerCase().includes(kw))) return false;
+      return true;
+  });
+
+  const visibleMessages = chatSettings.performanceMode ? allFilteredMessages.slice(-250) : allFilteredMessages;
 
   return (
     <div className="flex flex-col h-[100dvh] w-full overflow-hidden font-sans bg-black relative">
@@ -996,13 +1010,7 @@ export default function App() {
                 {visibleMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-white/20 space-y-2"><div className="text-2xl animate-pulse">⚡</div><p className="text-xs font-medium tracking-widest">CONECTANDO...</p></div>
                 ) : (
-                visibleMessages.filter(msg => {
-                        if (chatFilter === 'twitch' && msg.platform !== Platform.TWITCH) return false;
-                        if (chatFilter === 'kick' && msg.platform !== Platform.KICK) return false;
-                        if (chatSettings.ignoredUsers.includes(msg.user.username.toLowerCase())) return false;
-                        if (chatSettings.ignoredKeywords.some(kw => msg.content.toLowerCase().includes(kw))) return false;
-                        return true;
-                    }).map((msg, idx) => (
+                visibleMessages.map((msg, idx) => (
                     <ChatMessageItem key={msg.id} message={msg} index={idx} globalBadges={globalBadges} channelBadges={channelBadges} kickBadges={kickBadges} sevenTVEmotes={sevenTVEmotes} settings={chatSettings} currentUser={{ twitch: authState.twitchUsername, kick: authState.kickUsername }} onReply={handleReply} onUserClick={handleUserClick} avatarCache={avatarCache} onRequestAvatar={requestAvatar} onSaveMessage={handleSaveMessage} canSave={!!cloudUserId} />
                 )))}
             </div>
