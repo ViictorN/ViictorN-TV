@@ -958,7 +958,7 @@ export default function App() {
       </AnimatePresence>
 
       <div className="flex flex-1 flex-col md:flex-row overflow-hidden relative z-0">
-        <div className={`bg-black relative shrink-0 transition-all duration-500 ease-out-expo overflow-hidden ${activePlayer === 'none' ? 'md:w-0 w-full h-0 md:h-auto opacity-0' : activePlayer === 'dual' ? 'w-full h-full md:flex-1 md:h-auto opacity-100' : 'w-full flex-1 md:flex-1 md:h-auto opacity-100'}`}>
+        <div className={`bg-black relative shrink-0 transition-all duration-500 ease-out-expo overflow-hidden ${activePlayer === 'none' ? 'md:w-0 w-full h-0 md:h-auto opacity-0' : activePlayer === 'dual' ? 'w-full flex flex-col md:flex-row h-auto md:h-auto opacity-100' : 'w-full aspect-video md:flex-1 md:h-auto opacity-100'}`}>
             {showOfflineScreen ? (
                  <OfflineScreen twitchCreds={twitchCreds} streamerSlug={STREAMER_SLUG} onForcePlay={() => setForcePlay(true)} />
             ) : (
@@ -974,11 +974,11 @@ export default function App() {
                     {/* DUAL MODE PLAYER */}
                     {activePlayer === 'dual' && (
                         <div className="flex flex-col md:flex-row w-full h-full">
-                            <div className="w-full h-1/2 md:w-1/2 md:h-full relative group border-b md:border-b-0 md:border-r border-white/10">
+                            <div className="w-full aspect-video md:w-1/2 md:aspect-auto md:h-full relative group border-b md:border-b-0 md:border-r border-white/10">
                                 <iframe key={`twitch-dual-${playerKey}`} src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=true&autoplay=true`} className="w-full h-full border-none" allowFullScreen scrolling="no" referrerPolicy="origin-when-cross-origin" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write" title="Twitch Player Dual"></iframe>
                                 <div className="absolute top-2 left-2 pointer-events-none bg-black/50 text-twitch px-2 py-0.5 rounded text-[10px] font-bold border border-white/5">Twitch</div>
                             </div>
-                            <div className="w-full h-1/2 md:w-1/2 md:h-full relative">
+                            <div className="w-full aspect-video md:w-1/2 md:aspect-auto md:h-full relative">
                                 <iframe key={`kick-dual-${playerKey}`} src={`https://player.kick.com/${STREAMER_SLUG}?autoplay=true&muted=true`} className="w-full h-full border-none" allowFullScreen scrolling="no" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope" title="Kick Player Dual"></iframe>
                                 <div className="absolute top-2 left-2 pointer-events-none bg-black/50 text-kick px-2 py-0.5 rounded text-[10px] font-bold border border-white/5">Kick</div>
                             </div>
@@ -990,7 +990,7 @@ export default function App() {
             )}
         </div>
 
-        <div className={`${activePlayer === 'none' ? 'w-full flex-1' : 'md:w-[380px] xl:w-[420px] w-full h-[25vh] md:h-auto flex-none md:flex-none'} ${activePlayer === 'dual' ? 'hidden lg:flex' : 'flex'} bg-[#000000] border-t md:border-t-0 ${activePlayer !== 'none' ? 'md:border-l border-white/5' : ''} flex-col z-10 transition-all duration-500 ease-out-expo min-h-0 relative`}>
+        <div className={`${activePlayer === 'none' ? 'w-full flex-1' : 'md:w-[380px] xl:w-[420px] w-full flex-1 md:flex-none'} ${activePlayer === 'dual' ? 'hidden lg:flex' : 'flex'} bg-[#000000] border-t md:border-t-0 ${activePlayer !== 'none' ? 'md:border-l border-white/5' : ''} flex-col z-10 transition-all duration-500 ease-out-expo min-h-0 relative`}>
           <div className={`flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-0 scroll-smooth ${canChat ? 'pb-[80px]' : 'pb-4'}`} ref={chatContainerRef} onScroll={handleScroll}>
             <div className="min-h-full flex flex-col justify-end">
                 {visibleMessages.length === 0 ? (
