@@ -958,7 +958,7 @@ export default function App() {
       </AnimatePresence>
 
       <div className="flex flex-1 flex-col md:flex-row overflow-hidden relative z-0">
-        <div className={`bg-black relative shrink-0 transition-all duration-500 ease-out-expo overflow-hidden ${activePlayer === 'none' ? 'md:w-0 w-full h-0 md:h-auto opacity-0' : 'w-full md:flex-1 aspect-video md:aspect-auto md:h-auto opacity-100'}`}>
+        <div className={`bg-black relative shrink-0 transition-all duration-500 ease-out-expo overflow-hidden ${activePlayer === 'none' ? 'md:w-0 w-full h-0 md:h-auto opacity-0' : activePlayer === 'dual' ? 'w-full h-full md:flex-1 md:h-auto opacity-100' : 'w-full flex-1 md:flex-1 md:h-auto opacity-100'}`}>
             {showOfflineScreen ? (
                  <OfflineScreen twitchCreds={twitchCreds} streamerSlug={STREAMER_SLUG} onForcePlay={() => setForcePlay(true)} />
             ) : (
@@ -990,7 +990,7 @@ export default function App() {
             )}
         </div>
 
-        <div className={`${activePlayer === 'none' ? 'w-full flex-1' : 'md:w-[380px] xl:w-[420px] w-full flex-1 md:flex-none'} bg-[#000000] border-t md:border-t-0 ${activePlayer !== 'none' ? 'md:border-l border-white/5' : ''} flex flex-col z-10 transition-all duration-500 ease-out-expo min-h-0 relative`}>
+        <div className={`${activePlayer === 'none' ? 'w-full flex-1' : 'md:w-[380px] xl:w-[420px] w-full h-[25vh] md:h-auto flex-none md:flex-none'} ${activePlayer === 'dual' ? 'hidden lg:flex' : 'flex'} bg-[#000000] border-t md:border-t-0 ${activePlayer !== 'none' ? 'md:border-l border-white/5' : ''} flex-col z-10 transition-all duration-500 ease-out-expo min-h-0 relative`}>
           <div className={`flex-1 overflow-y-auto custom-scrollbar relative px-2 pt-0 scroll-smooth ${canChat ? 'pb-[80px]' : 'pb-4'}`} ref={chatContainerRef} onScroll={handleScroll}>
             <div className="min-h-full flex flex-col justify-end">
                 {visibleMessages.length === 0 ? (
