@@ -72,7 +72,7 @@ export default function App() {
   });
 
   // UI State (Persisted)
-  const [activePlayer, setActivePlayer] = useState<'twitch' | 'kick' | 'none'>(() => {
+  const [activePlayer, setActivePlayer] = useState<'twitch' | 'kick' | 'dual' | 'none'>(() => {
       return (localStorage.getItem('active_player') as any) || 'twitch';
   });
 
@@ -970,6 +970,21 @@ export default function App() {
                     </div>
                     )}
                     {activePlayer === 'kick' && ( <iframe key={`kick-${playerKey}`} src={`https://player.kick.com/${STREAMER_SLUG}?autoplay=true&muted=false`} className="w-full h-full border-none" allowFullScreen scrolling="no" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope" title="Kick Player"></iframe> )}
+                    
+                    {/* DUAL MODE PLAYER */}
+                    {activePlayer === 'dual' && (
+                        <div className="flex flex-col md:flex-row w-full h-full">
+                            <div className="w-full h-1/2 md:w-1/2 md:h-full relative group border-b md:border-b-0 md:border-r border-white/10">
+                                <iframe key={`twitch-dual-${playerKey}`} src={`https://player.twitch.tv/?channel=${STREAMER_SLUG}${getParentDomain()}&muted=true&autoplay=true`} className="w-full h-full border-none" allowFullScreen scrolling="no" referrerPolicy="origin-when-cross-origin" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; gyroscope; accelerometer; clipboard-write" title="Twitch Player Dual"></iframe>
+                                <div className="absolute top-2 left-2 pointer-events-none bg-black/50 text-twitch px-2 py-0.5 rounded text-[10px] font-bold border border-white/5">Twitch</div>
+                            </div>
+                            <div className="w-full h-1/2 md:w-1/2 md:h-full relative">
+                                <iframe key={`kick-dual-${playerKey}`} src={`https://player.kick.com/${STREAMER_SLUG}?autoplay=true&muted=true`} className="w-full h-full border-none" allowFullScreen scrolling="no" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope" title="Kick Player Dual"></iframe>
+                                <div className="absolute top-2 left-2 pointer-events-none bg-black/50 text-kick px-2 py-0.5 rounded text-[10px] font-bold border border-white/5">Kick</div>
+                            </div>
+                        </div>
+                    )}
+
                     {activePlayer === 'none' && ( <div className="w-full h-full bg-black"></div> )}
                 </>
             )}

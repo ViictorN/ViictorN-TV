@@ -1,6 +1,6 @@
 import React from 'react';
 import { AuthState, StreamStats } from '../types';
-import { SettingsIcon, ViictorNLogo, PlatformIcon } from './Icons';
+import { SettingsIcon, ViictorNLogo, PlatformIcon, SplitScreenIcon } from './Icons';
 import { motion } from 'framer-motion';
 
 interface Props {
@@ -8,8 +8,8 @@ interface Props {
   onToggleAuth: (platform: 'twitch' | 'kick') => void;
   streamStats: StreamStats;
   onOpenSettings: () => void;
-  activePlayer: 'twitch' | 'kick' | 'none';
-  onSetPlayer: (player: 'twitch' | 'kick' | 'none') => void;
+  activePlayer: 'twitch' | 'kick' | 'dual' | 'none';
+  onSetPlayer: (player: 'twitch' | 'kick' | 'dual' | 'none') => void;
   chatFilter: 'all' | 'twitch' | 'kick';
   onSetChatFilter: (filter: 'all' | 'twitch' | 'kick') => void;
   onSync: () => void;
@@ -68,8 +68,9 @@ export const ControlPanel: React.FC<Props> = ({
         {/* Player Selector - Animated Segmented Control */}
         <div className="flex p-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10 shadow-inner relative z-0">
             {[
-                { id: 'twitch', label: 'Twitch', icon: true, color: 'bg-[#9146FF]' },
-                { id: 'kick', label: 'Kick', icon: true, color: 'bg-[#53FC18]' },
+                { id: 'twitch', label: 'Twitch', icon: 'platform', platformId: 'twitch', color: 'bg-[#9146FF]' },
+                { id: 'kick', label: 'Kick', icon: 'platform', platformId: 'kick', color: 'bg-[#53FC18]' },
+                { id: 'dual', label: 'Dual', icon: 'dual', mobileLabel: 'Dual', desktopLabel: 'Multi', color: 'bg-white/20' },
                 { id: 'none', label: 'Chat', icon: false, mobileLabel: 'Chat', desktopLabel: 'Apenas Chat', color: 'bg-white' }
             ].map((tab) => {
                 const isActive = activePlayer === tab.id;
@@ -87,12 +88,15 @@ export const ControlPanel: React.FC<Props> = ({
                                 style={{ zIndex: -1 }}
                             />
                         )}
-                        {tab.icon && (
+                        {tab.icon === 'platform' && (
                             <PlatformIcon 
-                                platform={tab.id as any} 
+                                platform={tab.platformId as any} 
                                 variant={isActive ? (tab.id === 'twitch' ? 'white' : 'default') : 'subdued'} 
                                 className="w-3.5 h-3.5 relative z-10" 
                             />
+                        )}
+                        {tab.icon === 'dual' && (
+                             <SplitScreenIcon className="w-3.5 h-3.5 relative z-10" />
                         )}
                         <span className="relative z-10 hidden md:inline">{tab.desktopLabel || tab.label}</span>
                         {!tab.icon && <span className="relative z-10 md:hidden">{tab.mobileLabel}</span>}
