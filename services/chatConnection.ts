@@ -135,7 +135,6 @@ export class TwitchConnection {
       const tags = this.parseTags(raw);
       const msgId = tags['msg-id'];
       
-      // ... (Existing UserNotice logic retained but simplified using helper)
       let remaining = raw.substring(raw.indexOf(' ') + 1);
 
       if (msgId === 'sub' || msgId === 'resub' || msgId === 'subgift' || msgId === 'announcement') {
@@ -264,7 +263,6 @@ export class KickConnection {
     this.accessToken = accessToken || null;
   }
 
-  // Robust Fetcher with Fallbacks
   private async fetchWithFallbacks(url: string): Promise<any> {
       // 1. Try CORS Proxy IO
       try {
@@ -278,7 +276,7 @@ export class KickConnection {
           if (res.ok) return await res.json();
       } catch (e) { console.warn(`[Kick] Proxy 2 failed for ${url}`, e); }
 
-      // 3. Try Direct (Will fail if CORS not enabled, but worth a shot for some endpoints)
+      // 3. Try Direct
       try {
           const res = await fetch(url);
           if (res.ok) return await res.json();
@@ -290,29 +288,41 @@ export class KickConnection {
   async connect() {
     console.log(`[Kick] Connecting to ${this.channelSlug}...`);
     
-    // Step 1: Get Channel Data (need chatroom_id)
-    const channelData = await this.fetchWithFallbacks(`https://kick.com/api/v1/channels/${this.channelSlug}`);
+    // Attempt v1 Metadata
+    let channelData = await this.fetchWithFallbacks(`https://kick.com/api/v1/channels/${this.channelSlug}`);
     
+    // Fallback to v2 Metadata if v1 fails or lacks chatroom
+    if (!channelData || (!channelData.chatroom && !channelData.data?.chatroom)) {
+        console.log('[Kick] v1 metadata failed or incomplete, trying v2...');
+        const v2Data = await this.fetchWithFallbacks(`https://kick.com/api/v2/channels/${this.channelSlug}`);
+        if (v2Data) channelData = v2Data;
+    }
+
     if (!channelData) {
         console.error('[Kick] Failed to retrieve channel metadata. Connection aborted.');
-        // If we can't get metadata, we can't connect to WS.
         return;
     }
 
-    if (channelData.chatroom) {
-        this.chatroomId = channelData.chatroom.id;
+    // Handle possible JSON wrappers from proxies (some proxies wrap result in a 'data' property)
+    const data = channelData.data || channelData;
+
+    if (data.chatroom) {
+        this.chatroomId = data.chatroom.id;
         console.log(`[Kick] Found Chatroom ID: ${this.chatroomId}`);
+    } else if (data.chatroom_id) {
+        this.chatroomId = data.chatroom_id;
+        console.log(`[Kick] Found Chatroom ID (flat): ${this.chatroomId}`);
     }
 
-    if (channelData.id) {
-        this.channelId = channelData.id;
+    if (data.id) {
+        this.channelId = data.id;
     }
 
     if (this.chatroomId) {
         this.connectWs();
         this.fetchHistory();
     } else {
-        console.error('[Kick] Chatroom ID not found in metadata.');
+        console.error('[Kick] Chatroom ID not found in metadata. Full Data:', data);
     }
   }
 
@@ -322,7 +332,6 @@ export class KickConnection {
       console.log('[Kick] Fetching history...');
       const endpoint = `https://api.kick.com/public/v1/chatrooms/${this.chatroomId}/messages`;
       
-      // Use fallback fetcher for history too
       const data = await this.fetchWithFallbacks(endpoint);
 
       if (data && data.data && Array.isArray(data.data)) {
@@ -342,13 +351,11 @@ export class KickConnection {
     this.ws.onopen = () => {
       console.log('[Kick] WS Connected');
       
-      // Subscribe to Chatroom
       this.ws?.send(JSON.stringify({
         event: 'pusher:subscribe',
         data: { auth: '', channel: `chatrooms.${this.chatroomId}.v2` }
       }));
 
-      // Subscribe to Channel Events (for Subs) if channelId is known
       if (this.channelId) {
           this.ws?.send(JSON.stringify({
             event: 'pusher:subscribe',
@@ -358,8 +365,7 @@ export class KickConnection {
       
       this.pingInterval = window.setInterval(() => {
           if (this.ws?.readyState === WebSocket.OPEN) {
-             // Basic keep-alive if needed, but Pusher usually handles pings via protocol
-             // Just keeping the interval to match structure
+             this.ws.send(JSON.stringify({ event: 'pusher:ping', data: {} }));
           }
       }, 30000);
     };
@@ -368,19 +374,16 @@ export class KickConnection {
       try {
         const payload = JSON.parse(event.data);
         
-        // Chat Message
         if (payload.event === 'App\\Events\\ChatMessageEvent') {
            const data = JSON.parse(payload.data);
            this.processMessage(data);
         }
-        // Deletion
         else if (payload.event === 'App\\Events\\MessageDeletedEvent') {
             const data = JSON.parse(payload.data);
             if (data && data.message && data.message.id) {
                 this.onDelete(data.message.id);
             }
         }
-        // Subscriptions
         else if (payload.event === 'App\\Events\\SubscriptionEvent') {
             const data = JSON.parse(payload.data);
             const username = data.username || 'Someone';
@@ -395,7 +398,6 @@ export class KickConnection {
                 subMonths: months
             });
         }
-         // Gifted Subs
         else if (payload.event === 'App\\Events\\GiftedSubscriptionsEvent') {
             const data = JSON.parse(payload.data);
             const gifter = data.gifter_username || 'Anonymous';
@@ -437,15 +439,11 @@ export class KickConnection {
         };
     }
 
-    // --- KICK AVATAR LOGIC ---
     let profilePic = data.sender.profile_pic;
-    
-    // Check if profile_pic is "null" string or actual null
     if (profilePic === 'null' || profilePic === '') {
         profilePic = null;
     }
     
-    // If null, we construct the likely URL based on ID
     if (!profilePic && data.sender.id) {
          profilePic = `https://files.kick.com/images/user_profile_pics/${data.sender.id}/image.webp`;
     }
@@ -457,7 +455,7 @@ export class KickConnection {
         username: data.sender.username,
         color: data.sender.identity?.color || '#53FC18',
         badges: badges,
-        avatarUrl: profilePic, // Pass raw URL (or constructed one), ChatMessageItem will proxy it
+        avatarUrl: profilePic,
         id: String(data.sender.id)
       },
       content: data.content,
